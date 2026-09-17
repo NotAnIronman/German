@@ -3,11 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#101828" />
+    <meta name="theme-color" content="#1f2623" />
     <meta name="description" content="Satzwerk turns German grammar into flexible, reactive language practice." />
     <title>Satzwerk — German that moves</title>
     <link rel="stylesheet" href="./styles.css" />
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23101828'/%3E%3Cpath d='M15 18h34v8H26v8h18v8H26v8h23v8H15z' fill='%23ffd84d'/%3E%3C/svg%3E" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231f2623'/%3E%3Cpath d='M15 18h34v8H26v8h18v8H26v8h23v8H15z' fill='%23d7a84b'/%3E%3C/svg%3E" />
   </head>
   <body>
     <div class="app-shell">
@@ -19,6 +19,7 @@
         <div class="session-meta" aria-label="Session status">
           <span class="level-chip">A2 · BUILDING CONTROL</span>
           <span class="session-count"><strong id="sessionScore">0</strong> forms secured</span>
+          <button class="restart-button" id="restartButton" type="button">Restart</button>
         </div>
       </header>
 
@@ -26,21 +27,21 @@
         <aside class="lesson-rail" aria-label="Lesson progress">
           <div class="rail-heading">
             <span class="eyebrow">TODAY'S WORKSHOP</span>
-            <h1>One noun.<br />Many lives.</h1>
+            <h1>One rule.<br />Three nouns.</h1>
           </div>
 
           <ol class="lesson-steps">
             <li class="step active" data-step="0">
               <span class="step-number">01</span>
-              <div><strong>Meet the noun</strong><small>Meaning without guessing</small></div>
+              <div><strong>das Papier</strong><small>Meaning before testing</small></div>
             </li>
             <li class="step" data-step="1">
               <span class="step-number">02</span>
-              <div><strong>Move the case</strong><small>Location vs. direction</small></div>
+              <div><strong>der Tisch</strong><small>Transfer the pattern</small></div>
             </li>
             <li class="step" data-step="2">
               <span class="step-number">03</span>
-              <div><strong>Transfer it</strong><small>Same logic, new nouns</small></div>
+              <div><strong>die Tür</strong><small>Change gender, keep control</small></div>
             </li>
           </ol>
 
@@ -49,24 +50,37 @@
             <div class="skill-row"><span>Meaning</span><div><i id="meaningBar"></i></div></div>
             <div class="skill-row"><span>Form</span><div><i id="formBar"></i></div></div>
             <div class="skill-row"><span>Transfer</span><div><i id="transferBar"></i></div></div>
-            <p>Progress only moves when you produce German, not when you reveal it.</p>
+            <p>Progress comes from producing German across different contexts.</p>
+          </div>
+
+          <div class="word-shelf">
+            <span class="eyebrow">WORDS ENCOUNTERED</span>
+            <div id="wordShelf" class="word-shelf-list"></div>
           </div>
         </aside>
 
         <main class="practice" id="practiceArea">
           <div class="practice-topline">
             <div class="target-lockup">
-              <span class="article-orbit">das</span>
-              <div><span class="eyebrow">TARGET NOUN</span><h2>Papier</h2></div>
-              <span class="noun-data">neutral · material<br />die Papiere <em>documents</em></span>
+              <span class="article-orbit" id="targetArticle">das</span>
+              <div><span class="eyebrow">TARGET NOUN</span><h2 id="targetWord">Papier</h2></div>
+              <span class="noun-data"><span id="targetMeta">neuter · material</span><br /><span id="targetPlural">die Papiere</span></span>
             </div>
-            <div class="variation-counter">VARIATION <span id="variationNumber">01</span> / 08</div>
+            <div class="variation-counter">VARIATION <span id="variationNumber">01</span> / <span id="variationTotal">12</span></div>
+          </div>
+
+          <div class="gear-shift" id="gearShift" hidden>
+            <span>NEW ROUND</span>
+            <strong id="gearShiftTitle"></strong>
+            <p id="gearShiftText"></p>
           </div>
 
           <section class="exercise-card" aria-labelledby="promptLabel">
             <div class="card-corner">PRODUCE</div>
             <div class="prompt-block">
               <span class="eyebrow" id="promptLabel">COMPLETE THE THOUGHT</span>
+              <div class="coach-note" id="coachNote" hidden></div>
+              <div class="vocab-bank" id="vocabBank" hidden></div>
               <p class="prompt-context" id="contextText">The office printer stops. Your colleague asks what is missing.</p>
               <p class="sentence" id="sentenceText">Wir brauchen noch <span class="blank">_____</span> für den Drucker.</p>
             </div>
@@ -78,7 +92,7 @@
                 <button class="check-button" type="submit">Check answer <span>↵</span></button>
               </div>
               <div class="input-footer">
-                <span id="inputHelp">Capitalization is coached, not punished.</span>
+                <span id="inputHelp">Write only the missing word.</span>
                 <button class="text-button" id="hintButton" type="button">Give me a useful hint</button>
               </div>
             </form>
@@ -98,14 +112,14 @@
           <section class="frame-strip" aria-label="Sentence construction">
             <div class="frame-heading">
               <span class="eyebrow">UNDER THE SENTENCE</span>
-              <strong>The frame stays. The language moves.</strong>
+              <strong id="frameHeading">Build the frame. The answer stays hidden.</strong>
             </div>
             <div class="frame-pieces" id="framePieces">
               <span class="piece subject">SUBJECT <b>wir</b></span>
               <span class="connector">+</span>
               <span class="piece verb">VERB <b>brauchen</b></span>
               <span class="connector">+</span>
-              <span class="piece target">TARGET <b>Papier</b></span>
+              <span class="piece target masked">TARGET <b>••••</b></span>
               <span class="connector">+</span>
               <span class="piece context">PURPOSE <b>für den Drucker</b></span>
             </div>
