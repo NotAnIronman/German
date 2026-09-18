@@ -8,7 +8,7 @@ const exercises = [
   {
     group: 0, target: "papier", label: "Complete the thought",
     roundIntro: ["Start with das Papier", "Papier means paper and is neuter. When it means paper as a material, German often uses it without an article."],
-    lesson: "You are supplying a material, not counting individual sheets. That is why no article is needed here.",
+    lesson: "Papier names the material as a whole here, so German uses no article.",
     context: "The office printer stops. Your colleague asks what is missing.",
     sentence: 'Wir brauchen noch <span class="blank">_____</span> für den Drucker.',
     placeholder: "Type the missing word…", inputHelp: "Write only the missing word.",
@@ -47,7 +47,7 @@ const exercises = [
   },
   {
     group: 0, target: "papier", label: "Reverse the contrast",
-    context: "Now the number is not there yet. Tell someone to write it onto the paper.",
+    context: "The number still needs to be added. Tell someone to write it onto the paper.",
     sentence: 'Schreib die Nummer <span class="blank">_____</span>.',
     placeholder: "onto the paper…", inputHelp: "Write the complete missing phrase.",
     answers: ["auf das Papier"], keyTerms: ["papier"], capitalNouns: ["Papier"],
@@ -56,7 +56,7 @@ const exercises = [
     trace: ["destination · wohin?", "auf + accusative", "das stays das"],
     pieces: [["COMMAND", "schreib", "verb"], ["OBJECT", "die Nummer", "subject"], ["DIRECTION", "auf das", "context", true], ["TARGET", "Papier", "target", true]],
     diagnose: value => englishWord(value, "onto", "auf", "The article still needs to show the destination case.") || englishWord(value, "on", "auf", "The article still needs to show the destination case.") ||
-      (value.includes("auf dem") ? "You chose the right preposition. Because the number moves onto a destination, wohin? requires accusative: use das, not dem." : null)
+      (value.includes("auf dem") ? "You chose the right preposition. Because the number moves onto a destination, wohin? requires accusative. Replace dem with das." : null)
   },
   {
     group: 1, target: "tisch", label: "Transfer the location pattern",
@@ -104,7 +104,7 @@ const exercises = [
     trace: ["location · wo?", "unter + dative", "der → dem"],
     pieces: [["SUBJECT", "der Schlüssel", "subject", true], ["VERB", "liegt", "verb", true], ["LOCATION", "unter dem", "context", true], ["TARGET", "Tisch", "target", true]],
     diagnose: value => englishWord(value, "under", "unter", "Keep the rest of your German structure.") ||
-      (value.includes("unter den") ? "unter is correct. Because the key is already located there, wo? requires dative: dem, not den." : null)
+      (value.includes("unter den") ? "unter is correct. Because the key is already located there, wo? requires dative. Replace den with dem." : null)
   },
   {
     group: 1, target: "tisch", label: "Reverse it again",
@@ -123,7 +123,7 @@ const exercises = [
   },
   {
     group: 2, target: "tuer", label: "Change the gender",
-    roundIntro: ["Switching to die Tür", "This is a new feminine target. The rule has not changed: wo? still takes dative and wohin? still takes accusative."],
+    roundIntro: ["Switching to die Tür", "This new target is feminine. Continue using dative for wo? and accusative for wohin?."],
     lesson: "Tür is feminine: die Tür. For a location after vor, die changes to der.",
     vocab: [["die Schuhe", "shoes"], ["stehen", "to stand / be positioned"], ["vor", "in front of"]],
     context: "Say: “The shoes are in front of the door.”",
@@ -336,7 +336,7 @@ function showFeedback(kind, title, text, ex) {
   els.feedback.hidden = false;
   els.feedback.className = `feedback ${kind}`;
   els.icon.textContent = kind === "retry" ? "!" : kind === "partial" ? "≈" : "✓";
-  els.kicker.textContent = kind === "retry" ? "TRY ONE DECISION" : kind === "partial" ? "MEANING LANDED" : "FORM SECURED";
+  els.kicker.textContent = kind === "retry" ? "TRY ONE DECISION" : kind === "partial" ? "ANSWER UNDERSTOOD" : "CORRECT FORM";
   els.title.textContent = title;
   els.feedbackText.textContent = text;
   els.trace.innerHTML = kind === "retry" ? "" : ex.trace.map(item => `<span>${item}</span>`).join("");
@@ -365,7 +365,7 @@ function gradeAnswer(raw) {
     const notes = mechanicsNotes(raw, ex, umlautEquivalent);
     secureCurrent();
     if (notes.length) showFeedback("partial", "The German works. Polish the writing.", notes.join(" "), ex);
-    else showFeedback("success", "Exactly right.", ex.success, ex);
+    else showFeedback("success", "Correct form.", ex.success, ex);
     return;
   }
 
@@ -379,10 +379,10 @@ function gradeAnswer(raw) {
     const text = diagnosis || (closest <= Math.max(2, Math.floor(folded.length * .12))
       ? `The structure is there. Compare the repaired form below with what you wrote.`
       : `Your message is understandable. The frame below shows the form to tighten.`);
-    showFeedback("partial", "Understood—with one repair.", text, ex);
+    showFeedback("partial", "One form needs repair.", text, ex);
   } else {
     const retryText = hintShown ? `${ex.hint} Focus on that single decision and try the sentence again.` : ex.hint;
-    showFeedback("retry", "Let’s isolate the problem.", retryText, ex);
+    showFeedback("retry", "Use the hint and try again.", retryText, ex);
   }
 }
 
@@ -428,7 +428,7 @@ function registerModelTools() {
   register({
     name: "read_current_exercise",
     title: "Read current German exercise",
-    description: "Read the visible Satzwerk exercise, introduced vocabulary, target noun, and current progress without changing state.",
+    description: "Read the visible Satzwerk exercise, introduced vocabulary, target noun, and current progress.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
     annotations: { readOnlyHint: true, untrustedContentHint: false },
     execute() {

@@ -3,295 +3,96 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#1f2623" />
-    <meta name="description" content="Satzwerk is a German learning system built around retrieval, context, and transferable language control." />
-    <title>Satzwerk — Build real German</title>
+    <meta name="theme-color" content="#18223a" />
+    <meta name="description" content="Satzwerk is a complete A0 to B2 German course built around retrieval, sentence control, listening, reading, writing, speaking, and useful cultural context." />
+    <title>Satzwerk: German from A0 to B2</title>
     <link rel="stylesheet" href="./styles.css" />
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231f2623'/%3E%3Cpath d='M15 18h34v8H26v8h18v8H26v8h23v8H15z' fill='%23d7a84b'/%3E%3C/svg%3E" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2318223a'/%3E%3Cpath d='M15 18h34v8H26v8h18v8H26v8h23v8H15z' fill='%23ffb15c'/%3E%3C/svg%3E" />
   </head>
   <body>
     <div class="app-shell">
       <header class="topbar">
-        <button class="brand" type="button" data-go="home" aria-label="Open Satzwerk home">
-          <span class="brand-mark">S</span><span>Satzwerk</span>
-        </button>
-        <div class="top-status">
-          <span class="level-label">A0 · FOUNDATION</span>
-          <span class="device-label">Progress saved on this device</span>
-          <button class="avatar" type="button" data-go="progress" aria-label="Open progress">L0</button>
-        </div>
+        <button class="brand" type="button" data-go="home" aria-label="Open Satzwerk home"><span class="brand-mark">S</span><span>Satzwerk</span></button>
+        <div class="top-status"><span class="level-label" id="topLevel">A0 · START HERE</span><span class="device-label">Progress stays on this device</span><button class="avatar" type="button" data-go="progress" aria-label="Open progress" id="avatarLevel">A0</button></div>
       </header>
-
       <div class="product-layout">
         <aside class="sidebar">
           <nav aria-label="Primary navigation">
             <button class="nav-item active" type="button" data-view="home"><span>01</span>Today</button>
-            <button class="nav-item" type="button" data-view="learn"><span>02</span>Learn</button>
-            <button class="nav-item" type="button" data-view="practice"><span>03</span>Practice</button>
-            <button class="nav-item" type="button" data-view="vocabulary"><span>04</span>Vocabulary</button>
-            <button class="nav-item" type="button" data-view="culture"><span>05</span>Culture</button>
-            <button class="nav-item" type="button" data-view="progress"><span>06</span>Progress</button>
-            <button class="nav-item" type="button" data-view="sources"><span>07</span>Sources</button>
+            <button class="nav-item" type="button" data-view="course"><span>02</span>Course</button>
+            <button class="nav-item" type="button" data-view="learn"><span>03</span>Learn words</button>
+            <button class="nav-item" type="button" data-view="practice"><span>04</span>Practice</button>
+            <button class="nav-item" type="button" data-view="grammar"><span>05</span>Grammar</button>
+            <button class="nav-item" type="button" data-view="vocabulary"><span>06</span>Vocabulary</button>
+            <button class="nav-item" type="button" data-view="culture"><span>07</span>Culture</button>
+            <button class="nav-item" type="button" data-view="progress"><span>08</span>Progress</button>
+            <button class="nav-item" type="button" data-view="sources"><span>09</span>Sources</button>
           </nav>
-          <div class="sidebar-foot">
-            <a href="./case-lab.html">Open the A2 Case Lab <span>↗</span></a>
-          </div>
+          <div class="sidebar-foot"><strong>Focused workshop</strong><a href="./case-lab.html">A2 Case Lab <span>↗</span></a></div>
         </aside>
-
         <main class="main-stage" id="mainStage">
+          <div class="module-change" id="moduleChange" hidden aria-live="polite"></div>
+
           <section class="view active" id="view-home" aria-labelledby="homeTitle">
             <div class="page-heading home-heading">
-              <div>
-                <span class="eyebrow">YOUR NEXT USEFUL STEP</span>
-                <h1 id="homeTitle">Start at zero.<br />Build something real.</h1>
-                <p>Satzwerk introduces a small set of words, makes you retrieve them, and waits for durable evidence before calling them learned.</p>
-              </div>
-              <div class="readiness-dial" aria-label="Foundation progress">
-                <span id="homePercent">0%</span><small>A0 foundation</small>
-              </div>
+              <div><span class="eyebrow">A COMPLETE WORKING PATHWAY</span><h1 id="homeTitle">German that holds up<br />in a real conversation.</h1><p>Move from first sounds to B2 argumentation through words, sentence patterns, listening, reading, writing, speaking, and delayed review.</p></div>
+              <div class="readiness-dial" aria-label="Course evidence"><span id="homePercent">0%</span><small>course evidence</small></div>
             </div>
-
             <div class="today-grid">
-              <article class="continue-card">
-                <div class="card-label">CONTINUE</div>
-                <div class="continue-copy">
-                  <span id="continueUnit">UNIT 01 · FIRST CONTACT</span>
-                  <h2 id="continueTitle">Meet your first German words</h2>
-                  <p id="continueText">Learn each word as a usable bundle before it appears in practice.</p>
-                </div>
-                <button class="primary-button" id="continueButton" type="button">Begin with words <span>→</span></button>
-              </article>
-
-              <article class="due-card">
-                <div class="card-label">REVIEW SIGNAL</div>
-                <div class="due-number" id="dueCount">0</div>
-                <strong>words ready for retrieval</strong>
-                <p>Reviews become valuable when some forgetting has had time to happen.</p>
-                <button class="quiet-button" type="button" data-go="vocabulary">See vocabulary</button>
-              </article>
+              <article class="continue-card"><div class="card-label">CONTINUE</div><div class="continue-copy"><span id="continueUnit">A0.1 · SOUND AND SPELLING</span><h2 id="continueTitle">Meet German on its own terms</h2><p id="continueText">Start with sounds, spelling, and the words that let you take part right away.</p></div><button class="primary-button" id="continueButton" type="button">Open module <span>→</span></button></article>
+              <article class="due-card"><div class="card-label">REVIEW TODAY</div><div class="due-number" id="dueCount">0</div><strong>word bundles ready to retrieve</strong><p id="dueMessage">Your first reviews will appear after you meet some words.</p><button class="quiet-button" type="button" data-go="vocabulary">Open vocabulary</button></article>
             </div>
+            <section class="home-metrics" aria-label="Course contents"><article><strong id="homeModuleCount">34</strong><span>guided modules</span></article><article><strong id="homeWordCount">0</strong><span>word bundles</span></article><article><strong id="homePromptCount">0</strong><span>typed prompts</span></article><article><strong>6</strong><span>practice modes</span></article></section>
+            <section class="path-section" aria-labelledby="pathTitle"><div class="section-heading"><div><span class="eyebrow">A0 TO B2</span><h2 id="pathTitle">Every level is ready to explore</h2></div><span class="section-note">Choose any level for testing. The recommended route runs from left to right.</span></div><div class="level-path" id="homeLevelPath"></div></section>
+            <section class="loop-section" aria-labelledby="loopTitle"><div class="section-heading"><div><span class="eyebrow">HOW A MODULE WORKS</span><h2 id="loopTitle">One idea, several kinds of use</h2></div><span class="section-note">Each return asks for a little more independence.</span></div><div class="loop-grid"><article><span class="loop-number">1</span><strong>Meet the bundle</strong><p>Learn meaning, sound, article, plural, and a natural example together.</p></article><article><span class="loop-number">2</span><strong>Build the sentence</strong><p>Type the form from context and receive a precise repair when something shifts.</p></article><article><span class="loop-number">3</span><strong>Use every channel</strong><p>Listen, read, write, and speak with the same grammar serving a clear purpose.</p></article><article><span class="loop-number">4</span><strong>Return after time</strong><p>Delayed retrieval moves a word toward dependable access.</p></article></div></section>
+          </section>
 
-            <section class="loop-section" aria-labelledby="loopTitle">
-              <div class="section-heading">
-                <div><span class="eyebrow">THE LEARNING LOOP</span><h2 id="loopTitle">Evidence, not activity</h2></div>
-                <span class="section-note">Flashcard taps cannot manufacture fluency.</span>
-              </div>
-              <div class="loop-grid">
-                <article><span class="loop-number">1</span><strong>Meet</strong><p>Meaning, sound, article, plural, and one natural context.</p></article>
-                <article><span class="loop-number">2</span><strong>Retrieve</strong><p>Produce the word without answer choices or a visible model.</p></article>
-                <article><span class="loop-number">3</span><strong>Transfer</strong><p>Use it inside a new sentence while grammar and meaning compete.</p></article>
-                <article><span class="loop-number">4</span><strong>Return later</strong><p>Only delayed success can move vocabulary toward durable.</p></article>
-              </div>
-            </section>
-
-            <section class="path-section" aria-labelledby="pathTitle">
-              <div class="section-heading"><div><span class="eyebrow">A0 → B2 PATHWAY</span><h2 id="pathTitle">The honest map</h2></div><span class="section-note">Later levels remain locked until their curriculum exists.</span></div>
-              <div class="level-path">
-                <div class="path-level active"><b>A0</b><span>Foundation</span><small>In production</small></div>
-                <div class="path-line"></div>
-                <div class="path-level"><b>A1</b><span>Daily survival</span><small>Planned</small></div>
-                <div class="path-line"></div>
-                <div class="path-level"><b>A2</b><span>Connected life</span><small>Lab available</small></div>
-                <div class="path-line"></div>
-                <div class="path-level"><b>B1</b><span>Independent use</span><small>Planned</small></div>
-                <div class="path-line"></div>
-                <div class="path-level"><b>B2</b><span>Flexible command</span><small>Planned</small></div>
-              </div>
-            </section>
+          <section class="view" id="view-course" aria-labelledby="courseTitle" hidden>
+            <div class="page-heading compact-heading"><div><span class="eyebrow">FULL CURRICULUM</span><h1 id="courseTitle">Choose the next thing you want to handle</h1><p>Every module joins a communicative goal with the grammar, vocabulary, and practice needed to carry it.</p></div><div class="deck-progress"><strong id="courseModuleTotal">34</strong><span>modules available</span></div></div>
+            <div class="level-tabs" id="levelTabs" aria-label="Course levels"></div>
+            <div class="course-layout"><div><div class="level-summary" id="levelSummary"></div><div class="module-grid" id="moduleGrid"></div></div><aside class="module-detail" id="moduleDetail" aria-live="polite"></aside></div>
           </section>
 
           <section class="view" id="view-learn" aria-labelledby="learnTitle" hidden>
-            <div class="page-heading compact-heading">
-              <div><span class="eyebrow">A0 · UNIT 01</span><h1 id="learnTitle">First contact</h1><p>Learn the form and the situation together. Revealing a card records exposure—not mastery.</p></div>
-              <div class="deck-progress"><strong id="deckPosition">1 / 12</strong><span>current deck</span></div>
-            </div>
-
-            <div class="learn-toolbar" aria-label="Flashcard options">
-              <label for="cardDirection">Card direction</label>
-              <select id="cardDirection">
-                <option value="german">German first</option>
-                <option value="english">English first</option>
-                <option value="mixed">Mixed</option>
-              </select>
-              <button class="quiet-button" id="shuffleDeck" type="button">Shuffle deck</button>
-              <button class="quiet-button" id="speakWord" type="button">Hear German</button>
-            </div>
-
-            <div class="flashcard-shell">
-              <button class="flashcard" id="flashcard" type="button" aria-expanded="false">
-                <span class="card-label" id="cardUnit">FIRST CONTACT</span>
-                <span class="flash-prompt" id="flashPrompt">GERMAN</span>
-                <strong id="flashFront">Hallo</strong>
-                <span class="flip-instruction" id="flipInstruction">Tap to reveal meaning and use</span>
-                <span class="flash-answer" id="flashAnswer" hidden></span>
-                <span class="flash-bundle" id="flashBundle" hidden></span>
-                <span class="flash-example" id="flashExample" hidden></span>
-              </button>
-              <div class="rating-row" id="ratingRow" hidden>
-                <span>How available did it feel?</span>
-                <div>
-                  <button type="button" data-rating="again">Again</button>
-                  <button type="button" data-rating="hard">Hard</button>
-                  <button type="button" data-rating="got">Got it</button>
-                </div>
-                <small>Ratings add limited practice evidence. They cannot create durable status.</small>
-              </div>
-            </div>
-
-            <div class="deck-strip" id="deckStrip" aria-label="Flashcard deck"></div>
+            <div class="page-heading compact-heading"><div><span class="eyebrow" id="learnEyebrow">A0.1 · WORD BUNDLES</span><h1 id="learnTitle">Sound and spelling</h1><p id="learnIntro">Meet each word with the information needed to use it later.</p></div><div class="deck-progress"><strong id="deckPosition">1 / 8</strong><span>current deck</span></div></div>
+            <div class="module-control-row"><label for="learnModuleSelect">Module</label><select id="learnModuleSelect"></select><button class="quiet-button" type="button" data-go="course">View course map</button></div>
+            <div class="learn-toolbar" aria-label="Flashcard options"><label for="cardDirection">Card direction</label><select id="cardDirection"><option value="german">German first</option><option value="english">English first</option><option value="mixed">Mixed</option></select><button class="quiet-button" id="shuffleDeck" type="button">Shuffle deck</button><button class="quiet-button" id="speakWord" type="button">Hear German</button></div>
+            <div class="flashcard-shell"><button class="flashcard" id="flashcard" type="button" aria-expanded="false"><span class="card-label" id="cardUnit">A0.1 · SOUND AND SPELLING</span><span class="flash-prompt" id="flashPrompt">GERMAN</span><strong id="flashFront">Hallo</strong><span class="flip-instruction" id="flipInstruction">Reveal meaning and use</span><span class="flash-answer" id="flashAnswer" hidden></span><span class="flash-bundle" id="flashBundle" hidden></span><span class="flash-example" id="flashExample" hidden></span></button><div class="rating-row" id="ratingRow" hidden><span>How available did it feel?</span><div><button type="button" data-rating="again">Again</button><button type="button" data-rating="hard">Hard</button><button type="button" data-rating="got">Got it</button></div><small>These ratings schedule practice. Later retrieval decides the evidence tier.</small></div></div>
+            <div class="deck-strip" id="deckStrip" aria-label="Flashcard deck"></div><div class="next-step-bar"><span id="learnDeckStatus">0 of 8 bundles met</span><button class="primary-button" id="learnToPractice" type="button">Practice this module <span>→</span></button></div>
           </section>
 
           <section class="view" id="view-practice" aria-labelledby="practiceTitle" hidden>
-            <div class="page-heading compact-heading">
-              <div><span class="eyebrow">RETRIEVAL PRACTICE</span><h1 id="practiceTitle">Use what you have met</h1><p>Questions are built only from vocabulary already introduced in your profile.</p></div>
-              <div class="practice-stat"><strong id="availableQuestionCount">0</strong><span>prompts available</span></div>
+            <div class="page-heading compact-heading"><div><span class="eyebrow" id="practiceEyebrow">A0.1 · PRACTICE</span><h1 id="practiceTitle">Use the module from six angles</h1><p id="practiceIntro">Sentence work stays central. Listening, reading, writing, speaking, and a checkpoint make the same knowledge travel.</p></div><div class="practice-stat"><strong id="availableQuestionCount">0</strong><span>sentence prompts ready</span></div></div>
+            <div class="module-control-row"><label for="practiceModuleSelect">Module</label><select id="practiceModuleSelect"></select><button class="quiet-button" id="practiceLearnFirst" type="button">Review word deck</button></div>
+            <div class="practice-start" id="practiceStart"><button class="mode-card featured" type="button" data-practice-mode="sentences"><span>01</span><strong>Sentence lab</strong><p>Produce grammar and vocabulary from a changing situation.</p><small id="sentenceReadiness">Meet three bundles to begin.</small></button><button class="mode-card" type="button" data-practice-mode="listening"><span>02</span><strong>Listening</strong><p>Hear a short German message and answer from meaning.</p><small>Browser audio</small></button><button class="mode-card" type="button" data-practice-mode="reading"><span>03</span><strong>Reading</strong><p>Read a useful text and locate the detail that matters.</p><small>One focused text</small></button><button class="mode-card" type="button" data-practice-mode="writing"><span>04</span><strong>Writing</strong><p>Complete a guided task with a clear purpose and checklist.</p><small>Model after submission</small></button><button class="mode-card" type="button" data-practice-mode="speaking"><span>05</span><strong>Speaking</strong><p>Respond aloud, capture a transcript, and check key phrases.</p><small>Microphone optional</small></button><button class="mode-card checkpoint" type="button" data-practice-mode="checkpoint"><span>06</span><strong>Module checkpoint</strong><p>Run the full prompt set and see what needs another return.</p><small>Local course evidence</small></button></div>
+            <div class="activity-shell" id="activityShell" hidden>
+              <div class="activity-header"><button class="back-button" id="activityBack" type="button">← Practice menu</button><span id="activityName">SENTENCE LAB</span></div>
+              <div class="quiz-shell" id="quizShell" hidden><div class="quiz-topline"><span id="quizMode">SENTENCE LAB</span><span id="quizProgress">1 / 6</span></div><div class="quiz-progress-track"><i id="quizProgressBar"></i></div><div class="quiz-card"><span class="eyebrow" id="quizType">PRODUCE</span><p class="quiz-context" id="quizContext"></p><h2 id="quizPrompt"></h2><div class="quiz-word-bank" id="quizWordBank" hidden></div><form id="quizForm" autocomplete="off"><label for="quizInput">Your answer</label><div class="answer-line"><input id="quizInput" type="text" lang="de" /><button class="primary-button" type="submit">Check</button></div></form><div class="quiz-feedback" id="quizFeedback" hidden aria-live="polite"><span id="quizFeedbackMark"></span><div><strong id="quizFeedbackTitle"></strong><p id="quizFeedbackText"></p><p class="correct-answer" id="quizCorrectAnswer"></p></div><button id="quizNext" type="button">Next <span>→</span></button></div></div></div>
+              <div class="skill-task" id="listeningTask" hidden><span class="eyebrow">LISTENING</span><h2 id="listeningTitle">Listen for the useful detail</h2><p id="listeningContext"></p><button class="listen-button" id="playListening" type="button"><span>▶</span> Play German</button><small>You can replay the message.</small><form id="listeningForm"><label for="listeningInput" id="listeningPrompt">What did you hear?</label><div class="answer-line"><input id="listeningInput" type="text" /><button class="primary-button" type="submit">Check</button></div></form><div class="task-feedback" id="listeningFeedback" hidden></div></div>
+              <div class="skill-task reading-task" id="readingTask" hidden><span class="eyebrow">READING</span><h2 id="readingTitle">Read for a clear purpose</h2><div class="reading-passage" id="readingPassage" lang="de"></div><form id="readingForm"><label for="readingInput" id="readingPrompt">Answer in German.</label><div class="answer-line"><input id="readingInput" type="text" /><button class="primary-button" type="submit">Check</button></div></form><div class="task-feedback" id="readingFeedback" hidden></div></div>
+              <div class="skill-task" id="writingTask" hidden><span class="eyebrow">WRITING</span><h2 id="writingTitle">Write with a purpose</h2><p id="writingPrompt"></p><ul class="task-checklist" id="writingGuide"></ul><label for="writingInput">Your text</label><textarea id="writingInput" rows="9" lang="de"></textarea><div class="task-actions"><span id="writingCount">0 words</span><button class="primary-button" id="checkWriting" type="button">Check the building blocks</button></div><div class="task-feedback" id="writingFeedback" hidden></div></div>
+              <div class="skill-task" id="speakingTask" hidden><span class="eyebrow">SPEAKING</span><h2 id="speakingTitle">Answer aloud</h2><p id="speakingPrompt"></p><ul class="task-checklist" id="speakingGuide"></ul><div class="speech-controls"><button class="listen-button" id="hearSpeakingModel" type="button"><span>▶</span> Hear the situation</button><button class="quiet-button" id="startRecognition" type="button">Start microphone</button></div><label for="speakingTranscript">Transcript or notes</label><textarea id="speakingTranscript" rows="6" lang="de"></textarea><button class="primary-button" id="checkSpeaking" type="button">Check key phrases</button><div class="task-feedback" id="speakingFeedback" hidden></div></div>
             </div>
+            <div class="quiz-summary" id="quizSummary" hidden><span class="eyebrow">SET COMPLETE</span><h2 id="summaryTitle">You produced 4 of 6.</h2><p id="summaryText"></p><div class="summary-grid"><div><strong id="summaryCorrect">0</strong><span>first-pass correct</span></div><div><strong id="summaryRecovered">0</strong><span>recovered on retry</span></div><div><strong id="summaryMissed">0</strong><span>ready for repair</span></div></div><div class="summary-actions"><button class="primary-button" id="retryMissed" type="button">Retry missed questions</button><button class="quiet-button" id="finishQuiz" type="button">Return to practice</button></div><small>Same-session repairs help you understand the form. A later return supplies stronger evidence.</small></div>
+          </section>
 
-            <div class="practice-start" id="practiceStart">
-              <article class="start-panel">
-                <span class="card-label">ADAPTIVE SET</span>
-                <h2>A short, typed quiz</h2>
-                <p id="practiceReadiness">Introduce at least four words before beginning. No unseen vocabulary will be graded.</p>
-                <div class="set-mix"><span><b>60%</b> retrieval</span><span><b>25%</b> form</span><span><b>15%</b> transfer</span></div>
-                <button class="primary-button" id="startQuiz" type="button">Start quiz <span>→</span></button>
-              </article>
-              <article class="lab-panel">
-                <span class="card-label">ADVANCED PREVIEW</span>
-                <h2>Reactive case workshop</h2>
-                <p>The original Papier → Tisch → Tür workshop remains available as an A2 laboratory.</p>
-                <a class="quiet-button link-button" href="./case-lab.html">Open Case Lab ↗</a>
-              </article>
-            </div>
-
-            <div class="quiz-shell" id="quizShell" hidden>
-              <div class="quiz-topline"><span id="quizMode">ADAPTIVE QUIZ</span><span id="quizProgress">1 / 8</span></div>
-              <div class="quiz-progress-track"><i id="quizProgressBar"></i></div>
-              <div class="quiz-card">
-                <span class="eyebrow" id="quizType">PRODUCE</span>
-                <p class="quiz-context" id="quizContext"></p>
-                <h2 id="quizPrompt"></h2>
-                <div class="quiz-word-bank" id="quizWordBank" hidden></div>
-                <form id="quizForm" autocomplete="off">
-                  <label for="quizInput">Your answer</label>
-                  <div class="answer-line"><input id="quizInput" type="text" /><button class="primary-button" type="submit">Check</button></div>
-                </form>
-                <div class="quiz-feedback" id="quizFeedback" hidden aria-live="polite">
-                  <span id="quizFeedbackMark"></span>
-                  <div><strong id="quizFeedbackTitle"></strong><p id="quizFeedbackText"></p></div>
-                  <button id="quizNext" type="button">Next <span>→</span></button>
-                </div>
-              </div>
-            </div>
-
-            <div class="quiz-summary" id="quizSummary" hidden>
-              <span class="eyebrow">SET COMPLETE</span>
-              <h2 id="summaryTitle">You produced 6 of 8.</h2>
-              <p id="summaryText"></p>
-              <div class="summary-grid"><div><strong id="summaryCorrect">0</strong><span>first-pass correct</span></div><div><strong id="summaryRecovered">0</strong><span>recovered on retry</span></div><div><strong id="summaryMissed">0</strong><span>still needs work</span></div></div>
-              <div class="summary-actions"><button class="primary-button" id="retryMissed" type="button">Retry missed questions</button><button class="quiet-button" id="finishQuiz" type="button">Return to practice</button></div>
-              <small>Immediate recovery confirms understanding. It adds only minor evidence; delayed retrieval is still required for durable status.</small>
-            </div>
+          <section class="view" id="view-grammar" aria-labelledby="grammarTitle" hidden>
+            <div class="page-heading compact-heading"><div><span class="eyebrow">GRAMMAR WORKBENCH</span><h1 id="grammarTitle">See the system behind the sentence</h1><p>Open any module for a plain-language explanation, a form map, and examples tied to a real use.</p></div></div><div class="module-control-row"><label for="grammarModuleSelect">Module</label><select id="grammarModuleSelect"></select><a class="quiet-button link-button" href="./case-lab.html">Open A2 Case Lab ↗</a></div><div class="grammar-layout"><div class="grammar-stack" id="grammarCards"></div><aside class="case-desk"><span class="eyebrow">ARTICLE AND CASE DESK</span><h2>A compact reference</h2><div class="case-table-wrap"><table class="case-table"><thead><tr><th></th><th>Masculine</th><th>Feminine</th><th>Neuter</th><th>Plural</th></tr></thead><tbody><tr><th>Nominative</th><td>der</td><td>die</td><td>das</td><td>die</td></tr><tr><th>Accusative</th><td>den</td><td>die</td><td>das</td><td>die</td></tr><tr><th>Dative</th><td>dem</td><td>der</td><td>dem</td><td>den + n</td></tr><tr><th>Genitive</th><td>des + s/es</td><td>der</td><td>des + s/es</td><td>der</td></tr></tbody></table></div><p><strong>Ask what the noun is doing.</strong> The subject points to nominative. A direct target often takes accusative. A recipient or location after many prepositions often takes dative.</p></aside></div>
           </section>
 
           <section class="view" id="view-vocabulary" aria-labelledby="vocabTitle" hidden>
-            <div class="page-heading compact-heading">
-              <div><span class="eyebrow">YOUR WORD MODEL</span><h1 id="vocabTitle">Vocabulary by evidence</h1><p>A word can be familiar without being available in speech. These tiers deliberately separate exposure from durable retrieval.</p></div>
-              <div class="vocab-total"><strong id="unlockedCount">0</strong><span>words encountered</span></div>
-            </div>
-            <div class="tier-legend">
-              <span><i class="tier-dot introduced"></i>Introduced</span>
-              <span><i class="tier-dot practicing"></i>Practicing</span>
-              <span><i class="tier-dot retrievable"></i>Retrievable</span>
-              <span><i class="tier-dot durable"></i>Durable</span>
-            </div>
-            <div class="vocab-filters" id="vocabFilters">
-              <button class="active" type="button" data-tier="all">All</button>
-              <button type="button" data-tier="introduced">Introduced</button>
-              <button type="button" data-tier="practicing">Practicing</button>
-              <button type="button" data-tier="retrievable">Retrievable</button>
-              <button type="button" data-tier="durable">Durable</button>
-            </div>
-            <div class="vocab-table-wrap">
-              <table class="vocab-table">
-                <thead><tr><th>German bundle</th><th>Meaning</th><th>Tier</th><th>Evidence</th><th>Next useful action</th></tr></thead>
-                <tbody id="vocabRows"></tbody>
-              </table>
-              <div class="empty-vocab" id="emptyVocab" hidden>No words in this tier yet.</div>
-            </div>
-            <div class="anti-spam-note"><strong>Why retries barely move the meter</strong><p>Recognition and same-session repetition are useful practice, but they are weak evidence of durable recall. Reliable and durable tiers require production across later sessions and different contexts.</p></div>
+            <div class="page-heading compact-heading"><div><span class="eyebrow">YOUR WORD MODEL</span><h1 id="vocabTitle">Find every bundle and its evidence</h1><p>Articles, plurals, common partners, and an example stay attached to the word.</p></div><div class="vocab-total"><strong id="unlockedCount">0</strong><span>bundles encountered</span></div></div><div class="vocab-controls"><label>Show <select id="vocabScope"><option value="introduced">Encountered words</option><option value="all">Entire course bank</option></select></label><label>Level <select id="vocabLevel"><option value="all">All levels</option></select></label><label>Search <input id="vocabSearch" type="search" placeholder="German or English" /></label></div><div class="tier-legend"><span><i class="tier-dot introduced"></i>Introduced</span><span><i class="tier-dot practicing"></i>Practicing</span><span><i class="tier-dot retrievable"></i>Retrievable</span><span><i class="tier-dot durable"></i>Durable</span></div><div class="vocab-filters" id="vocabFilters"><button class="active" type="button" data-tier="all">All tiers</button><button type="button" data-tier="introduced">Introduced</button><button type="button" data-tier="practicing">Practicing</button><button type="button" data-tier="retrievable">Retrievable</button><button type="button" data-tier="durable">Durable</button></div><div class="vocab-table-wrap"><table class="vocab-table"><thead><tr><th>German bundle</th><th>Meaning and example</th><th>Level</th><th>Evidence</th><th>Action</th></tr></thead><tbody id="vocabRows"></tbody></table><div class="empty-vocab" id="emptyVocab" hidden>No words match these filters.</div></div><div class="anti-spam-note"><strong>Retry credit stays small</strong><p>Immediate repetitions can clarify a form. Retrievable and durable tiers require successful production across later sessions and different contexts.</p></div>
           </section>
 
-          <section class="view" id="view-culture" aria-labelledby="cultureTitle" hidden>
-            <div class="page-heading compact-heading">
-              <div><span class="eyebrow">LANGUAGE IN PEOPLE'S LIVES</span><h1 id="cultureTitle">Context, without stereotypes</h1><p>Culture notes explain choices you may actually face. They are invitations to notice variation, not rules for how every German behaves.</p></div>
-            </div>
-            <div class="culture-grid">
-              <article class="culture-card featured">
-                <span class="culture-index">01 · ADDRESS</span>
-                <h2>Du or Sie?</h2>
-                <p><em>du</em> signals familiarity; <em>Sie</em> creates respectful distance. In workplaces and new relationships, the choice depends on the setting rather than one universal rule. When unsure, listening first is often safer than assuming.</p>
-                <div class="culture-language"><span>du</span><span>Sie</span><span>Wie heißen Sie?</span></div>
-                <a href="https://www.goethe.de/de/m/spr/ueb/daa/all/ds0/ds2.html" target="_blank" rel="noreferrer">Goethe-Institut source ↗</a>
-              </article>
-              <article class="culture-card">
-                <span class="culture-index">02 · REGIONS</span>
-                <h2>One greeting is never the whole map</h2>
-                <p><em>Hallo</em> travels well, but regional speech is part of daily life. You may hear <em>Moin</em> in the north and <em>Servus</em> or <em>Grüß Gott</em> farther south.</p>
-                <div class="culture-language"><span>Moin</span><span>Servus</span><span>Guten Tag</span></div>
-                <a href="https://www.deutschland.de/en/topic/life/dialects-germany-german-language" target="_blank" rel="noreferrer">Deutschland.de source ↗</a>
-              </article>
-              <article class="culture-card">
-                <span class="culture-index">03 · METHOD</span>
-                <h2>Culture is something you investigate</h2>
-                <p>Good cultural learning goes beyond memorizing national facts. It asks learners to observe, compare, discuss, and revise their assumptions about German-speaking communities.</p>
-                <div class="culture-language"><span>Deutschland</span><span>Österreich</span><span>die Schweiz</span></div>
-                <a href="https://www.goethe.de/prj/dlp/en/magazin-sprache/23009865.html" target="_blank" rel="noreferrer">Goethe-Institut source ↗</a>
-              </article>
-            </div>
-          </section>
+          <section class="view" id="view-culture" aria-labelledby="cultureTitle" hidden><div class="page-heading compact-heading"><div><span class="eyebrow">LANGUAGE IN PEOPLE'S LIVES</span><h1 id="cultureTitle">Context for the choices you will hear</h1><p>These notes introduce regional language, everyday expectations, and register. Each note links to its source.</p></div></div><div class="level-tabs" id="cultureLevelTabs" aria-label="Culture note levels"></div><div class="culture-grid" id="cultureGrid"></div></section>
 
-          <section class="view" id="view-progress" aria-labelledby="progressTitle" hidden>
-            <div class="page-heading compact-heading">
-              <div><span class="eyebrow">EVIDENCE DASHBOARD</span><h1 id="progressTitle">What the system actually knows</h1><p>Unmeasured skills remain unmeasured. A vocabulary streak is not reported as speaking ability.</p></div>
-            </div>
-            <div class="progress-overview">
-              <article><span>WORDS ENCOUNTERED</span><strong id="progressWords">0</strong><small>of 24 in the current A0 bank</small></article>
-              <article><span>FIRST-PASS RETRIEVAL</span><strong id="progressAccuracy">—</strong><small>across completed quiz prompts</small></article>
-              <article><span>DUE FOR REVIEW</span><strong id="progressDue">0</strong><small>spacing signal, not a punishment</small></article>
-            </div>
-            <div class="skill-evidence">
-              <div class="evidence-row"><div><strong>Vocabulary meaning</strong><span id="vocabEvidenceLabel">Not measured</span></div><div class="evidence-track"><i id="vocabEvidenceBar"></i></div></div>
-              <div class="evidence-row"><div><strong>Written production</strong><span id="writingEvidenceLabel">Not measured</span></div><div class="evidence-track"><i id="writingEvidenceBar"></i></div></div>
-              <div class="evidence-row unmeasured"><div><strong>Listening</strong><span>Not measured yet</span></div><div class="evidence-track"><i></i></div></div>
-              <div class="evidence-row unmeasured"><div><strong>Speaking</strong><span>Not measured yet</span></div><div class="evidence-track"><i></i></div></div>
-              <div class="evidence-row unmeasured"><div><strong>Conversation</strong><span>Not measured yet</span></div><div class="evidence-track"><i></i></div></div>
-            </div>
-            <section class="curriculum-map">
-              <div class="section-heading"><div><span class="eyebrow">CURRICULUM STATUS</span><h2>Built versus planned</h2></div></div>
-              <div class="curriculum-row"><b>A0</b><span>First contact, core vocabulary engine, adaptive typed retrieval</span><em class="status-live">LIVE</em></div>
-              <div class="curriculum-row"><b>A1</b><span>Identity, family, time, food, travel, present tense</span><em>PLANNED</em></div>
-              <div class="curriculum-row"><b>A2</b><span>Cases, connected narration, daily independence</span><em class="status-lab">LAB</em></div>
-              <div class="curriculum-row"><b>B1</b><span>Sustained explanation, opinions, broader authentic input</span><em>PLANNED</em></div>
-              <div class="curriculum-row"><b>B2</b><span>Nuance, argumentation, register, spontaneous interaction</span><em>PLANNED</em></div>
-            </section>
-          </section>
+          <section class="view" id="view-progress" aria-labelledby="progressTitle" hidden><div class="page-heading compact-heading"><div><span class="eyebrow">EVIDENCE DASHBOARD</span><h1 id="progressTitle">See what you have actually practiced</h1><p>Each skill keeps its own record. Course evidence describes your work here. Official CEFR assessment remains separate.</p></div></div><div class="progress-overview"><article><span>WORDS ENCOUNTERED</span><strong id="progressWords">0</strong><small id="progressWordsDetail">of the full course bank</small></article><article><span>FIRST-PASS RETRIEVAL</span><strong id="progressAccuracy">No data</strong><small>across typed prompts</small></article><article><span>MODULES STARTED</span><strong id="progressModules">0</strong><small id="progressModulesDetail">of 34 available</small></article><article><span>DUE FOR REVIEW</span><strong id="progressDue">0</strong><small>scheduled word bundles</small></article></div><div class="skill-evidence" id="skillEvidence"></div><section class="curriculum-map"><div class="section-heading"><div><span class="eyebrow">LEVEL PROGRESS</span><h2>Evidence across the pathway</h2></div></div><div id="progressLevels"></div></section><button class="quiet-button danger-soft" id="resetProgress" type="button">Reset course progress</button></section>
 
-          <section class="view" id="view-sources" aria-labelledby="sourcesTitle" hidden>
-            <div class="page-heading compact-heading">
-              <div><span class="eyebrow">CREDITS & SOURCES</span><h1 id="sourcesTitle">Where the system gets its footing</h1><p>Satzwerk’s wording and exercises are original synthesis. These sources guide level definitions, vocabulary scope, grammar checks, learning design, and cultural context.</p></div>
-            </div>
-            <div class="source-list">
-              <article><span>LEVEL FRAMEWORK</span><h2>Council of Europe · CEFR Companion Volume</h2><p>Used to frame communicative competencies and the A1–B2 pathway. CEFR levels are not reduced to vocabulary totals.</p><a href="https://www.coe.int/en/web/common-european-framework-reference-languages/cefr-companion-volume-and-its-language-versions" target="_blank" rel="noreferrer">Open source ↗</a></article>
-              <article><span>VOCABULARY SCOPE</span><h2>Goethe-Institut · Deutsch Online A1 glossary</h2><p>Used as one reference for beginner vocabulary selection and for the practice of storing nouns with their articles, plurals, and examples.</p><a href="https://lernen.goethe.de/deutschonline/A1/PDF/EN/A1_deutschonline_course_vocabulary_1-18.pdf" target="_blank" rel="noreferrer">Open glossary ↗</a></article>
-              <article><span>GRAMMAR</span><h2>Duden and IDS Grammis</h2><p>Used to verify noun categories, case behavior, and the local-versus-directional contrast of German two-way prepositions.</p><div class="source-links"><a href="https://www.duden.de/sprachwissen/fuer-lernende/wortarten-nomen" target="_blank" rel="noreferrer">Duden nouns ↗</a><a href="https://grammis.ids-mannheim.de/systematische-grammatik/1448" target="_blank" rel="noreferrer">IDS prepositions ↗</a></div></article>
-              <article><span>LEARNING SCIENCE</span><h2>Retrieval practice and spacing research</h2><p>The distinction between immediate practice and durable evidence is informed by research on test-enhanced learning and distributed practice.</p><div class="source-links"><a href="https://doi.org/10.1111/j.1467-9280.2006.01693.x" target="_blank" rel="noreferrer">Roediger & Karpicke ↗</a><a href="https://doi.org/10.1037/0033-2909.132.3.354" target="_blank" rel="noreferrer">Cepeda et al. ↗</a></div></article>
-              <article><span>CULTURAL CONTEXT</span><h2>Goethe-Institut and Deutschland.de</h2><p>Culture notes use attributed sources and emphasize variation rather than treating one custom as universally German.</p><div class="source-links"><a href="https://www.goethe.de/prj/dlp/en/magazin-sprache/23009865.html" target="_blank" rel="noreferrer">Cultural learning ↗</a><a href="https://www.deutschland.de/en/topic/life/dialects-germany-german-language" target="_blank" rel="noreferrer">Regional language ↗</a></div></article>
-            </div>
-            <div class="source-disclaimer"><strong>Independence</strong><p>Satzwerk is not affiliated with or endorsed by the Council of Europe, Goethe-Institut, Duden, IDS, or Deutschland.de. Source links support verification; their exercises and prose are not reproduced here.</p></div>
-          </section>
+          <section class="view" id="view-sources" aria-labelledby="sourcesTitle" hidden><div class="page-heading compact-heading"><div><span class="eyebrow">CREDITS AND SOURCES</span><h1 id="sourcesTitle">The references behind the course</h1><p>Course wording and exercises were written for Satzwerk. These sources guide level scope, vocabulary form, grammar checks, assessment shape, learning design, and cultural context.</p></div></div><div class="source-list" id="sourceList"></div><div class="source-disclaimer"><strong>Independent course</strong><p>Satzwerk operates independently from the organizations listed here. Links are provided for verification and further study.</p></div></section>
         </main>
       </div>
     </div>
-    <script src="./app.js"></script>
+    <dialog id="resetDialog"><form method="dialog"><span class="eyebrow">RESET PROGRESS</span><h2>Clear all course evidence from this device?</h2><p>This removes word history, module records, and review dates. The course content stays available.</p><div><button class="quiet-button" value="cancel">Keep progress</button><button class="danger-button" id="confirmReset" value="confirm">Clear progress</button></div></form></dialog>
+    <script src="./curriculum.js"></script><script src="./app.js"></script>
   </body>
 </html>
