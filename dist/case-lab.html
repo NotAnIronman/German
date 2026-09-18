@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#1f2623" />
+    <meta name="description" content="Satzwerk turns German grammar into flexible, reactive language practice." />
+    <title>Satzwerk Case Lab</title>
+    <link rel="stylesheet" href="./case-lab.css" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231f2623'/%3E%3Cpath d='M15 18h34v8H26v8h18v8H26v8h23v8H15z' fill='%23d7a84b'/%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="#" aria-label="Satzwerk home">
+          <span class="brand-mark">S</span>
+          <span>Satzwerk</span>
+        </a>
+        <div class="session-meta" aria-label="Session status">
+          <span class="level-chip">A2 · BUILDING CONTROL</span>
+          <span class="session-count"><strong id="sessionScore">0</strong> forms secured</span>
+          <button class="restart-button" id="restartButton" type="button">Restart</button>
+        </div>
+      </header>
+
+      <div class="workspace">
+        <aside class="lesson-rail" aria-label="Lesson progress">
+          <div class="rail-heading">
+            <span class="eyebrow">TODAY'S WORKSHOP</span>
+            <h1>One rule.<br />Three nouns.</h1>
+          </div>
+
+          <ol class="lesson-steps">
+            <li class="step active" data-step="0">
+              <span class="step-number">01</span>
+              <div><strong>das Papier</strong><small>Meaning before testing</small></div>
+            </li>
+            <li class="step" data-step="1">
+              <span class="step-number">02</span>
+              <div><strong>der Tisch</strong><small>Transfer the pattern</small></div>
+            </li>
+            <li class="step" data-step="2">
+              <span class="step-number">03</span>
+              <div><strong>die Tür</strong><small>Change gender, keep control</small></div>
+            </li>
+          </ol>
+
+          <div class="skill-readout">
+            <div class="skill-title"><span>Live skill model</span><span id="skillPercent">18%</span></div>
+            <div class="skill-row"><span>Meaning</span><div><i id="meaningBar"></i></div></div>
+            <div class="skill-row"><span>Form</span><div><i id="formBar"></i></div></div>
+            <div class="skill-row"><span>Transfer</span><div><i id="transferBar"></i></div></div>
+            <p>Progress comes from producing German across different contexts.</p>
+          </div>
+
+          <div class="word-shelf">
+            <span class="eyebrow">WORDS ENCOUNTERED</span>
+            <div id="wordShelf" class="word-shelf-list"></div>
+          </div>
+        </aside>
+
+        <main class="practice" id="practiceArea">
+          <div class="practice-topline">
+            <div class="target-lockup">
+              <span class="article-orbit" id="targetArticle">das</span>
+              <div><span class="eyebrow">TARGET NOUN</span><h2 id="targetWord">Papier</h2></div>
+              <span class="noun-data"><span id="targetMeta">neuter · material</span><br /><span id="targetPlural">die Papiere</span></span>
+            </div>
+            <div class="variation-counter">VARIATION <span id="variationNumber">01</span> / <span id="variationTotal">12</span></div>
+          </div>
+
+          <div class="gear-shift" id="gearShift" hidden>
+            <span>NEW ROUND</span>
+            <strong id="gearShiftTitle"></strong>
+            <p id="gearShiftText"></p>
+          </div>
+
+          <section class="exercise-card" aria-labelledby="promptLabel">
+            <div class="card-corner">PRODUCE</div>
+            <div class="prompt-block">
+              <span class="eyebrow" id="promptLabel">COMPLETE THE THOUGHT</span>
+              <div class="coach-note" id="coachNote" hidden></div>
+              <div class="vocab-bank" id="vocabBank" hidden></div>
+              <p class="prompt-context" id="contextText">The office printer stops. Your colleague asks what is missing.</p>
+              <p class="sentence" id="sentenceText">Wir brauchen noch <span class="blank">_____</span> für den Drucker.</p>
+            </div>
+
+            <form id="answerForm" autocomplete="off">
+              <label for="answerInput">Your German</label>
+              <div class="answer-row">
+                <input id="answerInput" name="answer" type="text" inputmode="text" placeholder="Type the missing German…" aria-describedby="inputHelp" />
+                <button class="check-button" type="submit">Check answer <span>↵</span></button>
+              </div>
+              <div class="input-footer">
+                <span id="inputHelp">Write only the missing word.</span>
+                <button class="text-button" id="hintButton" type="button">Give me a useful hint</button>
+              </div>
+            </form>
+
+            <div class="feedback" id="feedback" aria-live="polite" hidden>
+              <div class="feedback-icon" id="feedbackIcon">✓</div>
+              <div class="feedback-copy">
+                <span class="feedback-kicker" id="feedbackKicker">MEANING LANDED</span>
+                <h3 id="feedbackTitle">Exactly right.</h3>
+                <p id="feedbackText"></p>
+                <div class="grammar-trace" id="grammarTrace"></div>
+              </div>
+              <button class="next-button" id="nextButton" type="button">Next variation <span>→</span></button>
+            </div>
+          </section>
+
+          <section class="frame-strip" aria-label="Sentence construction">
+            <div class="frame-heading">
+              <span class="eyebrow">UNDER THE SENTENCE</span>
+              <strong id="frameHeading">Build the frame. The answer stays hidden.</strong>
+            </div>
+            <div class="frame-pieces" id="framePieces">
+              <span class="piece subject">SUBJECT <b>wir</b></span>
+              <span class="connector">+</span>
+              <span class="piece verb">VERB <b>brauchen</b></span>
+              <span class="connector">+</span>
+              <span class="piece target masked">TARGET <b>••••</b></span>
+              <span class="connector">+</span>
+              <span class="piece context">PURPOSE <b>für den Drucker</b></span>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+    <script src="./case-lab.js"></script>
+  </body>
+</html>

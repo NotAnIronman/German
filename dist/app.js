@@ -1,455 +1,456 @@
-const targets = {
-  papier: { article: "das", word: "Papier", meta: "neuter · material", plural: "die Papiere · documents" },
-  tisch: { article: "der", word: "Tisch", meta: "masculine · object", plural: "die Tische · tables" },
-  tuer: { article: "die", word: "Tür", meta: "feminine · place/object", plural: "die Türen · doors" }
-};
-
-const exercises = [
-  {
-    group: 0, target: "papier", label: "Complete the thought",
-    roundIntro: ["Start with das Papier", "Papier means paper and is neuter. When it means paper as a material, German often uses it without an article."],
-    lesson: "You are supplying a material, not counting individual sheets. That is why no article is needed here.",
-    context: "The office printer stops. Your colleague asks what is missing.",
-    sentence: 'Wir brauchen noch <span class="blank">_____</span> für den Drucker.',
-    placeholder: "Type the missing word…", inputHelp: "Write only the missing word.",
-    answers: ["Papier"], keyTerms: ["papier"], capitalNouns: ["Papier"],
-    hint: "Think of the material itself. German normally leaves out the article in this sentence.",
-    success: "Papier is an uncounted material here, so it stands on its own.",
-    trace: ["das Papier", "material use", "no article"],
-    pieces: [["SUBJECT", "wir", "subject"], ["VERB", "brauchen", "verb"], ["TARGET", "Papier", "target", true], ["PURPOSE", "für den Drucker", "context"]]
-  },
-  {
-    group: 0, target: "papier", label: "Build the noun phrase",
-    lesson: "When no article carries the gender signal, the adjective carries it. For neuter Papier here, recycelt gains -es.",
-    vocab: [["recycelt", "recycled"]],
-    context: "A parcel arrives wrapped in recycled paper. Complete the German phrase.",
-    sentence: 'Das Paket ist in <span class="blank">_____</span> eingewickelt.',
-    placeholder: "recycled paper…", inputHelp: "The needed vocabulary is in the word bank above.",
-    answers: ["recyceltes Papier"], keyTerms: ["papier"], capitalNouns: ["Papier"],
-    hint: "There is no article before Papier, so the adjective must show the neuter ending.",
-    success: "With no article before it, recyceltes carries the neuter signal.",
-    trace: ["das Papier", "no article", "strong ending · -es"],
-    pieces: [["PREPOSITION", "in", "context"], ["ADJECTIVE", "recyceltes", "verb", true], ["TARGET", "Papier", "target", true]]
-  },
-  {
-    group: 0, target: "papier", label: "Choose the case",
-    lesson: "Two-way prepositions answer two different questions: wo? (location) takes dative; wohin? (destination) takes accusative.",
-    context: "The address is already written there. Express “on the paper.”",
-    sentence: 'Die Adresse steht <span class="blank">_____</span>.',
-    placeholder: "on the paper…", inputHelp: "Write the complete missing phrase.",
-    answers: ["auf dem Papier"], keyTerms: ["papier"], capitalNouns: ["Papier"],
-    hint: "Nothing is moving. Ask wo? and use the dative form of das.",
-    success: "The address is already located there: wo? leads to dative.",
-    trace: ["location · wo?", "auf + dative", "das → dem"],
-    pieces: [["SUBJECT", "die Adresse", "subject"], ["VERB", "steht", "verb"], ["LOCATION", "auf dem", "context", true], ["TARGET", "Papier", "target", true]],
-    diagnose: value => englishWord(value, "on", "auf", "Your dative article dem is useful evidence that you understood the location.") ||
-      (value.includes("auf das") ? "You chose the right preposition. The address is already located there, so wo? requires dative: das changes to dem." : null)
-  },
-  {
-    group: 0, target: "papier", label: "Reverse the contrast",
-    context: "Now the number is not there yet. Tell someone to write it onto the paper.",
-    sentence: 'Schreib die Nummer <span class="blank">_____</span>.',
-    placeholder: "onto the paper…", inputHelp: "Write the complete missing phrase.",
-    answers: ["auf das Papier"], keyTerms: ["papier"], capitalNouns: ["Papier"],
-    hint: "The number is moving toward a destination. Ask wohin? and use accusative.",
-    success: "The number has a destination: wohin? leads to accusative.",
-    trace: ["destination · wohin?", "auf + accusative", "das stays das"],
-    pieces: [["COMMAND", "schreib", "verb"], ["OBJECT", "die Nummer", "subject"], ["DIRECTION", "auf das", "context", true], ["TARGET", "Papier", "target", true]],
-    diagnose: value => englishWord(value, "onto", "auf", "The article still needs to show the destination case.") || englishWord(value, "on", "auf", "The article still needs to show the destination case.") ||
-      (value.includes("auf dem") ? "You chose the right preposition. Because the number moves onto a destination, wohin? requires accusative: use das, not dem." : null)
-  },
-  {
-    group: 1, target: "tisch", label: "Transfer the location pattern",
-    roundIntro: ["Switching to der Tisch", "The target has changed deliberately. Apply the same wo/wohin decision to a masculine noun; its article will expose the case more clearly."],
-    lesson: "Tisch is masculine: der Tisch. In the dative, der becomes dem.",
-    vocab: [["das Glas", "glass"], ["stehen", "to stand / be positioned"]],
-    context: "Say: “The glass is on the table.”",
-    sentence: '<span class="blank">Build the complete German sentence.</span>',
-    placeholder: "Write the sentence…", inputHelp: "Write one complete sentence.",
-    answers: ["Das Glas steht auf dem Tisch."], punctuation: ".", fullSentence: true,
-    keyTerms: ["glas", "tisch"], capitalNouns: ["Glas", "Tisch"],
-    hint: "The glass is already there. Use the location pattern: wo? + dative.",
-    success: "You transferred the location pattern to a masculine noun.",
-    trace: ["location · wo?", "der → dem", "pattern transferred"],
-    pieces: [["SUBJECT", "das Glas", "subject", true], ["VERB", "steht", "verb", true], ["LOCATION", "auf dem", "context", true], ["TARGET", "Tisch", "target", true]],
-    diagnose: value => englishWord(value, "on", "auf", "Your use of dem may still show that you understood the case.") ||
-      (value.includes("auf den") ? "The preposition is right, but den signals a destination. The glass is already located there, so use dative." : null)
-  },
-  {
-    group: 1, target: "tisch", label: "Make it move",
-    vocab: [["stellen", "to put / place"], ["das Glas", "glass"]],
-    context: "Tell a friend: “Put the glass onto the table.”",
-    sentence: '<span class="blank">Build the complete German sentence.</span>',
-    placeholder: "Write the command…", inputHelp: "Write one complete command.",
-    answers: ["Stell das Glas auf den Tisch.", "Stelle das Glas auf den Tisch."], punctuation: ".", fullSentence: true,
-    keyTerms: ["glas", "tisch"], capitalNouns: ["Glas", "Tisch"],
-    hint: "The glass changes location. Use the destination pattern: wohin? + accusative.",
-    success: "The object moves toward a destination, so der Tisch becomes den Tisch.",
-    trace: ["destination · wohin?", "der → den", "command"],
-    pieces: [["COMMAND", "stell", "verb", true], ["OBJECT", "das Glas", "subject", true], ["DIRECTION", "auf den", "context", true], ["TARGET", "Tisch", "target", true]],
-    diagnose: value => englishWord(value, "onto", "auf", "Now let the article show the destination case.") || englishWord(value, "on", "auf", "Now let the article show the destination case.") ||
-      (value.includes("auf dem") ? "The preposition is right, but dem describes a location. The glass is moving to a destination, so use accusative." : null)
-  },
-  {
-    group: 1, target: "tisch", label: "Add a new preposition",
-    lesson: "unter follows the same two-way pattern as auf. Here the key is already under the table, so use dative.",
-    vocab: [["der Schlüssel", "key"], ["liegen", "to lie / be located"], ["unter", "under"]],
-    context: "Say: “The key is under the table.”",
-    sentence: '<span class="blank">Build the complete German sentence.</span>',
-    placeholder: "Write the sentence…", inputHelp: "Use the supplied vocabulary to build the sentence.",
-    answers: ["Der Schlüssel liegt unter dem Tisch."], punctuation: ".", fullSentence: true,
-    keyTerms: ["schluessel", "tisch"], capitalNouns: ["Schlüssel", "Tisch"],
-    hint: "The key is already in that location. Ask wo? and put der Tisch into dative.",
-    success: "You carried the location rule from auf to another two-way preposition.",
-    trace: ["location · wo?", "unter + dative", "der → dem"],
-    pieces: [["SUBJECT", "der Schlüssel", "subject", true], ["VERB", "liegt", "verb", true], ["LOCATION", "unter dem", "context", true], ["TARGET", "Tisch", "target", true]],
-    diagnose: value => englishWord(value, "under", "unter", "Keep the rest of your German structure.") ||
-      (value.includes("unter den") ? "unter is correct. Because the key is already located there, wo? requires dative: dem, not den." : null)
-  },
-  {
-    group: 1, target: "tisch", label: "Reverse it again",
-    vocab: [["schieben", "to push"], ["der Stuhl", "chair"], ["unter", "under"]],
-    context: "Say: “I push the chair under the table.”",
-    sentence: '<span class="blank">Build the complete German sentence.</span>',
-    placeholder: "Write the sentence…", inputHelp: "Use the supplied vocabulary to build the sentence.",
-    answers: ["Ich schiebe den Stuhl unter den Tisch."], punctuation: ".", fullSentence: true,
-    keyTerms: ["stuhl", "tisch"], capitalNouns: ["Stuhl", "Tisch"],
-    hint: "The chair moves toward a new destination. Ask wohin? after unter.",
-    success: "The chair moves into a new position, so both masculine objects use accusative den.",
-    trace: ["destination · wohin?", "unter + accusative", "der → den"],
-    pieces: [["SUBJECT", "ich", "subject", true], ["VERB", "schiebe", "verb", true], ["OBJECT", "den Stuhl", "subject", true], ["DIRECTION", "unter den", "context", true], ["TARGET", "Tisch", "target", true]],
-    diagnose: value => englishWord(value, "under", "unter", "The case still needs to show movement toward a destination.") ||
-      (value.includes("unter dem") ? "unter is correct, but dem describes a location. The chair is moving somewhere, so wohin? requires accusative." : null)
-  },
-  {
-    group: 2, target: "tuer", label: "Change the gender",
-    roundIntro: ["Switching to die Tür", "This is a new feminine target. The rule has not changed: wo? still takes dative and wohin? still takes accusative."],
-    lesson: "Tür is feminine: die Tür. For a location after vor, die changes to der.",
-    vocab: [["die Schuhe", "shoes"], ["stehen", "to stand / be positioned"], ["vor", "in front of"]],
-    context: "Say: “The shoes are in front of the door.”",
-    sentence: '<span class="blank">Build the complete German sentence.</span>',
-    placeholder: "Write the sentence…", inputHelp: "Write one complete sentence.",
-    answers: ["Die Schuhe stehen vor der Tür."], punctuation: ".", fullSentence: true,
-    keyTerms: ["schuhe", "tuer"], capitalNouns: ["Schuhe", "Tür"],
-    hint: "The shoes are already located there. Ask wo? and use dative.",
-    success: "The feminine article makes the dative visible: die Tür becomes der Tür.",
-    trace: ["location · wo?", "vor + dative", "die → der"],
-    pieces: [["SUBJECT", "die Schuhe", "subject", true], ["VERB", "stehen", "verb", true], ["LOCATION", "vor der", "context", true], ["TARGET", "Tür", "target", true]],
-    diagnose: value => englishWord(value, "in front of", "vor", "Keep the German case ending you chose.") ||
-      (value.includes("vor die") ? "vor is correct. Because the shoes are already there, wo? requires dative: der Tür." : null)
-  },
-  {
-    group: 2, target: "tuer", label: "Move toward it",
-    vocab: [["stellen", "to put / place"], ["die Schuhe", "shoes"], ["vor", "in front of"]],
-    context: "Tell someone: “Put the shoes in front of the door.”",
-    sentence: '<span class="blank">Build the complete German sentence.</span>',
-    placeholder: "Write the command…", inputHelp: "Write one complete command.",
-    answers: ["Stell die Schuhe vor die Tür.", "Stelle die Schuhe vor die Tür."], punctuation: ".", fullSentence: true,
-    keyTerms: ["schuhe", "tuer"], capitalNouns: ["Schuhe", "Tür"],
-    hint: "The shoes move toward a destination. Ask wohin? and use accusative.",
-    success: "The shoes move to a destination. For feminine nouns, accusative keeps die.",
-    trace: ["destination · wohin?", "vor + accusative", "die stays die"],
-    pieces: [["COMMAND", "stell", "verb", true], ["OBJECT", "die Schuhe", "subject", true], ["DIRECTION", "vor die", "context", true], ["TARGET", "Tür", "target", true]],
-    diagnose: value => englishWord(value, "in front of", "vor", "The article still needs to show the destination case.") ||
-      (value.includes("vor der") ? "vor is correct, but der describes a location. The shoes are moving to a destination, so use accusative die." : null)
-  },
-  {
-    group: 2, target: "tuer", label: "Use a different frame",
-    lesson: "With an, the same contrast applies. The note moves onto the door, so an takes accusative.",
-    vocab: [["kleben", "to stick / attach"], ["der Zettel", "note"], ["an", "on / against"]],
-    context: "Say: “I stick the note onto the door.”",
-    sentence: '<span class="blank">Build the complete German sentence.</span>',
-    placeholder: "Write the sentence…", inputHelp: "Use the supplied vocabulary to build the sentence.",
-    answers: ["Ich klebe den Zettel an die Tür."], punctuation: ".", fullSentence: true,
-    keyTerms: ["zettel", "tuer"], capitalNouns: ["Zettel", "Tür"],
-    hint: "The note moves onto a destination. Ask wohin? after an.",
-    success: "You transferred the destination rule to an without relying on the earlier sentence.",
-    trace: ["destination · wohin?", "an + accusative", "die stays die"],
-    pieces: [["SUBJECT", "ich", "subject", true], ["VERB", "klebe", "verb", true], ["OBJECT", "den Zettel", "subject", true], ["DIRECTION", "an die", "context", true], ["TARGET", "Tür", "target", true]],
-    diagnose: value => englishWord(value, "on", "an", "German uses an for contact with this vertical surface.") ||
-      (value.includes("an der") ? "an is correct, but der describes a location. The note moves onto the door, so use accusative die." : null)
-  },
-  {
-    group: 2, target: "tuer", label: "Finish without a model",
-    vocab: [["der Schlüssel", "key"], ["hinter", "behind"]],
-    context: "Ask: “Is the key behind the door?”",
-    sentence: '<span class="blank">Build the complete German question.</span>',
-    placeholder: "Write the question…", inputHelp: "Write one complete question.",
-    answers: ["Ist der Schlüssel hinter der Tür?"], punctuation: "?", fullSentence: true,
-    keyTerms: ["schluessel", "tuer"], capitalNouns: ["Schlüssel", "Tür"],
-    hint: "This is a yes/no question, so put the conjugated verb first. The key is already in a location.",
-    success: "You combined question word order, a new preposition, and the dative location pattern.",
-    trace: ["yes/no question", "verb in position 1", "hinter + dative"],
-    pieces: [["VERB", "ist", "verb", true], ["SUBJECT", "der Schlüssel", "subject", true], ["LOCATION", "hinter der", "context", true], ["TARGET", "Tür", "target", true]],
-    diagnose: value => englishWord(value, "behind", "hinter", "Keep the German question structure around it.") ||
-      (value.includes("hinter die") ? "hinter is correct, but die signals a destination. The key is already located there, so use dative der." : null)
-  }
+const vocabulary = [
+  { id: "hallo", unit: 1, de: "Hallo", en: "hello", bundle: "Hallo!", spoken: "Hallo", example: "Hallo, ich bin Mia.", exampleEn: "Hello, I’m Mia.", variants: ["hallo"] },
+  { id: "guten-tag", unit: 1, de: "Guten Tag", en: "good afternoon / hello", bundle: "Guten Tag!", spoken: "Guten Tag", example: "Guten Tag, Frau Berger.", exampleEn: "Hello, Ms. Berger.", variants: ["guten tag"] },
+  { id: "tschuess", unit: 1, de: "Tschüss", en: "bye", bundle: "Tschüss! · Tschuess accepted", spoken: "Tschüss", example: "Tschüss, bis morgen!", exampleEn: "Bye, see you tomorrow!", variants: ["tschüss", "tschuess"] },
+  { id: "danke", unit: 1, de: "danke", en: "thank you / thanks", bundle: "danke · Danke!", spoken: "danke", example: "Danke für die Hilfe.", exampleEn: "Thanks for the help.", variants: ["danke"] },
+  { id: "bitte", unit: 1, de: "bitte", en: "please / you’re welcome", bundle: "bitte · Bitte!", spoken: "bitte", example: "Ein Wasser, bitte.", exampleEn: "A water, please.", variants: ["bitte"] },
+  { id: "ja", unit: 1, de: "ja", en: "yes", bundle: "ja · Ja.", spoken: "ja", example: "Ja, gern.", exampleEn: "Yes, gladly.", variants: ["ja"] },
+  { id: "nein", unit: 1, de: "nein", en: "no", bundle: "nein · Nein.", spoken: "nein", example: "Nein, danke.", exampleEn: "No, thank you.", variants: ["nein"] },
+  { id: "heissen", unit: 1, de: "heißen", en: "to be called", bundle: "heißen · ich heiße", spoken: "heißen", example: "Ich heiße Lena.", exampleEn: "My name is Lena.", variants: ["heißen", "heissen"] },
+  { id: "kommen", unit: 1, de: "kommen", en: "to come", bundle: "kommen · ich komme", spoken: "kommen", example: "Ich komme aus Kanada.", exampleEn: "I come from Canada.", variants: ["kommen"] },
+  { id: "sein", unit: 1, de: "sein", en: "to be", bundle: "sein · ich bin · du bist", spoken: "sein", example: "Ich bin neu hier.", exampleEn: "I’m new here.", variants: ["sein"] },
+  { id: "name", unit: 1, de: "der Name", en: "name", bundle: "der Name · die Namen", spoken: "der Name", example: "Mein Name ist Alex.", exampleEn: "My name is Alex.", variants: ["der name"] },
+  { id: "stadt", unit: 1, de: "die Stadt", en: "city", bundle: "die Stadt · die Städte", spoken: "die Stadt", example: "Berlin ist eine große Stadt.", exampleEn: "Berlin is a large city.", variants: ["die stadt"] },
+  { id: "mann", unit: 2, de: "der Mann", en: "man", bundle: "der Mann · die Männer", spoken: "der Mann", example: "Der Mann heißt Jonas.", exampleEn: "The man is called Jonas.", variants: ["der mann"] },
+  { id: "frau", unit: 2, de: "die Frau", en: "woman / Ms.", bundle: "die Frau · die Frauen", spoken: "die Frau", example: "Die Frau kommt aus Wien.", exampleEn: "The woman comes from Vienna.", variants: ["die frau"] },
+  { id: "kind", unit: 2, de: "das Kind", en: "child", bundle: "das Kind · die Kinder", spoken: "das Kind", example: "Das Kind heißt Emil.", exampleEn: "The child is called Emil.", variants: ["das kind"] },
+  { id: "freund", unit: 2, de: "der Freund", en: "male friend / boyfriend", bundle: "der Freund · die Freunde", spoken: "der Freund", example: "Das ist mein Freund.", exampleEn: "That is my friend/boyfriend.", variants: ["der freund"] },
+  { id: "freundin", unit: 2, de: "die Freundin", en: "female friend / girlfriend", bundle: "die Freundin · die Freundinnen", spoken: "die Freundin", example: "Das ist meine Freundin.", exampleEn: "That is my friend/girlfriend.", variants: ["die freundin"] },
+  { id: "haus", unit: 2, de: "das Haus", en: "house", bundle: "das Haus · die Häuser", spoken: "das Haus", example: "Das Haus ist alt.", exampleEn: "The house is old.", variants: ["das haus"] },
+  { id: "tuer", unit: 2, de: "die Tür", en: "door", bundle: "die Tür · die Türen", spoken: "die Tür", example: "Die Tür ist offen.", exampleEn: "The door is open.", variants: ["die tür", "die tuer"] },
+  { id: "tisch", unit: 2, de: "der Tisch", en: "table", bundle: "der Tisch · die Tische", spoken: "der Tisch", example: "Das Buch liegt auf dem Tisch.", exampleEn: "The book is on the table.", variants: ["der tisch"] },
+  { id: "buch", unit: 2, de: "das Buch", en: "book", bundle: "das Buch · die Bücher", spoken: "das Buch", example: "Ich habe ein Buch.", exampleEn: "I have a book.", variants: ["das buch"] },
+  { id: "wasser", unit: 2, de: "das Wasser", en: "water", bundle: "das Wasser · usually uncounted", spoken: "das Wasser", example: "Ich brauche Wasser.", exampleEn: "I need water.", variants: ["das wasser", "wasser"] },
+  { id: "haben", unit: 2, de: "haben", en: "to have", bundle: "haben · ich habe · er hat", spoken: "haben", example: "Ich habe Zeit.", exampleEn: "I have time.", variants: ["haben"] },
+  { id: "brauchen", unit: 2, de: "brauchen", en: "to need", bundle: "brauchen · ich brauche", spoken: "brauchen", example: "Wir brauchen Papier.", exampleEn: "We need paper.", variants: ["brauchen"] }
 ];
 
-let current = Number(localStorage.getItem("satzwerk-v2-current") || 0);
-if (!Number.isInteger(current) || current < 0 || current >= exercises.length) current = 0;
-let completed = new Set(JSON.parse(localStorage.getItem("satzwerk-v2-completed") || "[]"));
-let knownWords = new Set(JSON.parse(localStorage.getItem("satzwerk-v2-words") || "[]"));
-let hintShown = false;
+const questionBank = [
+  { id: "q-hallo-de", requires: ["hallo"], words: ["hallo"], type: "PRODUCE", context: "You meet someone at the beginning of the day.", prompt: "Say “hello” in German.", answers: ["Hallo", "Hallo!"], explanation: "Hallo is a flexible, neutral greeting." },
+  { id: "q-hallo-en", requires: ["hallo"], words: ["hallo"], type: "MEANING", context: "You hear: “Hallo!”", prompt: "What does it mean?", answers: ["hello", "hi"], explanation: "Hallo means hello or hi." },
+  { id: "q-tag", requires: ["guten-tag"], words: ["guten-tag"], type: "PRODUCE", context: "You enter a shop and greet an employee politely.", prompt: "Write the German greeting.", answers: ["Guten Tag", "Guten Tag!"], explanation: "Guten Tag is a useful polite daytime greeting." },
+  { id: "q-tschuess", requires: ["tschuess"], words: ["tschuess"], type: "PRODUCE", context: "You are leaving a casual conversation.", prompt: "Say “bye” in German.", answers: ["Tschüss", "Tschuess", "Tschüss!", "Tschuess!"], explanation: "Tschüss is a common informal goodbye. Tschuess is accepted when an umlaut is unavailable." },
+  { id: "q-danke", requires: ["danke"], words: ["danke"], type: "PRODUCE", context: "Someone holds the door for you.", prompt: "Say “thank you.”", answers: ["Danke", "Danke!"], explanation: "Danke works as a complete thank-you." },
+  { id: "q-bitte-meaning", requires: ["bitte"], words: ["bitte"], type: "MEANING", context: "At the end of a request you hear “bitte.”", prompt: "What can bitte mean here?", answers: ["please"], explanation: "In a request, bitte means please. In another context it can mean you’re welcome." },
+  { id: "q-ja", requires: ["ja"], words: ["ja"], type: "PRODUCE", context: "You agree with a simple question.", prompt: "Write “yes” in German.", answers: ["ja", "Ja", "Ja."], explanation: "ja means yes." },
+  { id: "q-nein", requires: ["nein"], words: ["nein"], type: "PRODUCE", context: "You politely decline: “No, thank you.”", prompt: "Complete: ___, danke.", answers: ["Nein"], explanation: "Nein supplies the negative response; danke keeps it polite." },
+  { id: "q-heisse", requires: ["heissen"], words: ["heissen"], type: "FORM", context: "You introduce yourself as Mia.", prompt: "Ich ___ Mia.", answers: ["heiße", "heisse"], explanation: "The ich form of heißen is heiße. Heisse is accepted when ß is unavailable." },
+  { id: "q-komme", requires: ["kommen"], words: ["kommen"], type: "FORM", context: "You say that you come from Canada.", prompt: "Ich ___ aus Kanada.", answers: ["komme"], explanation: "The ich form of kommen is komme." },
+  { id: "q-bin", requires: ["sein"], words: ["sein"], type: "FORM", context: "You say that you are new here.", prompt: "Ich ___ neu hier.", answers: ["bin"], explanation: "sein is irregular: ich bin." },
+  { id: "q-name", requires: ["name"], words: ["name"], type: "WORD BUNDLE", context: "Retrieve the noun with its article.", prompt: "Write the full German bundle for “name.”", answers: ["der Name"], explanation: "Name is masculine: der Name. Store the article with the noun." },
+  { id: "q-stadt", requires: ["stadt"], words: ["stadt"], type: "WORD BUNDLE", context: "Retrieve the noun with its article.", prompt: "Write the full German bundle for “city.”", answers: ["die Stadt"], explanation: "Stadt is feminine: die Stadt." },
+  { id: "q-intro", requires: ["heissen"], words: ["heissen"], type: "TRANSFER", context: "Build the complete introduction using the pattern you met.", prompt: "Say: “My name is Alex.” using ich heiße.", answers: ["Ich heiße Alex.", "Ich heisse Alex."], explanation: "German uses ich heiße + name for a natural introduction." },
+  { id: "q-mann", requires: ["mann"], words: ["mann"], type: "WORD BUNDLE", context: "Retrieve article and noun together.", prompt: "Write “the man” in German.", answers: ["der Mann"], explanation: "Mann is masculine: der Mann." },
+  { id: "q-frau", requires: ["frau"], words: ["frau"], type: "WORD BUNDLE", context: "Retrieve article and noun together.", prompt: "Write “the woman” in German.", answers: ["die Frau"], explanation: "Frau is feminine: die Frau." },
+  { id: "q-kind", requires: ["kind"], words: ["kind"], type: "WORD BUNDLE", context: "Retrieve article and noun together.", prompt: "Write “the child” in German.", answers: ["das Kind"], explanation: "Kind is neuter: das Kind." },
+  { id: "q-haus", requires: ["haus", "sein"], words: ["haus", "sein"], type: "FORM", context: "The house is old. Only supply the missing verb.", prompt: "Das Haus ___ alt.", answers: ["ist"], explanation: "The er/sie/es form of sein is ist." },
+  { id: "q-tuer", requires: ["tuer"], words: ["tuer"], type: "WORD BUNDLE", context: "Retrieve article and noun together.", prompt: "Write “the door” in German.", answers: ["die Tür", "die Tuer"], explanation: "Tür is feminine: die Tür. Tuer is accepted when you cannot type ü." },
+  { id: "q-tisch", requires: ["tisch"], words: ["tisch"], type: "WORD BUNDLE", context: "Retrieve article and noun together.", prompt: "Write “the table” in German.", answers: ["der Tisch"], explanation: "Tisch is masculine: der Tisch." },
+  { id: "q-buch", requires: ["buch"], words: ["buch"], type: "WORD BUNDLE", context: "Retrieve article and noun together.", prompt: "Write “the book” in German.", answers: ["das Buch"], explanation: "Buch is neuter: das Buch." },
+  { id: "q-wasser", requires: ["wasser", "brauchen"], words: ["wasser", "brauchen"], type: "FORM", context: "You need water. Supply only the missing verb.", prompt: "Ich ___ Wasser.", answers: ["brauche"], explanation: "The ich form of brauchen is brauche." },
+  { id: "q-habe", requires: ["haben"], words: ["haben"], type: "FORM", context: "You say that you have time. Supply the verb.", prompt: "Ich ___ Zeit.", answers: ["habe"], explanation: "The ich form of haben is habe." },
+  { id: "q-friend", requires: ["freund"], words: ["freund"], type: "MEANING", context: "You hear: “Das ist mein Freund.”", prompt: "What can Freund mean?", answers: ["friend", "male friend", "boyfriend", "friend or boyfriend"], explanation: "Freund can mean a male friend or boyfriend; context usually clarifies the relationship." }
+];
 
-const els = {
-  form: document.querySelector("#answerForm"), input: document.querySelector("#answerInput"),
-  label: document.querySelector("#promptLabel"), context: document.querySelector("#contextText"),
-  sentence: document.querySelector("#sentenceText"), variation: document.querySelector("#variationNumber"),
-  total: document.querySelector("#variationTotal"), feedback: document.querySelector("#feedback"),
-  icon: document.querySelector("#feedbackIcon"), kicker: document.querySelector("#feedbackKicker"),
-  title: document.querySelector("#feedbackTitle"), feedbackText: document.querySelector("#feedbackText"),
-  trace: document.querySelector("#grammarTrace"), next: document.querySelector("#nextButton"),
-  hint: document.querySelector("#hintButton"), frame: document.querySelector("#framePieces"),
-  frameHeading: document.querySelector("#frameHeading"), sessionScore: document.querySelector("#sessionScore"),
-  skillPercent: document.querySelector("#skillPercent"), inputHelp: document.querySelector("#inputHelp"),
-  targetArticle: document.querySelector("#targetArticle"), targetWord: document.querySelector("#targetWord"),
-  targetMeta: document.querySelector("#targetMeta"), targetPlural: document.querySelector("#targetPlural"),
-  gearShift: document.querySelector("#gearShift"), gearShiftTitle: document.querySelector("#gearShiftTitle"),
-  gearShiftText: document.querySelector("#gearShiftText"), coachNote: document.querySelector("#coachNote"),
-  vocabBank: document.querySelector("#vocabBank"), wordShelf: document.querySelector("#wordShelf"),
-  restart: document.querySelector("#restartButton")
-};
+const storageKey = "satzwerk-production-v1";
+const today = () => new Date().toISOString().slice(0, 10);
+const defaultState = { words: {}, quiz: { firstCorrect: 0, attempts: 0, recovered: 0 }, deckIndex: 0, cardDirection: "german" };
+let state = loadState();
+let currentView = "home";
+let deck = [];
+let deckIndex = 0;
+let cardRevealed = false;
+let targetedWordId = null;
+let vocabFilter = "all";
+let quiz = null;
 
-function normalizeCore(value) {
-  return value.trim().toLocaleLowerCase("de-DE").replace(/[.!?,;:]+$/g, "").replace(/\s+/g, " ");
+function loadState() {
+  try { return { ...defaultState, ...JSON.parse(localStorage.getItem(storageKey) || "{}") }; }
+  catch { return structuredClone(defaultState); }
 }
 
-function foldUmlauts(value) {
-  return value.replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss");
+function saveState() { localStorage.setItem(storageKey, JSON.stringify(state)); }
+
+function recordFor(id) {
+  if (!state.words[id]) state.words[id] = { introduced: false, score: 0, production: 0, delayed: 0, misses: 0, days: [], lastSeen: null, nextReview: null, retryDate: null, retryCredit: 0 };
+  return state.words[id];
 }
 
-function normalizedFold(value) { return foldUmlauts(normalizeCore(value)); }
+function wordById(id) { return vocabulary.find(word => word.id === id); }
+function isIntroduced(id) { return Boolean(state.words[id]?.introduced); }
+function introducedWords() { return vocabulary.filter(word => isIntroduced(word.id)); }
+function dueWords() { const now = Date.now(); return introducedWords().filter(word => state.words[word.id].nextReview && state.words[word.id].nextReview <= now); }
+function availableQuestions() { return questionBank.filter(question => question.requires.every(isIntroduced)); }
 
-function englishWord(value, english, german, extra) {
-  const escaped = english.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  if (new RegExp(`(^|\\s)${escaped}(?=\\s|$)`, "i").test(value)) {
-    return `You used the English word “${english}”. In this German frame, use “${german}”. ${extra}`;
-  }
-  return null;
+function addDay(record) {
+  if (!record.days.includes(today())) record.days.push(today());
 }
 
+function tierFor(record) {
+  if (!record?.introduced) return "unseen";
+  if (record.production >= 5 && record.delayed >= 3 && record.days.length >= 4) return "durable";
+  if (record.production >= 2 && record.days.length >= 2) return "retrievable";
+  if (record.production > 0 || record.score >= .5) return "practicing";
+  return "introduced";
+}
+
+function tierLabel(tier) { return ({ introduced: "Introduced", practicing: "Practicing", retrievable: "Retrievable", durable: "Durable", unseen: "Unseen" })[tier]; }
+
+function evidencePercent(record) {
+  if (!record?.introduced) return 0;
+  return Math.min(100, Math.round(10 + record.score * 8 + record.production * 12 + record.delayed * 10 + Math.max(0, record.days.length - 1) * 8));
+}
+
+function normalize(value) { return value.trim().toLocaleLowerCase("de-DE").replace(/[.!?,;:]+$/g, "").replace(/\s+/g, " "); }
+function fold(value) { return normalize(value).replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss"); }
 function editDistance(a, b) {
   const matrix = Array.from({ length: b.length + 1 }, (_, i) => [i]);
   for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
-  for (let i = 1; i <= b.length; i++) for (let j = 1; j <= a.length; j++) {
-    matrix[i][j] = b[i - 1] === a[j - 1] ? matrix[i - 1][j - 1] : 1 + Math.min(matrix[i - 1][j], matrix[i][j - 1], matrix[i - 1][j - 1]);
-  }
+  for (let i = 1; i <= b.length; i++) for (let j = 1; j <= a.length; j++) matrix[i][j] = b[i - 1] === a[j - 1] ? matrix[i - 1][j - 1] : 1 + Math.min(matrix[i - 1][j], matrix[i][j - 1], matrix[i - 1][j - 1]);
   return matrix[b.length][a.length];
 }
 
-function renderFrame(ex, reveal = false) {
-  els.frame.innerHTML = ex.pieces.map((piece, index) => {
-    const hidden = piece[3] && !reveal;
-    const value = hidden ? "••••" : piece[1];
-    return `${index ? '<span class="connector">+</span>' : ''}<span class="piece ${piece[2]} ${hidden ? "masked" : ""}">${piece[0]} <b>${value}</b></span>`;
-  }).join("");
-  els.frameHeading.textContent = reveal ? "Now inspect how the pieces fit." : "Build the frame. The answer stays hidden.";
+function classifyAnswer(value, answers) {
+  const standard = answers.some(answer => normalize(answer) === normalize(value));
+  const folded = answers.some(answer => fold(answer) === fold(value));
+  if (standard) return { correct: true, note: "" };
+  if (folded) return { correct: true, note: "Your ae/oe/ue or ss spelling is accepted. The standard form is shown in the explanation." };
+  const closest = Math.min(...answers.map(answer => editDistance(fold(answer), fold(value))));
+  return { correct: false, near: closest <= 1 };
 }
 
-function updateWordShelf(ex) {
-  knownWords.add(targets[ex.target].word);
-  (ex.vocab || []).forEach(([word]) => knownWords.add(word));
-  localStorage.setItem("satzwerk-v2-words", JSON.stringify([...knownWords]));
-  els.wordShelf.innerHTML = [...knownWords].slice(-9).map(word => `<span>${word}</span>`).join("");
+function go(view) {
+  currentView = view;
+  document.querySelectorAll(".view").forEach(section => { section.hidden = section.id !== `view-${view}`; section.classList.toggle("active", section.id === `view-${view}`); });
+  document.querySelectorAll(".nav-item").forEach(button => button.classList.toggle("active", button.dataset.view === view));
+  if (view === "home") renderHome();
+  if (view === "learn") prepareDeck();
+  if (view === "practice") renderPracticeStart();
+  if (view === "vocabulary") renderVocabulary();
+  if (view === "progress") renderProgress();
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
-function render() {
-  const ex = exercises[current];
-  const target = targets[ex.target];
-  els.label.textContent = ex.label;
-  els.context.textContent = ex.context;
-  els.sentence.innerHTML = ex.sentence;
-  els.variation.textContent = String(current + 1).padStart(2, "0");
-  els.total.textContent = String(exercises.length).padStart(2, "0");
-  els.input.placeholder = ex.placeholder;
-  els.inputHelp.textContent = ex.inputHelp;
-  els.input.value = "";
-  els.input.disabled = false;
-  els.feedback.hidden = true;
-  els.feedback.className = "feedback";
-  els.hint.textContent = "Give me a useful hint";
-  hintShown = false;
+document.querySelectorAll("[data-view]").forEach(button => button.addEventListener("click", () => go(button.dataset.view)));
+document.querySelectorAll("[data-go]").forEach(button => button.addEventListener("click", () => go(button.dataset.go)));
 
-  els.targetArticle.textContent = target.article;
-  els.targetWord.textContent = target.word;
-  els.targetMeta.textContent = target.meta;
-  els.targetPlural.textContent = target.plural;
-
-  els.gearShift.hidden = !ex.roundIntro;
-  if (ex.roundIntro) {
-    els.gearShiftTitle.textContent = ex.roundIntro[0];
-    els.gearShiftText.textContent = ex.roundIntro[1];
-  }
-  els.coachNote.hidden = !ex.lesson;
-  els.coachNote.textContent = ex.lesson || "";
-  els.vocabBank.hidden = !ex.vocab?.length;
-  els.vocabBank.innerHTML = (ex.vocab || []).map(([word, meaning]) => `<span><b>${word}</b> = ${meaning}</span>`).join("");
-
-  renderFrame(ex, false);
-  updateWordShelf(ex);
-  document.querySelectorAll(".step").forEach((step, index) => step.classList.toggle("active", index === ex.group));
-  updateProgress();
-  setTimeout(() => els.input.focus(), 50);
-}
-
-function updateProgress() {
-  const secured = completed.size;
-  const percent = Math.round((secured / exercises.length) * 100);
-  els.sessionScore.textContent = secured;
-  els.skillPercent.textContent = `${percent}%`;
-  const groupCounts = [0, 1, 2].map(group => [...completed].filter(index => exercises[index]?.group === group).length);
-  document.querySelector("#meaningBar").style.width = `${groupCounts[0] * 25}%`;
-  document.querySelector("#formBar").style.width = `${Math.round((secured / exercises.length) * 100)}%`;
-  document.querySelector("#transferBar").style.width = `${Math.round(((groupCounts[1] + groupCounts[2]) / 8) * 100)}%`;
-}
-
-function secureCurrent() {
-  completed.add(current);
-  localStorage.setItem("satzwerk-v2-completed", JSON.stringify([...completed]));
-  updateProgress();
-}
-
-function capitalizationNotes(raw, ex) {
-  const notes = [];
-  const trimmed = raw.trim();
-  if (ex.fullSentence && /^[a-zäöüß]/.test(trimmed)) notes.push("Start the sentence with a capital letter.");
-  const tokens = trimmed.match(/[A-Za-zÄÖÜäöüß]+/g) || [];
-  for (const noun of ex.capitalNouns || []) {
-    const nounFold = foldUmlauts(noun.toLocaleLowerCase("de-DE"));
-    const token = tokens.find(item => foldUmlauts(item.toLocaleLowerCase("de-DE")) === nounFold);
-    if (token && token[0] === token[0].toLocaleLowerCase("de-DE")) notes.push(`Capitalize the noun ${noun}.`);
-  }
-  return [...new Set(notes)];
-}
-
-function mechanicsNotes(raw, ex, umlautEquivalent) {
-  const notes = capitalizationNotes(raw, ex);
-  if (ex.punctuation && !raw.trim().endsWith(ex.punctuation)) {
-    notes.push(ex.punctuation === "?" ? "Finish a written question with a question mark." : "Finish a written sentence with a period.");
-  }
-  if (umlautEquivalent) notes.push("Your ae/oe/ue spelling is accepted. In standard German spelling, use the umlaut shown below.");
-  return notes;
-}
-
-function showFeedback(kind, title, text, ex) {
-  els.feedback.hidden = false;
-  els.feedback.className = `feedback ${kind}`;
-  els.icon.textContent = kind === "retry" ? "!" : kind === "partial" ? "≈" : "✓";
-  els.kicker.textContent = kind === "retry" ? "TRY ONE DECISION" : kind === "partial" ? "MEANING LANDED" : "FORM SECURED";
-  els.title.textContent = title;
-  els.feedbackText.textContent = text;
-  els.trace.innerHTML = kind === "retry" ? "" : ex.trace.map(item => `<span>${item}</span>`).join("");
-  renderFrame(ex, kind !== "retry");
-
-  if (kind === "retry") {
-    els.input.disabled = false;
-    els.next.textContent = "Try again";
-    els.next.onclick = () => { els.feedback.hidden = true; els.input.focus(); };
+function renderHome() {
+  const introduced = introducedWords().length;
+  const percent = Math.min(100, Math.round((introduced / 24) * 65 + (state.quiz.firstCorrect / Math.max(1, state.quiz.attempts)) * 35));
+  document.querySelector("#homePercent").textContent = `${percent}%`;
+  document.querySelector("#dueCount").textContent = dueWords().length;
+  const available = availableQuestions().length;
+  const button = document.querySelector("#continueButton");
+  if (introduced === 0) {
+    document.querySelector("#continueTitle").textContent = "Meet your first German words";
+    document.querySelector("#continueText").textContent = "Learn each word as a usable bundle before it appears in practice.";
+    button.innerHTML = 'Begin with words <span>→</span>';
+    button.onclick = () => go("learn");
+  } else if (available >= 4 && dueWords().length) {
+    document.querySelector("#continueTitle").textContent = "Retrieve what is becoming fragile";
+    document.querySelector("#continueText").textContent = "Some introduced words are ready for a useful return—not another immediate repetition.";
+    button.innerHTML = 'Start a review set <span>→</span>';
+    button.onclick = () => { go("practice"); startQuiz(); };
+  } else if (available >= 4) {
+    document.querySelector("#continueTitle").textContent = "Use the words you have met";
+    document.querySelector("#continueText").textContent = `${available} typed prompts can now be built without testing unseen vocabulary.`;
+    button.innerHTML = 'Practice now <span>→</span>';
+    button.onclick = () => go("practice");
   } else {
-    els.input.disabled = true;
-    els.next.innerHTML = current === exercises.length - 1 ? "Return to the first round <span>↻</span>" : "Next variation <span>→</span>";
-    els.next.onclick = advance;
+    document.querySelector("#continueTitle").textContent = "Keep building your first word set";
+    document.querySelector("#continueText").textContent = "Introduce a few more words before the first adaptive quiz becomes available.";
+    button.innerHTML = 'Continue flashcards <span>→</span>';
+    button.onclick = () => go("learn");
   }
 }
 
-function gradeAnswer(raw) {
-  const ex = exercises[current];
-  const core = normalizeCore(raw);
-  const folded = foldUmlauts(core);
-  const exactOrthography = ex.answers.some(answer => normalizeCore(answer) === core);
-  const coreMatch = exactOrthography || ex.answers.some(answer => normalizedFold(answer) === folded);
-  const umlautEquivalent = coreMatch && !exactOrthography;
-
-  if (coreMatch) {
-    const notes = mechanicsNotes(raw, ex, umlautEquivalent);
-    secureCurrent();
-    if (notes.length) showFeedback("partial", "The German works. Polish the writing.", notes.join(" "), ex);
-    else showFeedback("success", "Exactly right.", ex.success, ex);
-    return;
-  }
-
-  const diagnosis = ex.diagnose ? ex.diagnose(core) : null;
-  const closest = Math.min(...ex.answers.map(answer => editDistance(folded, normalizedFold(answer))));
-  const termsFound = ex.keyTerms.filter(term => folded.includes(term)).length;
-  const mostlyCorrect = diagnosis || closest <= Math.max(2, Math.floor(folded.length * .12)) || termsFound === ex.keyTerms.length;
-
-  if (mostlyCorrect) {
-    secureCurrent();
-    const text = diagnosis || (closest <= Math.max(2, Math.floor(folded.length * .12))
-      ? `The structure is there. Compare the repaired form below with what you wrote.`
-      : `Your message is understandable. The frame below shows the form to tighten.`);
-    showFeedback("partial", "Understood—with one repair.", text, ex);
-  } else {
-    const retryText = hintShown ? `${ex.hint} Focus on that single decision and try the sentence again.` : ex.hint;
-    showFeedback("retry", "Let’s isolate the problem.", retryText, ex);
-  }
+function currentUnit() {
+  const unitOneComplete = vocabulary.filter(word => word.unit === 1).every(word => isIntroduced(word.id));
+  return unitOneComplete ? 2 : 1;
 }
 
-els.form.addEventListener("submit", event => {
+function prepareDeck() {
+  deck = targetedWordId ? [wordById(targetedWordId)] : vocabulary.filter(word => word.unit === currentUnit());
+  deckIndex = targetedWordId ? 0 : Math.min(state.deckIndex || 0, deck.length - 1);
+  document.querySelector("#learnTitle").textContent = targetedWordId ? `Review ${deck[0].de}` : currentUnit() === 1 ? "First contact" : "People and useful things";
+  renderCard();
+  renderDeckStrip();
+}
+
+function cardDirectionFor() {
+  const selected = document.querySelector("#cardDirection").value;
+  if (selected !== "mixed") return selected;
+  return deckIndex % 2 === 0 ? "german" : "english";
+}
+
+function renderCard() {
+  const word = deck[deckIndex];
+  if (!word) return;
+  cardRevealed = false;
+  const direction = cardDirectionFor();
+  document.querySelector("#deckPosition").textContent = `${deckIndex + 1} / ${deck.length}`;
+  document.querySelector("#cardUnit").textContent = targetedWordId ? "TARGETED REVIEW" : `A0 · UNIT ${String(word.unit).padStart(2, "0")}`;
+  document.querySelector("#flashPrompt").textContent = direction === "german" ? "GERMAN" : "ENGLISH";
+  document.querySelector("#flashFront").textContent = direction === "german" ? word.de : word.en;
+  document.querySelector("#flashAnswer").textContent = direction === "german" ? word.en : word.de;
+  document.querySelector("#flashBundle").textContent = word.bundle;
+  document.querySelector("#flashExample").textContent = `${word.example} — ${word.exampleEn}`;
+  document.querySelector("#flashAnswer").hidden = true;
+  document.querySelector("#flashBundle").hidden = true;
+  document.querySelector("#flashExample").hidden = true;
+  document.querySelector("#ratingRow").hidden = true;
+  document.querySelector("#flipInstruction").hidden = false;
+  document.querySelector("#flashcard").setAttribute("aria-expanded", "false");
+}
+
+function revealCard() {
+  if (cardRevealed) return;
+  cardRevealed = true;
+  const word = deck[deckIndex];
+  const record = recordFor(word.id);
+  record.introduced = true;
+  record.lastSeen = Date.now();
+  addDay(record);
+  saveState();
+  ["#flashAnswer", "#flashBundle", "#flashExample", "#ratingRow"].forEach(selector => document.querySelector(selector).hidden = false);
+  document.querySelector("#flipInstruction").hidden = true;
+  document.querySelector("#flashcard").setAttribute("aria-expanded", "true");
+  renderDeckStrip();
+}
+
+document.querySelector("#flashcard").addEventListener("click", revealCard);
+document.querySelector("#cardDirection").value = state.cardDirection || "german";
+document.querySelector("#cardDirection").addEventListener("change", event => { state.cardDirection = event.target.value; saveState(); renderCard(); });
+document.querySelector("#shuffleDeck").addEventListener("click", () => { deck = [...deck].sort(() => Math.random() - .5); deckIndex = 0; renderCard(); renderDeckStrip(); });
+document.querySelector("#speakWord").addEventListener("click", () => {
+  const word = deck[deckIndex];
+  if (!word || !("speechSynthesis" in window)) return;
+  speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(word.spoken);
+  utterance.lang = "de-DE";
+  speechSynthesis.speak(utterance);
+});
+
+document.querySelectorAll("[data-rating]").forEach(button => button.addEventListener("click", () => rateCard(button.dataset.rating)));
+
+function rateCard(rating) {
+  const word = deck[deckIndex];
+  const record = recordFor(word.id);
+  const date = today();
+  if (record.flashDate !== date) { record.flashDate = date; record.flashCredit = 0; }
+  const proposed = rating === "got" ? .15 : rating === "hard" ? .05 : 0;
+  const award = Math.max(0, Math.min(proposed, .45 - (record.flashCredit || 0)));
+  record.flashCredit = (record.flashCredit || 0) + award;
+  record.score += award;
+  record.nextReview = Date.now() + (rating === "again" ? 5 * 60e3 : rating === "hard" ? 12 * 60 * 60e3 : 24 * 60 * 60e3);
+  record.lastSeen = Date.now();
+  saveState();
+  if (targetedWordId) { targetedWordId = null; go("vocabulary"); return; }
+  deckIndex = (deckIndex + 1) % deck.length;
+  state.deckIndex = deckIndex;
+  saveState();
+  renderCard();
+  renderDeckStrip();
+}
+
+function renderDeckStrip() {
+  document.querySelector("#deckStrip").innerHTML = deck.map((word, index) => `<button type="button" class="${isIntroduced(word.id) ? "seen" : ""} ${index === deckIndex ? "active" : ""}" data-card-index="${index}" aria-label="Open card ${index + 1}">${index + 1}</button>`).join("");
+  document.querySelectorAll("[data-card-index]").forEach(button => button.addEventListener("click", () => { deckIndex = Number(button.dataset.cardIndex); renderCard(); renderDeckStrip(); }));
+}
+
+function renderPracticeStart() {
+  const count = availableQuestions().length;
+  document.querySelector("#availableQuestionCount").textContent = count;
+  document.querySelector("#practiceReadiness").textContent = count >= 4 ? `${count} prompts can be built entirely from words already introduced in your profile.` : `Introduce ${Math.max(0, 4 - count)} more usable prompt${4 - count === 1 ? "" : "s"} before beginning. No unseen vocabulary will be graded.`;
+  document.querySelector("#startQuiz").disabled = count < 4;
+  document.querySelector("#practiceStart").hidden = false;
+  document.querySelector("#quizShell").hidden = true;
+  document.querySelector("#quizSummary").hidden = true;
+}
+
+document.querySelector("#startQuiz").addEventListener("click", startQuiz);
+
+function shuffled(items) { return [...items].sort(() => Math.random() - .5); }
+
+function startQuiz() {
+  const pool = availableQuestions().sort((a, b) => {
+    const aMisses = a.words.reduce((sum, id) => sum + (state.words[id]?.misses || 0), 0);
+    const bMisses = b.words.reduce((sum, id) => sum + (state.words[id]?.misses || 0), 0);
+    return bMisses - aMisses || Math.random() - .5;
+  });
+  if (pool.length < 4) return;
+  quiz = { questions: pool.slice(0, Math.min(8, pool.length)), index: 0, wrong: [], originalWrong: [], firstCorrect: 0, recovered: 0, retry: false };
+  document.querySelector("#practiceStart").hidden = true;
+  document.querySelector("#quizSummary").hidden = true;
+  document.querySelector("#quizShell").hidden = false;
+  renderQuestion();
+}
+
+function renderQuestion() {
+  const question = quiz.questions[quiz.index];
+  document.querySelector("#quizMode").textContent = quiz.retry ? "RETRY MISSED · RECOVERY" : "ADAPTIVE QUIZ";
+  document.querySelector("#quizProgress").textContent = `${quiz.index + 1} / ${quiz.questions.length}`;
+  document.querySelector("#quizProgressBar").style.width = `${((quiz.index + 1) / quiz.questions.length) * 100}%`;
+  document.querySelector("#quizType").textContent = question.type;
+  document.querySelector("#quizContext").textContent = question.context;
+  document.querySelector("#quizPrompt").textContent = question.prompt;
+  document.querySelector("#quizInput").value = "";
+  document.querySelector("#quizInput").disabled = false;
+  document.querySelector("#quizFeedback").hidden = true;
+  document.querySelector("#quizFeedback").className = "quiz-feedback";
+  document.querySelector("#quizForm").hidden = false;
+  setTimeout(() => document.querySelector("#quizInput").focus(), 30);
+}
+
+document.querySelector("#quizForm").addEventListener("submit", event => {
   event.preventDefault();
-  const raw = els.input.value;
-  if (!raw.trim()) { els.input.focus(); return; }
-  gradeAnswer(raw);
+  const value = document.querySelector("#quizInput").value;
+  if (!value.trim()) return;
+  submitQuizAnswer(value);
 });
 
-els.hint.addEventListener("click", () => {
-  hintShown = true;
-  els.hint.textContent = exercises[current].hint;
-});
+function submitQuizAnswer(value) {
+  const question = quiz.questions[quiz.index];
+  const result = classifyAnswer(value, question.answers);
+  const feedback = document.querySelector("#quizFeedback");
+  feedback.hidden = false;
+  feedback.className = `quiz-feedback ${result.correct ? "" : "wrong"}`;
+  document.querySelector("#quizFeedbackMark").textContent = result.correct ? "✓" : result.near ? "≈" : "!";
+  document.querySelector("#quizFeedbackTitle").textContent = result.correct ? "That works." : result.near ? "Very close—repair the form." : "Meaning not secured yet.";
+  document.querySelector("#quizFeedbackText").textContent = result.correct ? `${question.explanation}${result.note ? ` ${result.note}` : ""}` : `${result.near ? "A small spelling difference changed the answer. " : ""}${question.explanation} Correct form: ${question.answers[0]}`;
+  document.querySelector("#quizInput").disabled = true;
+  document.querySelector("#quizForm").hidden = true;
 
-function advance() {
-  current = (current + 1) % exercises.length;
-  localStorage.setItem("satzwerk-v2-current", String(current));
-  render();
+  if (!quiz.retry) {
+    state.quiz.attempts += 1;
+    if (result.correct) {
+      quiz.firstCorrect += 1;
+      state.quiz.firstCorrect += 1;
+      question.words.forEach(id => recordProduction(id));
+    } else {
+      quiz.wrong.push(question);
+      quiz.originalWrong.push(question);
+      question.words.forEach(id => { const record = recordFor(id); record.misses += 1; record.nextReview = Date.now() + 10 * 60e3; });
+    }
+  } else if (result.correct) {
+    quiz.recovered += 1;
+    state.quiz.recovered += 1;
+    question.words.forEach(id => recordRecovery(id));
+  } else {
+    quiz.wrong.push(question);
+  }
+  saveState();
+  document.querySelector("#quizNext").innerHTML = quiz.index === quiz.questions.length - 1 ? 'See results <span>→</span>' : 'Next <span>→</span>';
 }
 
-els.restart.addEventListener("click", () => {
-  current = 0;
-  completed = new Set();
-  knownWords = new Set();
-  localStorage.removeItem("satzwerk-v2-current");
-  localStorage.removeItem("satzwerk-v2-completed");
-  localStorage.removeItem("satzwerk-v2-words");
-  render();
+function recordProduction(id) {
+  const record = recordFor(id);
+  const wasEarlierDay = record.lastSeen && new Date(record.lastSeen).toISOString().slice(0, 10) !== today();
+  record.production += 1;
+  record.score += 1;
+  if (wasEarlierDay) record.delayed += 1;
+  record.lastSeen = Date.now();
+  record.nextReview = Date.now() + 24 * 60 * 60e3;
+  addDay(record);
+}
+
+function recordRecovery(id) {
+  const record = recordFor(id);
+  const date = today();
+  if (record.retryDate !== date) { record.retryDate = date; record.retryCredit = 0; }
+  const award = Math.max(0, Math.min(.15, .3 - record.retryCredit));
+  record.retryCredit += award;
+  record.score += award;
+  record.lastSeen = Date.now();
+  record.nextReview = Date.now() + 12 * 60 * 60e3;
+}
+
+document.querySelector("#quizNext").addEventListener("click", () => {
+  quiz.index += 1;
+  if (quiz.index >= quiz.questions.length) showSummary();
+  else renderQuestion();
 });
 
-render();
+function showSummary() {
+  document.querySelector("#quizShell").hidden = true;
+  document.querySelector("#quizSummary").hidden = false;
+  const stillMissed = quiz.retry ? quiz.wrong.length : quiz.originalWrong.length;
+  const total = quiz.retry ? quiz.originalWrong.length : quiz.questions.length;
+  document.querySelector("#summaryTitle").textContent = quiz.retry ? `${quiz.recovered} of ${total} recovered.` : `${quiz.firstCorrect} of ${total} on the first pass.`;
+  document.querySelector("#summaryText").textContent = stillMissed ? "The missed set is ready for an immediate repair pass. That confirms understanding, but durable evidence must come later." : "No immediate repair set remains. The next meaningful evidence will come after time has passed.";
+  document.querySelector("#summaryCorrect").textContent = quiz.firstCorrect;
+  document.querySelector("#summaryRecovered").textContent = quiz.recovered;
+  document.querySelector("#summaryMissed").textContent = stillMissed;
+  document.querySelector("#retryMissed").hidden = stillMissed === 0;
+}
+
+document.querySelector("#retryMissed").addEventListener("click", () => {
+  const missed = quiz.retry ? quiz.wrong : quiz.originalWrong;
+  quiz.questions = [...new Map(missed.map(question => [question.id, question])).values()];
+  quiz.index = 0;
+  quiz.wrong = [];
+  quiz.retry = true;
+  document.querySelector("#quizSummary").hidden = true;
+  document.querySelector("#quizShell").hidden = false;
+  renderQuestion();
+});
+
+document.querySelector("#finishQuiz").addEventListener("click", renderPracticeStart);
+
+function renderVocabulary() {
+  const words = introducedWords();
+  document.querySelector("#unlockedCount").textContent = words.length;
+  const filtered = words.filter(word => vocabFilter === "all" || tierFor(state.words[word.id]) === vocabFilter).sort((a, b) => evidencePercent(state.words[a.id]) - evidencePercent(state.words[b.id]));
+  document.querySelector("#emptyVocab").hidden = filtered.length > 0;
+  document.querySelector("#vocabRows").innerHTML = filtered.map(word => {
+    const record = state.words[word.id];
+    const tier = tierFor(record);
+    const due = record.nextReview && record.nextReview <= Date.now();
+    return `<tr><td><strong>${word.de}</strong><small>${word.bundle}</small></td><td>${word.en}</td><td><span class="tier-pill"><i class="tier-dot ${tier}"></i>${tierLabel(tier)}</span></td><td><div class="evidence-mini"><i style="width:${evidencePercent(record)}%"></i></div></td><td><button class="vocab-action" type="button" data-review-word="${word.id}">${due ? "Review due" : "Practice lightly"}</button></td></tr>`;
+  }).join("");
+  document.querySelectorAll("[data-review-word]").forEach(button => button.addEventListener("click", () => { targetedWordId = button.dataset.reviewWord; go("learn"); }));
+}
+
+document.querySelectorAll("[data-tier]").forEach(button => button.addEventListener("click", () => {
+  vocabFilter = button.dataset.tier;
+  document.querySelectorAll("[data-tier]").forEach(item => item.classList.toggle("active", item === button));
+  renderVocabulary();
+}));
+
+function renderProgress() {
+  const words = introducedWords();
+  const accuracy = state.quiz.attempts ? Math.round((state.quiz.firstCorrect / state.quiz.attempts) * 100) : null;
+  document.querySelector("#progressWords").textContent = words.length;
+  document.querySelector("#progressAccuracy").textContent = accuracy == null ? "—" : `${accuracy}%`;
+  document.querySelector("#progressDue").textContent = dueWords().length;
+  const vocabEvidence = Math.round((words.length / vocabulary.length) * 100);
+  const writingEvidence = Math.min(100, Math.round((state.quiz.attempts / 20) * 100));
+  document.querySelector("#vocabEvidenceLabel").textContent = words.length ? `${vocabEvidence}% of current bank introduced` : "Not measured";
+  document.querySelector("#vocabEvidenceBar").style.width = `${vocabEvidence}%`;
+  document.querySelector("#writingEvidenceLabel").textContent = state.quiz.attempts ? `${state.quiz.attempts} first-pass attempts` : "Not measured";
+  document.querySelector("#writingEvidenceBar").style.width = `${writingEvidence}%`;
+}
 
 function registerModelTools() {
   const context = document.modelContext;
   if (!context?.registerTool) return;
   const lifecycle = new AbortController();
-  const register = tool => {
-    try { void Promise.resolve(context.registerTool(tool, { signal: lifecycle.signal })).catch(() => {}); }
-    catch { /* Browsers without WebMCP keep the visible experience unchanged. */ }
-  };
-
+  const register = tool => { try { void Promise.resolve(context.registerTool(tool, { signal: lifecycle.signal })).catch(() => {}); } catch {} };
   register({
-    name: "read_current_exercise",
-    title: "Read current German exercise",
-    description: "Read the visible Satzwerk exercise, introduced vocabulary, target noun, and current progress without changing state.",
+    name: "read_learning_state", title: "Read Satzwerk learning state",
+    description: "Read the learner's current A0 vocabulary, due reviews, evidence tiers, and available quiz count without changing progress.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
     annotations: { readOnlyHint: true, untrustedContentHint: false },
-    execute() {
-      const ex = exercises[current];
-      return { target: `${targets[ex.target].article} ${targets[ex.target].word}`, variation: current + 1, total: exercises.length, instruction: ex.label, context: ex.context, prompt: els.sentence.textContent, wordBank: ex.vocab || [], securedForms: completed.size };
-    }
+    execute() { return { level: "A0", introducedWords: introducedWords().length, dueWords: dueWords().length, availableQuestions: availableQuestions().length, quizAccuracy: state.quiz.attempts ? state.quiz.firstCorrect / state.quiz.attempts : null }; }
   });
-
   register({
-    name: "submit_practice_answer",
-    title: "Submit German answer",
-    description: "Submit an answer to the visible exercise and return the same diagnostic feedback shown to the learner.",
-    inputSchema: { type: "object", properties: { answer: { type: "string", minLength: 1 } }, required: ["answer"], additionalProperties: false },
+    name: "open_learning_view", title: "Open Satzwerk view",
+    description: "Open one visible Satzwerk area: home, learn, practice, vocabulary, culture, progress, or sources.",
+    inputSchema: { type: "object", properties: { view: { type: "string", enum: ["home", "learn", "practice", "vocabulary", "culture", "progress", "sources"] } }, required: ["view"], additionalProperties: false },
     annotations: { readOnlyHint: false, untrustedContentHint: false },
-    execute(input) {
-      if (!input || typeof input.answer !== "string" || !input.answer.trim()) throw new Error("A non-empty German answer is required.");
-      els.input.value = input.answer;
-      gradeAnswer(input.answer);
-      return { outcome: els.kicker.textContent, feedback: els.feedbackText.textContent, securedForms: completed.size };
-    }
+    execute(input) { go(input.view); return { opened: input.view }; }
   });
 }
 
+renderHome();
 registerModelTools();
