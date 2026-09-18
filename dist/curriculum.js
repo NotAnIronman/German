@@ -1,10 +1,10 @@
 (function () {
   const LEVELS = [
-    { id: "A0", title: "Foundation", summary: "Meet German sounds, first exchanges, personal details, and the article system before the A1 route begins.", outcome: "Take part in a first encounter and handle the most useful beginner routines." },
-    { id: "A1", title: "Everyday basics", summary: "Build a practical base for people, time, food, home, plans, travel, health, and recent events.", outcome: "Handle short, predictable exchanges and write simple connected messages." },
-    { id: "A2", title: "Daily independence", summary: "Connect events, manage cases, solve common problems, and explain plans, reasons, and preferences.", outcome: "Manage familiar daily situations with growing sentence control." },
-    { id: "B1", title: "Independent use", summary: "Tell connected stories, explain goals, evaluate information, discuss familiar issues, and sustain a clear position.", outcome: "Understand the main point of clear standard German and express connected ideas." },
-    { id: "B2", title: "Flexible command", summary: "Work with complex texts, source distance, formal register, nuance, mediation, and detailed argumentation.", outcome: "Communicate with useful fluency and explain complex positions with detail and qualification." }
+    { id: "A0", title: "Foundation", summary: "Meet German sounds, first exchanges, personal details, articles, numbers, time, and conversation repair before the A1 route begins.", outcome: "Take part in a first encounter, share essential information, and ask for the help you need." },
+    { id: "A1", title: "Everyday basics", summary: "Build a practical base for people, schedules, food, home, transport, shopping, travel, health, and recent events.", outcome: "Handle short everyday exchanges, solve predictable problems, and write simple connected messages." },
+    { id: "A2", title: "Daily independence", summary: "Connect events, manage cases, coordinate work and housing, use public services, and handle travel problems.", outcome: "Manage familiar situations independently and explain plans, reasons, preferences, and requests." },
+    { id: "B1", title: "Independent use", summary: "Tell connected stories, apply for work, resolve practical conflicts, evaluate information, and explain health concerns.", outcome: "Understand clear standard German and sustain connected, purposeful interaction across daily life." },
+    { id: "B2", title: "Flexible command", summary: "Work with complex texts, meetings, official correspondence, presentations, mediation, formal register, and detailed argumentation.", outcome: "Communicate with useful fluency, handle disagreement, and explain complex positions with detail and qualification." }
   ];
 
   const SOURCES = [
@@ -19,7 +19,10 @@
     { category: "GRAMMAR", title: "IDS Grammis: Two-way prepositions", body: "Used to verify location with dative and destination with accusative.", url: "https://grammis.ids-mannheim.de/systematische-grammatik/1448" },
     { category: "LEARNING DESIGN", title: "Roediger and Karpicke: Retrieval practice", body: "Informs the separation between exposure, same-session repair, and later retrieval evidence.", url: "https://doi.org/10.1111/j.1467-9280.2006.01693.x" },
     { category: "LEARNING DESIGN", title: "Cepeda and colleagues: Distributed practice", body: "Informs delayed review scheduling and the durable vocabulary tier.", url: "https://doi.org/10.1037/0033-2909.132.3.354" },
-    { category: "CULTURAL LEARNING", title: "Goethe-Institut: Culture in language teaching", body: "Supports observation, comparison, and regional variation in the culture notes.", url: "https://www.goethe.de/prj/dlp/en/magazin-sprache/23009865.html" }
+    { category: "CULTURAL LEARNING", title: "Goethe-Institut: Culture in language teaching", body: "Supports observation, comparison, and regional variation in the culture notes.", url: "https://www.goethe.de/prj/dlp/en/magazin-sprache/23009865.html" },
+    { category: "PRACTICAL COVERAGE", title: "Goethe-Institut: A1 course content", body: "Used to check practical beginner coverage including spelling, time, transport, shopping, health, accommodation, and polite service exchanges.", url: "https://www.goethe.de/resources/files/pdf315/a1-panorama---description-of-course-content-v1.pdf" },
+    { category: "LIVING AND WORKING", title: "Goethe-Institut: Mein Weg nach Deutschland", body: "Guides practical modules about first steps, work, family, public life, and everyday independence in Germany.", url: "https://www.goethe.de/prj/dlp/en/teachingmaterials/series/mein_weg_nach_deutschland_living_in_germany" },
+    { category: "B2 CURRICULUM", title: "Goethe-Institut: B2 course content", body: "Used to check advanced coverage of formal email, source summaries, conflict, meetings, presentations, and professional interaction.", url: "https://www.goethe.de/resources/files/pdf315/b2-kontext---description-of-course-content.pdf" }
   ];
 
   const M = spec => ({

@@ -11,6 +11,8 @@ const modules = course.modules;
 function generatedLessonFor(module) {
   const core = module.words.filter(word => !word.supplemental);
   const midpoint = Math.ceil(core.length / 2);
+  const firstTarget = core[0];
+  const transferTarget = core[core.length - 1];
   const bundleStep = (id, title, group) => ({
     id,
     kind: "teach",
@@ -42,7 +44,33 @@ function generatedLessonFor(module) {
         examples: [{ de: item.example, en: item.translation }]
       })),
       bundleStep("core-bundles-1", "Meet the first core bundles", core.slice(0, midpoint)),
+      {
+        id: "meaning-check",
+        kind: "choice",
+        label: "GUIDED CHECK",
+        title: "Recognize a useful bundle",
+        body: "Choose the German bundle that matches the meaning. You can review the examples above before answering.",
+        prompt: `Which bundle means: ${firstTarget.en}?`,
+        options: [firstTarget, ...core.slice(1, 3)].map(word => word.bundle),
+        answer: firstTarget.bundle,
+        retry: "Match the meaning to the complete bundle shown in the previous step.",
+        success: "You recognized the bundle in context.",
+        teaches: [firstTarget.id]
+      },
       bundleStep("core-bundles-2", "Connect the remaining core bundles", core.slice(midpoint)),
+      {
+        id: "first-transfer",
+        kind: "type",
+        label: "GUIDED PRODUCTION",
+        title: "Produce one complete sentence",
+        body: "Use the example you just studied. Keyboard spellings such as ae, oe, ue, and ss are accepted.",
+        prompt: `Write in German: ${transferTarget.exampleEn}`,
+        placeholder: "Type the complete German sentence",
+        answers: [transferTarget.example],
+        retry: "Return to the second bundle group and copy the sentence once with care.",
+        success: "You produced the first complete sentence from this module.",
+        teaches: [transferTarget.id]
+      },
       {
         id: "retrieval-ready",
         kind: "teach",
@@ -68,7 +96,7 @@ const $$ = selector => [...document.querySelectorAll(selector)];
 const now = () => Date.now();
 const today = () => new Date().toISOString().slice(0, 10);
 const dayMs = 86400000;
-const assessmentVersion = 1;
+const assessmentVersion = 2;
 const assessmentPassScore = .8;
 
 const defaultState = {
@@ -202,7 +230,7 @@ function wordRecord(id) {
 
 function moduleRecord(id) {
   if (!state.modules[id]) {
-    state.modules[id] = { started: false, attempts: 0, firstCorrect: 0, listening: 0, reading: 0, writing: 0, speaking: 0, checkpointScore: null, checkpointAt: null, completedPrompts: {}, attemptedPrompts: {}, lessonSteps: {}, lessonIndex: 0, activities: {}, assessment: { version: assessmentVersion, firstScore: null, latestScore: null, bestScore: null, attempts: [], passedAt: null }, completedAt: null, celebrationSeen: false };
+    state.modules[id] = { started: false, attempts: 0, firstCorrect: 0, listening: 0, reading: 0, writing: 0, speaking: 0, checkpointScore: null, checkpointAt: null, completedPrompts: {}, attemptedPrompts: {}, lessonSteps: {}, lessonIndex: 0, activities: {}, assessment: { version: assessmentVersion, firstScore: null, latestScore: null, bestScore: null, attempts: [], passedAt: null, archive: [] }, completedAt: null, celebrationSeen: false };
   }
   const record = state.modules[id];
   record.completedPrompts ||= {};
@@ -216,9 +244,26 @@ function moduleRecord(id) {
       record.activities[activity] = { bestScore: legacyScore, attempts: legacyScore > 0 ? 1 : 0, completedAt: legacyScore >= 1 ? (record.checkpointAt || today()) : null };
     }
   });
-  record.assessment ||= { version: assessmentVersion, firstScore: null, latestScore: null, bestScore: null, attempts: [], passedAt: null };
-  record.assessment.version ||= assessmentVersion;
+  record.assessment ||= { version: assessmentVersion, firstScore: null, latestScore: null, bestScore: null, attempts: [], passedAt: null, archive: [] };
+  if (record.assessment.version !== assessmentVersion) {
+    const previous = record.assessment;
+    record.assessment = {
+      version: assessmentVersion,
+      firstScore: null,
+      latestScore: null,
+      bestScore: null,
+      attempts: [],
+      passedAt: null,
+      archive: [
+        ...(previous.archive || []),
+        { version: previous.version || 1, bestScore: previous.bestScore ?? previous.latestScore ?? null, attempts: previous.attempts || [] }
+      ]
+    };
+    record.completedAt = null;
+    record.celebrationSeen = false;
+  }
   record.assessment.attempts ||= [];
+  record.assessment.archive ||= [];
   if (record.assessment.firstScore === undefined) record.assessment.firstScore = null;
   if (record.assessment.latestScore === undefined) record.assessment.latestScore = null;
   if (record.assessment.bestScore === undefined) record.assessment.bestScore = null;
@@ -1047,8 +1092,15 @@ function renderAssessmentIntro() {
     "Every completed attempt stays in your score history. A lower retake keeps your best score.",
     "Keyboard spellings such as ae, oe, ue, and ss receive full credit."
   ].map(rule => `<li>${escapeHtml(rule)}</li>`).join("");
-  $("#assessmentPrior").hidden = record.assessment.attempts.length === 0;
-  $("#assessmentPrior").textContent = record.assessment.attempts.length ? `${record.assessment.attempts.length} prior attempt${record.assessment.attempts.length === 1 ? "" : "s"}. Best score: ${Math.round((record.assessment.bestScore || 0) * 100)}%.` : "";
+  const archived = record.assessment.archive?.[record.assessment.archive.length - 1];
+  const currentHistory = record.assessment.attempts.length
+    ? `${record.assessment.attempts.length} prior attempt${record.assessment.attempts.length === 1 ? "" : "s"}. Best score: ${Math.round((record.assessment.bestScore || 0) * 100)}%.`
+    : "";
+  const archivedHistory = archived
+    ? `This module now includes more material. Your earlier best score of ${Math.round((archived.bestScore || 0) * 100)}% is archived, and this assessment covers the expanded course.`
+    : "";
+  $("#assessmentPrior").hidden = !(currentHistory || archivedHistory);
+  $("#assessmentPrior").textContent = currentHistory || archivedHistory;
 }
 
 function beginModuleAssessment() {
