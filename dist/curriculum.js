@@ -333,8 +333,8 @@
         ["arzt", "der Arzt, die Ärzte", "doctor", "der Arzt · die Ärztin", "Ich gehe zum Arzt.", "I am going to the doctor."],
         ["regen", "der Regen", "rain", "der Regen · es regnet", "Heute gibt es viel Regen.", "There is a lot of rain today."],
         ["sonne", "die Sonne", "sun", "die Sonne · sie scheint", "Heute scheint die Sonne.", "The sun is shining today."],
-        ["gearbeitet", "arbeiten, hat gearbeitet", "worked", "arbeiten · hat gearbeitet", "Ich habe lange gearbeitet.", "I worked for a long time."],
-        ["gefahren", "fahren, ist gefahren", "traveled / drove", "fahren · ist gefahren", "Wir sind nach Hamburg gefahren.", "We traveled to Hamburg."],
+        ["gearbeitet", "arbeiten, hat gearbeitet", "to work", "arbeiten · hat gearbeitet", "Ich habe lange gearbeitet.", "I worked for a long time."],
+        ["gefahren", "fahren, ist gefahren", "to travel / drive", "fahren · ist gefahren", "Wir sind nach Hamburg gefahren.", "We traveled to Hamburg."],
         ["war", "war / hatte", "was / had", "sein: war · haben: hatte", "Gestern war ich müde.", "Yesterday I was tired."]
       ],
       questions: [

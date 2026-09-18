@@ -7,6 +7,58 @@ if (!course?.modules?.length) {
 
 const levels = course.levels;
 const modules = course.modules;
+
+function generatedLessonFor(module) {
+  const core = module.words.filter(word => !word.supplemental);
+  const midpoint = Math.ceil(core.length / 2);
+  const bundleStep = (id, title, group) => ({
+    id,
+    kind: "teach",
+    label: "CORE LANGUAGE",
+    title,
+    body: "Read each bundle with its meaning and example. The typed deck follows this lesson.",
+    examples: group.map(word => ({ de: word.bundle, en: word.en, note: word.example })),
+    teaches: group.map(word => word.id)
+  });
+  return {
+    generated: true,
+    title: `${module.title}: guided preparation`,
+    intro: "Start with the communicative goal, study the grammar in examples, then meet every core bundle before retrieval.",
+    steps: [
+      {
+        id: "module-goals",
+        kind: "teach",
+        label: "PURPOSE",
+        title: "What this module prepares you to do",
+        body: module.canDo.join(" "),
+        note: "These goals return in Sentence Lab, skill work, and the module assessment."
+      },
+      ...module.grammar.map((item, index) => ({
+        id: `grammar-${index + 1}`,
+        kind: "teach",
+        label: "GRAMMAR",
+        title: item.title,
+        body: item.rule,
+        examples: [{ de: item.example, en: item.translation }]
+      })),
+      bundleStep("core-bundles-1", "Meet the first core bundles", core.slice(0, midpoint)),
+      bundleStep("core-bundles-2", "Connect the remaining core bundles", core.slice(midpoint)),
+      {
+        id: "retrieval-ready",
+        kind: "teach",
+        label: "NEXT STEP",
+        title: "Prepare to retrieve the language",
+        body: "The word deck asks you to type each answer. Sentence Lab opens after every core bundle has been recalled once.",
+        note: "Expansion bundles remain available for extra range and never block module completion."
+      }
+    ]
+  };
+}
+
+modules.forEach(module => {
+  if (!module.lesson?.steps?.length) module.lesson = generatedLessonFor(module);
+});
+
 const allWords = modules.flatMap(module => module.words.map(word => ({ ...word, moduleId: module.id, level: module.level, globalId: `${module.id}:${word.id}` })));
 const allQuestions = modules.flatMap(module => module.questions.map(question => ({ ...question, moduleId: module.id, level: module.level, globalId: `${module.id}:${question.id}` })));
 const storageKey = "satzwerk-production-v1";
@@ -16,9 +68,11 @@ const $$ = selector => [...document.querySelectorAll(selector)];
 const now = () => Date.now();
 const today = () => new Date().toISOString().slice(0, 10);
 const dayMs = 86400000;
+const assessmentVersion = 1;
+const assessmentPassScore = .8;
 
 const defaultState = {
-  version: 3,
+  version: 4,
   activeModule: modules[0].id,
   courseLevel: "A0",
   cultureLevel: "A0",
@@ -66,8 +120,12 @@ function loadState() {
         recovered: 0
       };
       next.version = 3;
-      localStorage.setItem(storageKey, JSON.stringify(next));
     }
+    if (storedVersion < 4) {
+      next.version = 4;
+      next.deckPositions = {};
+    }
+    localStorage.setItem(storageKey, JSON.stringify(next));
     if (!modules.some(module => module.id === next.activeModule)) next.activeModule = modules[0].id;
     return next;
   } catch {
@@ -132,21 +190,60 @@ function globalWordId(moduleId, localId) {
 
 function wordRecord(id) {
   if (!state.words[id]) {
-    state.words[id] = { introduced: false, score: 0, production: 0, delayed: 0, misses: 0, days: [], lastSeen: null, lastTest: null, nextReview: null, retryCredit: 0 };
+    state.words[id] = { introduced: false, score: 0, production: 0, delayed: 0, misses: 0, days: [], lastSeen: null, lastTest: null, nextReview: null, retryCredit: 0, typedAttempts: 0, typedCorrect: 0, typedDays: [], directionCorrect: { meaning: 0, german: 0 } };
   }
-  return state.words[id];
+  const record = state.words[id];
+  record.typedAttempts ||= 0;
+  record.typedCorrect ||= 0;
+  record.typedDays ||= [];
+  record.directionCorrect ||= { meaning: 0, german: 0 };
+  return record;
 }
 
 function moduleRecord(id) {
   if (!state.modules[id]) {
-    state.modules[id] = { started: false, attempts: 0, firstCorrect: 0, listening: 0, reading: 0, writing: 0, speaking: 0, checkpointScore: null, checkpointAt: null, completedPrompts: {}, attemptedPrompts: {}, lessonSteps: {}, lessonIndex: 0 };
+    state.modules[id] = { started: false, attempts: 0, firstCorrect: 0, listening: 0, reading: 0, writing: 0, speaking: 0, checkpointScore: null, checkpointAt: null, completedPrompts: {}, attemptedPrompts: {}, lessonSteps: {}, lessonIndex: 0, activities: {}, assessment: { version: assessmentVersion, firstScore: null, latestScore: null, bestScore: null, attempts: [], passedAt: null }, completedAt: null, celebrationSeen: false };
   }
   const record = state.modules[id];
   record.completedPrompts ||= {};
   record.attemptedPrompts ||= {};
   record.lessonSteps ||= {};
   record.lessonIndex ||= 0;
+  record.activities ||= {};
+  ["reading", "writing", "speaking"].forEach(activity => {
+    if (!record.activities[activity]) {
+      const legacyScore = Number(record[activity] || 0);
+      record.activities[activity] = { bestScore: legacyScore, attempts: legacyScore > 0 ? 1 : 0, completedAt: legacyScore >= 1 ? (record.checkpointAt || today()) : null };
+    }
+  });
+  record.assessment ||= { version: assessmentVersion, firstScore: null, latestScore: null, bestScore: null, attempts: [], passedAt: null };
+  record.assessment.version ||= assessmentVersion;
+  record.assessment.attempts ||= [];
+  if (record.assessment.firstScore === undefined) record.assessment.firstScore = null;
+  if (record.assessment.latestScore === undefined) record.assessment.latestScore = null;
+  if (record.assessment.bestScore === undefined) record.assessment.bestScore = null;
+  record.assessment.passedAt ||= null;
+  record.completedAt ||= null;
+  record.celebrationSeen ||= false;
   return record;
+}
+
+function recordActivityResult(moduleId, activity, score) {
+  const record = moduleRecord(moduleId);
+  const activityRecord = record.activities[activity];
+  activityRecord.attempts += 1;
+  activityRecord.bestScore = Math.max(activityRecord.bestScore || 0, score);
+  if (score >= 1 && !activityRecord.completedAt) activityRecord.completedAt = today();
+  record[activity] = Math.max(Number(record[activity] || 0), score);
+  record.started = true;
+  state.skills[activity].attempts += 1;
+  if (activity === "reading" && score >= 1) state.skills.reading.correct += 1;
+  saveState();
+  return activityRecord;
+}
+
+function activityIsComplete(module, activity) {
+  return Boolean(moduleRecord(module.id).activities[activity]?.completedAt);
 }
 
 function addDay(record) {
@@ -169,9 +266,12 @@ function dueWords() {
 
 function tierFor(record) {
   if (!record?.introduced) return "unseen";
-  if (record.production >= 5 && record.delayed >= 3 && record.days?.length >= 4) return "durable";
-  if (record.production >= 2 && record.days?.length >= 2) return "retrievable";
-  if (record.production > 0 || record.score >= .5) return "practicing";
+  const german = Number(record.directionCorrect?.german || 0);
+  const meaning = Number(record.directionCorrect?.meaning || 0);
+  const days = record.typedDays?.length || 0;
+  if (german >= 3 && meaning >= 2 && days >= 4) return "durable";
+  if (german >= 1 && meaning >= 1 && days >= 2) return "retrievable";
+  if (record.typedCorrect > 0) return "practicing";
   return "introduced";
 }
 
@@ -181,7 +281,10 @@ function tierLabel(tier) {
 
 function evidencePercent(record) {
   if (!record?.introduced) return 0;
-  return Math.min(100, Math.round(8 + (record.score || 0) * 7 + (record.production || 0) * 12 + (record.delayed || 0) * 10 + Math.max(0, (record.days?.length || 0) - 1) * 8));
+  const typed = Number(record.typedCorrect || 0);
+  const directions = Number(record.directionCorrect?.meaning > 0) + Number(record.directionCorrect?.german > 0);
+  const days = record.typedDays?.length || 0;
+  return Math.min(100, Math.round(8 + typed * 10 + directions * 12 + Math.max(0, days - 1) * 12));
 }
 
 function moduleWordCount(module, introducedOnly = false) {
@@ -192,6 +295,29 @@ function moduleWordCount(module, introducedOnly = false) {
 function moduleCoreWords(module) {
   const core = module.words.filter(word => !word.supplemental);
   return core.length ? core : module.words;
+}
+
+function verifiedCoreCount(module) {
+  return moduleCoreWords(module).filter(word => wordRecord(globalWordId(module.id, word.id)).typedCorrect > 0).length;
+}
+
+function moduleStageStates(module) {
+  const record = moduleRecord(module.id);
+  const coreTotal = moduleCoreWords(module).length;
+  const promptTotal = module.questions.length;
+  const stages = [];
+  if (module.lesson?.steps?.length) stages.push({ id: "lesson", label: "Guided lesson", complete: lessonIsComplete(module), value: Object.keys(record.lessonSteps).length / module.lesson.steps.length });
+  stages.push(
+    { id: "vocabulary", label: "Core word recall", complete: verifiedCoreCount(module) === coreTotal, value: verifiedCoreCount(module) / Math.max(1, coreTotal) },
+    { id: "sentences", label: "Sentence lab", complete: completedPromptCount(module) === promptTotal, value: completedPromptCount(module) / Math.max(1, promptTotal) },
+    { id: "reading", label: "Reading", complete: activityIsComplete(module, "reading"), value: record.activities.reading.bestScore || 0 },
+    { id: "writing", label: "Writing", complete: activityIsComplete(module, "writing"), value: record.activities.writing.bestScore || 0 },
+    { id: "speaking", label: "Speaking rehearsal", complete: activityIsComplete(module, "speaking"), value: record.activities.speaking.bestScore || 0 },
+    { id: "assessment", label: "Module assessment", complete: Boolean(record.assessment.passedAt), value: record.assessment.bestScore || 0 }
+  );
+  const firstOpen = stages.find(stage => !stage.complete);
+  stages.forEach(stage => { stage.current = stage === firstOpen; });
+  return stages;
 }
 
 function lessonIsComplete(module) {
@@ -205,8 +331,21 @@ function completedPromptCount(module) {
   return module.questions.filter(question => completed[question.id]).length;
 }
 
+function courseworkIsComplete(module) {
+  return lessonIsComplete(module) &&
+    verifiedCoreCount(module) === moduleCoreWords(module).length &&
+    completedPromptCount(module) === module.questions.length &&
+    activityIsComplete(module, "reading") &&
+    activityIsComplete(module, "writing") &&
+    activityIsComplete(module, "speaking");
+}
+
+function moduleIsComplete(module) {
+  return courseworkIsComplete(module) && Boolean(moduleRecord(module.id).assessment.passedAt);
+}
+
 function moduleSequenceComplete(module) {
-  return lessonIsComplete(module) && completedPromptCount(module) === module.questions.length;
+  return moduleIsComplete(module);
 }
 
 function unmetPrerequisite(module) {
@@ -222,21 +361,18 @@ function introducedCoreCount(module) {
 }
 
 function moduleProgress(module) {
-  const record = state.modules[module.id];
-  if (!record) return 0;
-  const core = moduleCoreWords(module);
-  const words = core.filter(word => isIntroduced(globalWordId(module.id, word.id))).length / Math.max(1, core.length);
-  const prompts = completedPromptCount(module) / Math.max(1, module.questions.length);
-  const skills = [record.reading, record.writing, record.speaking].filter(value => Number(value) > 0).length / 3;
-  const checkpoint = record.checkpointScore == null ? 0 : Math.min(1, record.checkpointScore);
-  return Math.round(words * 40 + prompts * 35 + skills * 15 + checkpoint * 10);
+  if (!state.modules[module.id] && moduleWordCount(module, true) === 0) return 0;
+  const stages = moduleStageStates(module);
+  return Math.round(stages.reduce((sum, stage) => sum + Math.min(1, stage.complete ? 1 : stage.value || 0), 0) / stages.length * 100);
 }
 
 function moduleStatus(module) {
   const record = state.modules[module.id];
   if (!record) return "Fresh";
-  if (record.checkpointScore >= .8) return "Checkpoint passed";
-  if (record.attempts > 0 || record.listening || record.reading || record.writing || record.speaking) return "Practiced";
+  if (moduleIsComplete(module)) return "Module complete";
+  if (record.assessment?.attempts?.length) return "Assessment attempted";
+  if (courseworkIsComplete(module)) return "Ready for assessment";
+  if (record.attempts > 0 || record.listening || record.reading || record.writing || record.speaking) return "In progress";
   if (moduleWordCount(module, true) > 0 || record.started) return "Started";
   return "Fresh";
 }
@@ -328,7 +464,7 @@ function renderHome() {
   $("#continueUnit").textContent = `${module.code} · ${module.title.toUpperCase()}`;
   const introduced = moduleWordCount(module, true);
   const core = moduleCoreWords(module);
-  const coreIntroduced = core.filter(word => isIntroduced(globalWordId(module.id, word.id))).length;
+  const coreVerified = verifiedCoreCount(module);
   const record = moduleRecord(module.id);
   const resolved = completedPromptCount(module);
   const guided = Boolean(module.lesson?.steps?.length);
@@ -339,9 +475,9 @@ function renderHome() {
     $("#continueText").textContent = completed + " of " + module.lesson.steps.length + " teaching steps are complete. Each new phrase is explained before practice.";
     button.innerHTML = 'Open guided lesson <span>→</span>';
     button.onclick = () => go("learn");
-  } else if (coreIntroduced < core.length) {
-    $("#continueTitle").textContent = coreIntroduced ? "Continue the core word deck" : module.title;
-    $("#continueText").textContent = coreIntroduced ? `${coreIntroduced} of ${core.length} core bundles have been met in this module.` : module.subtitle;
+  } else if (coreVerified < core.length) {
+    $("#continueTitle").textContent = coreVerified ? "Continue typed word recall" : "Learn and retrieve the core words";
+    $("#continueText").textContent = `${coreVerified} of ${core.length} core bundles have been recalled by typing. The assessment will test them again.`;
     button.innerHTML = 'Open word deck <span>→</span>';
     button.onclick = () => go("learn");
   } else if (resolved < module.questions.length) {
@@ -349,32 +485,33 @@ function renderHome() {
     $("#continueText").textContent = resolved + " of " + module.questions.length + " sentence patterns are resolved. Successful repairs count here.";
     button.innerHTML = 'Open practice <span>→</span>';
     button.onclick = () => go("practice");
-  } else if (guided && record.reading < 1) {
+  } else if (!activityIsComplete(module, "reading")) {
     $("#continueTitle").textContent = "Read the familiar patterns";
     $("#continueText").textContent = "The short passage uses language from the lesson and sentence practice.";
     button.innerHTML = 'Open reading <span>→</span>';
     button.onclick = () => go("practice");
-  } else if (guided && record.writing < 1) {
+  } else if (!activityIsComplete(module, "writing")) {
     $("#continueTitle").textContent = "Build the guided writing task";
     $("#continueText").textContent = "Every visible requirement is checked separately.";
     button.innerHTML = 'Open writing <span>→</span>';
     button.onclick = () => go("practice");
-  } else if (guided && record.checkpointScore < .8) {
-    $("#continueTitle").textContent = "Return without the lesson supports";
-    $("#continueText").textContent = "The checkpoint is ready after the guided work.";
-    button.innerHTML = 'Open checkpoint <span>→</span>';
+  } else if (!activityIsComplete(module, "speaking")) {
+    $("#continueTitle").textContent = "Complete the speaking rehearsal";
+    $("#continueText").textContent = "Say the taught phrases aloud, then verify that each target appears in the transcript.";
+    button.innerHTML = 'Open speaking rehearsal <span>→</span>';
     button.onclick = () => go("practice");
-  } else if (introduced < module.words.length) {
-    const remaining = module.words.length - introduced;
-    $("#continueTitle").textContent = "Widen this module's word bank";
-    $("#continueText").textContent = `${remaining} additional bundle${remaining === 1 ? " is" : "s are"} ready with a phrase, word family, or usage pattern.`;
-    button.innerHTML = 'Meet more language <span>→</span>';
-    button.onclick = () => go("learn");
+  } else if (!record.assessment.passedAt) {
+    $("#continueTitle").textContent = record.assessment.attempts.length ? "Retake the module assessment" : "Take the module assessment";
+    $("#continueText").textContent = record.assessment.attempts.length ? `Best score: ${Math.round((record.assessment.bestScore || 0) * 100)}%. Reach 80% and the section minimums to complete the module.` : "This closed attempt covers every core word, every sentence target, reading, and structured writing.";
+    button.innerHTML = 'Open assessment <span>→</span>';
+    button.onclick = () => go("practice");
   } else {
-    $("#continueTitle").textContent = "Return from another angle";
-    $("#continueText").textContent = "Choose reading, writing, speaking, or the module checkpoint.";
-    button.innerHTML = 'Choose practice <span>→</span>';
-    button.onclick = () => go("practice");
+    const index = modules.findIndex(item => item.id === module.id);
+    const next = modules[index + 1];
+    $("#continueTitle").textContent = next ? `${module.code} complete. Continue to ${next.code}.` : "The full A0 to B2 pathway is complete";
+    $("#continueText").textContent = next ? `Your best assessment score is ${Math.round((record.assessment.bestScore || 0) * 100)}%. Spaced vocabulary reviews remain available.` : "Every module assessment has been passed. Keep using delayed review and real conversation to strengthen access.";
+    button.innerHTML = next ? `Open ${next.code} <span>→</span>` : 'Review course progress <span>→</span>';
+    button.onclick = () => { if (next) setActiveModule(next.id); go(next ? "learn" : "progress"); };
   }
   $("#homeLevelPath").innerHTML = levels.map((level, index) => `${index ? '<div class="path-line"></div>' : ""}<button class="path-level ${module.level === level.id ? "active" : ""}" type="button" data-level-go="${level.id}"><b>${level.id}</b><span>${escapeHtml(level.title)}</span><small>${modules.filter(item => item.level === level.id).length} modules · ${levelProgress(level.id)}%</small></button>`).join("");
   $$('[data-level-go]').forEach(button => button.addEventListener("click", () => {
@@ -394,7 +531,7 @@ function renderCourse() {
   $("#courseModuleTotal").textContent = modules.length;
   $("#levelTabs").innerHTML = levels.map(item => `<button type="button" class="${item.id === level.id ? "active" : ""}" data-course-level="${item.id}">${item.id}<small> ${modules.filter(module => module.level === item.id).length}</small></button>`).join("");
   $("#levelSummary").innerHTML = `<strong>${level.id} · ${escapeHtml(level.title)}</strong><p>${escapeHtml(level.summary)} ${escapeHtml(level.outcome)}</p>`;
-  $("#moduleGrid").innerHTML = group.map(module => `<button class="module-card ${module.id === courseSelectedModule ? "active" : ""}" type="button" data-course-module="${module.id}"><span>${module.code}</span><strong>${escapeHtml(module.title)}</strong><p>${escapeHtml(module.subtitle)}</p><small>${moduleStatus(module)} · ${moduleProgress(module)}%</small></button>`).join("");
+  $("#moduleGrid").innerHTML = group.map(module => `<button class="module-card ${module.id === courseSelectedModule ? "active" : ""} ${moduleIsComplete(module) ? "completed" : ""}" type="button" data-course-module="${module.id}"><span>${module.code}${moduleIsComplete(module) ? " · ✓" : ""}</span><strong>${escapeHtml(module.title)}</strong><p>${escapeHtml(module.subtitle)}</p><small>${moduleStatus(module)} · ${moduleProgress(module)}%</small></button>`).join("");
   renderModuleDetail(moduleById(courseSelectedModule));
   $$('[data-course-level]').forEach(button => button.addEventListener("click", () => {
     state.courseLevel = button.dataset.courseLevel;
@@ -411,7 +548,8 @@ function renderCourse() {
 function renderModuleDetail(module) {
   const expansionCount = module.words.filter(word => word.supplemental).length;
   const bundleSummary = expansionCount ? `${moduleCoreWords(module).length} core + ${expansionCount} expansion bundles` : `${module.words.length} bundles`;
-  $("#moduleDetail").innerHTML = `<span class="eyebrow">${module.code} · ${moduleStatus(module).toUpperCase()}</span><h2>${escapeHtml(module.title)}</h2><p>${escapeHtml(module.subtitle)}</p><h3>You will learn to</h3><ul>${module.canDo.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ul><h3>Grammar focus</h3><ul>${module.grammar.map(item => `<li>${escapeHtml(item.title)}</li>`).join("")}</ul><div class="module-progress"><div><i style="width:${moduleProgress(module)}%"></i></div><small>${bundleSummary} · ${module.questions.length} typed prompts · ${moduleProgress(module)}% course evidence</small></div><div class="module-detail-actions"><button class="primary-button" type="button" data-module-learn="${module.id}">Learn words</button><button class="quiet-button" type="button" data-module-practice="${module.id}">Practice</button></div>`;
+  const stages = moduleStageStates(module);
+  $("#moduleDetail").innerHTML = `<span class="eyebrow">${module.code} · ${moduleStatus(module).toUpperCase()}</span><h2>${escapeHtml(module.title)}</h2><p>${escapeHtml(module.subtitle)}</p><h3>You will learn to</h3><ul>${module.canDo.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ul><h3>Completion stages</h3><ul>${stages.map(stage => `<li>${stage.complete ? "✓" : "○"} ${escapeHtml(stage.label)}</li>`).join("")}</ul><h3>Grammar focus</h3><ul>${module.grammar.map(item => `<li>${escapeHtml(item.title)}</li>`).join("")}</ul><div class="module-progress"><div><i style="width:${moduleProgress(module)}%"></i></div><small>${bundleSummary} · ${module.questions.length} typed prompts · ${stages.filter(stage => stage.complete).length} of ${stages.length} stages complete</small></div><div class="module-detail-actions"><button class="primary-button" type="button" data-module-learn="${module.id}">Learn words</button><button class="quiet-button" type="button" data-module-practice="${module.id}">Practice</button></div>`;
   $('[data-module-learn]').addEventListener("click", event => { setActiveModule(event.currentTarget.dataset.moduleLearn); go("learn"); });
   $('[data-module-practice]').addEventListener("click", event => { setActiveModule(event.currentTarget.dataset.modulePractice); go("practice"); });
 }
@@ -595,7 +733,8 @@ function prepareDeck() {
   syncModuleControls();
   deck = targetedWordId ? [wordByGlobalId(targetedWordId)] : module.words.map(word => ({ ...word, moduleId: module.id, level: module.level, globalId: globalWordId(module.id, word.id) }));
   deck = deck.filter(Boolean);
-  deckIndex = targetedWordId ? 0 : Math.min(state.deckPositions[module.id] || 0, Math.max(0, deck.length - 1));
+  const firstUnrecalledCore = deck.findIndex(word => !word.supplemental && wordRecord(word.globalId).typedCorrect === 0);
+  deckIndex = targetedWordId ? 0 : firstUnrecalledCore >= 0 ? firstUnrecalledCore : Math.min(state.deckPositions[module.id] || 0, Math.max(0, deck.length - 1));
   const hasLesson = Boolean(module.lesson?.steps?.length) && !targetedWordId;
   $("#learnModeSwitch").hidden = !hasLesson;
   lessonStepIndex = hasLesson ? Math.min(moduleRecord(module.id).lessonIndex || 0, module.lesson.steps.length - 1) : 0;
@@ -609,27 +748,72 @@ function cardDirectionFor() {
   return deckIndex % 2 === 0 ? "german" : "english";
 }
 
+function splitRecallParts(value) {
+  return String(value || "").split(/\s+(?:\/|·)\s+/u).map(part => part.trim()).filter(Boolean);
+}
+
+function germanRecallAnswers(word) {
+  const source = word.recall?.deAnswers || splitRecallParts(word.de);
+  return [...new Set(source.flatMap(value => {
+    const trimmed = String(value).trim();
+    const short = /^(?:der|die|das)\s/iu.test(trimmed) && trimmed.includes(",")
+      ? trimmed.split(",")[0].trim()
+      : /,\s*(?:hat|ist)\b/iu.test(trimmed)
+        ? trimmed.replace(/,\s*(?:hat|ist)\b.*$/iu, "").trim()
+        : trimmed;
+    return [trimmed, short];
+  }).filter(Boolean))];
+}
+
+function englishRecallAnswers(word) {
+  const source = word.recall?.enAnswers || splitRecallParts(word.en);
+  return [...new Set(source.flatMap(value => {
+    const trimmed = String(value).trim();
+    return [trimmed, trimmed.replace(/^to\s+/iu, ""), trimmed.replace(/^(?:a|an|the)\s+/iu, "")];
+  }).filter(Boolean))];
+}
+
+function normalizedRecall(value, direction) {
+  let normalized = stripPunctuation(String(value || "").replace(/\.{2,}/gu, " "));
+  if (direction === "meaning") normalized = normalized.replace(/^to\s+/iu, "").replace(/^(?:a|an|the)\s+/iu, "");
+  return foldSpelling(normalized);
+}
+
+function classifyVocabularyRecall(value, word, direction) {
+  const answers = direction === "meaning" ? englishRecallAnswers(word) : germanRecallAnswers(word);
+  const typed = normalizedRecall(value, direction);
+  const answer = answers.find(candidate => normalizedRecall(candidate, direction) === typed);
+  return { correct: Boolean(answer), answer: answers[0], accepted: answer || null };
+}
+
 function renderCard() {
   const word = deck[deckIndex];
   if (!word) return;
   cardRevealed = false;
   const module = moduleById(word.moduleId);
   const direction = cardDirectionFor();
+  const record = wordRecord(word.globalId);
+  const unseen = !record.introduced;
   $("#deckPosition").textContent = `${deckIndex + 1} / ${deck.length}`;
   $("#cardUnit").textContent = targetedWordId ? "FOCUSED REVIEW" : word.supplemental ? `${module.code} · EXPANSION` : `${module.code} · ${module.title.toUpperCase()}`;
-  $("#flashPrompt").textContent = direction === "german" ? "GERMAN" : "ENGLISH";
-  $("#flashFront").textContent = direction === "german" ? word.de : word.en;
-  $("#flashAnswer").textContent = direction === "german" ? word.en : word.de;
+  $("#flashPrompt").textContent = unseen ? "MEET THE BUNDLE" : direction === "german" ? "GERMAN TO ENGLISH" : "ENGLISH TO GERMAN";
+  $("#flashFront").textContent = unseen || direction === "german" ? word.de : word.en;
+  $("#flashAnswer").textContent = unseen || direction === "german" ? word.en : word.de;
   $("#flashBundle").textContent = word.bundle;
   $("#flashExample").textContent = `${word.example} | ${word.exampleEn}`;
-  ["#flashAnswer", "#flashBundle", "#flashExample", "#ratingRow"].forEach(selector => { $(selector).hidden = true; });
-  $("#flipInstruction").hidden = false;
-  $("#flashcard").setAttribute("aria-expanded", "false");
+  $("#flashStudy").hidden = !unseen;
+  $("#flashRecallForm").hidden = unseen;
+  $("#flashResult").hidden = true;
+  $("#flashResult").className = "flash-result";
+  $("#flashRecallInput").value = "";
+  $("#flashRecallInput").disabled = false;
+  $("#flashRecallInput").lang = direction === "german" ? "en-US" : "de-DE";
+  $("#flashRecallLabel").textContent = direction === "german" ? "Type an English meaning" : "Type the German form, including its article when shown";
+  if (!unseen) setTimeout(() => $("#flashRecallInput").focus(), 40);
 }
 
-function revealCard() {
-  if (cardRevealed || !deck[deckIndex]) return;
-  cardRevealed = true;
+function startFlashRecall() {
+  if (!deck[deckIndex]) return;
   const word = deck[deckIndex];
   const record = wordRecord(word.globalId);
   const mRecord = moduleRecord(word.moduleId);
@@ -638,22 +822,77 @@ function revealCard() {
   addDay(record);
   mRecord.started = true;
   saveState();
-  ["#flashAnswer", "#flashBundle", "#flashExample", "#ratingRow"].forEach(selector => { $(selector).hidden = false; });
-  $("#flipInstruction").hidden = true;
-  $("#flashcard").setAttribute("aria-expanded", "true");
+  renderCard();
   renderDeckStrip();
   renderDeckStatus();
 }
 
-function rateCard(rating) {
+function submitVocabularyRecall(event) {
+  event.preventDefault();
   if (!deck[deckIndex]) return;
   const word = deck[deckIndex];
   const record = wordRecord(word.globalId);
-  const delays = { again: 10 * 60000, hard: 6 * 3600000, got: dayMs };
-  const gains = { again: .05, hard: .2, got: .35 };
-  record.score = (record.score || 0) + gains[rating];
-  record.nextReview = now() + delays[rating];
+  const value = $("#flashRecallInput").value;
+  if (!value.trim() || cardRevealed) return;
+  const direction = cardDirectionFor() === "german" ? "meaning" : "german";
+  const result = classifyVocabularyRecall(value, word, direction);
+  const stamp = now();
+  const delayed = record.lastTest && stamp - record.lastTest >= 20 * 3600000;
+  record.introduced = true;
+  record.typedAttempts += 1;
+  record.lastSeen = stamp;
+  record.lastTest = stamp;
+  if (result.correct) {
+    record.typedCorrect += 1;
+    record.directionCorrect[direction] = Number(record.directionCorrect[direction] || 0) + 1;
+    if (!record.typedDays.includes(today())) record.typedDays.push(today());
+    if (delayed) record.delayed = Number(record.delayed || 0) + 1;
+    const intervals = [1, 3, 7, 14, 30, 60];
+    record.nextReview = stamp + intervals[Math.min(intervals.length - 1, record.typedCorrect - 1)] * dayMs;
+  } else {
+    record.misses = Number(record.misses || 0) + 1;
+    record.nextReview = stamp + 10 * 60000;
+    if (!deck.slice(deckIndex + 1).some(item => item.globalId === word.globalId)) deck.push({ ...word });
+  }
+  moduleRecord(word.moduleId).started = true;
+  addDay(record);
+  cardRevealed = true;
   saveState();
+  $("#flashRecallForm").hidden = true;
+  $("#flashResult").hidden = false;
+  $("#flashResult").className = "flash-result " + (result.correct ? "correct" : "repair");
+  $("#flashResultTitle").textContent = result.correct ? "Correct. Retrieval recorded." : "This bundle will return soon.";
+  $("#flashResultText").textContent = result.correct ? "A later review will show whether it stays available." : `Your answer: ${value}`;
+  $("#flashResultAnswer").textContent = direction === "meaning" ? word.en : word.de;
+  $("#flashResultBundle").textContent = word.bundle;
+  $("#flashResultExample").textContent = `${word.example} | ${word.exampleEn}`;
+  renderDeckStrip();
+  renderDeckStatus();
+}
+
+function skipVocabularyRecall() {
+  if (!deck[deckIndex] || cardRevealed) return;
+  const word = deck[deckIndex];
+  const record = wordRecord(word.globalId);
+  record.typedAttempts += 1;
+  record.misses = Number(record.misses || 0) + 1;
+  record.lastTest = now();
+  record.nextReview = now() + 10 * 60000;
+  if (!deck.slice(deckIndex + 1).some(item => item.globalId === word.globalId)) deck.push({ ...word });
+  cardRevealed = true;
+  saveState();
+  $("#flashRecallForm").hidden = true;
+  $("#flashResult").hidden = false;
+  $("#flashResult").className = "flash-result repair";
+  $("#flashResultTitle").textContent = "Study this bundle once more.";
+  $("#flashResultText").textContent = "No retrieval credit was added.";
+  $("#flashResultAnswer").textContent = cardDirectionFor() === "german" ? word.en : word.de;
+  $("#flashResultBundle").textContent = word.bundle;
+  $("#flashResultExample").textContent = `${word.example} | ${word.exampleEn}`;
+}
+
+function continueVocabularyCard() {
+  if (!deck[deckIndex]) return;
   if (targetedWordId) {
     targetedWordId = null;
     go("vocabulary");
@@ -668,7 +907,11 @@ function rateCard(rating) {
 }
 
 function renderDeckStrip() {
-  $("#deckStrip").innerHTML = deck.map((word, index) => `<button type="button" class="${isIntroduced(word.globalId) ? "seen" : ""} ${index === deckIndex ? "active" : ""}" data-card-index="${index}" aria-label="Open card ${index + 1}">${index + 1}</button>`).join("");
+  $("#deckStrip").innerHTML = deck.map((word, index) => {
+    const record = state.words[word.globalId];
+    const status = record?.typedCorrect > 0 ? "recalled" : record?.introduced ? "seen" : "";
+    return `<button type="button" class="${status} ${index === deckIndex ? "active" : ""}" data-card-index="${index}" aria-label="Open card ${index + 1}">${index + 1}</button>`;
+  }).join("");
   $$('[data-card-index]').forEach(button => button.addEventListener("click", () => {
     deckIndex = Number(button.dataset.cardIndex);
     state.deckPositions[activeModule().id] = deckIndex;
@@ -680,10 +923,11 @@ function renderDeckStrip() {
 
 function renderDeckStatus() {
   const module = activeModule();
-  const count = moduleWordCount(module, true);
+  const count = verifiedCoreCount(module);
+  const coreTotal = moduleCoreWords(module).length;
   const expansionCount = module.words.filter(word => word.supplemental).length;
   const expansionText = expansionCount ? ` · ${expansionCount} expansion bundles` : "";
-  $("#learnDeckStatus").textContent = targetedWordId ? "Focused review" : `${count} of ${module.words.length} bundles met${expansionText}`;
+  $("#learnDeckStatus").textContent = targetedWordId ? "Focused typed review" : `${count} of ${coreTotal} core bundles recalled${expansionText}`;
 }
 
 function availableQuestionsFor(module) {
@@ -705,11 +949,14 @@ function renderPracticeMenu() {
   const guided = Boolean(module.lesson?.steps?.length);
   const lessonReady = lessonIsComplete(module);
   const resolved = completedPromptCount(module);
-  const sentenceReady = lessonReady && available.length > 0;
-  const readingReady = !guided || (lessonReady && resolved >= Math.min(2, module.questions.length));
-  const writingReady = !guided || (lessonReady && resolved >= module.questions.length);
-  const speakingReady = !guided || (writingReady && record.writing >= 1);
-  const checkpointReady = available.length === module.questions.length && (!guided || (resolved >= module.questions.length && record.reading >= 1 && record.writing >= 1));
+  const coreTotal = moduleCoreWords(module).length;
+  const coreVerified = verifiedCoreCount(module);
+  const sentenceComplete = resolved === module.questions.length;
+  const sentenceReady = lessonReady && coreVerified === coreTotal && available.length > 0;
+  const readingReady = sentenceReady && resolved >= Math.min(2, module.questions.length);
+  const writingReady = sentenceComplete;
+  const speakingReady = writingReady && activityIsComplete(module, "writing");
+  const checkpointReady = courseworkIsComplete(module);
   const modeButton = mode => $('[data-practice-mode="' + mode + '"]');
   modeButton("sentences").disabled = !sentenceReady;
   modeButton("reading").disabled = !readingReady;
@@ -718,17 +965,26 @@ function renderPracticeMenu() {
   modeButton("checkpoint").disabled = !checkpointReady;
   modeButton("listening").hidden = true;
   modeButton("listening").disabled = true;
-  modeButton("reading").classList.toggle("completed", record.reading >= 1);
+  modeButton("sentences").classList.toggle("completed", sentenceComplete);
+  modeButton("reading").classList.toggle("completed", activityIsComplete(module, "reading"));
+  modeButton("writing").classList.toggle("completed", activityIsComplete(module, "writing"));
+  modeButton("speaking").classList.toggle("completed", activityIsComplete(module, "speaking"));
+  modeButton("checkpoint").classList.toggle("completed", Boolean(record.assessment.passedAt));
   $("#practiceEyebrow").textContent = module.code + " · PRACTICE";
   $("#practiceTitle").textContent = module.title;
-  $("#practiceIntro").textContent = guided ? "The guided lesson teaches each phrase first. Practice opens in stages as you use those patterns." : module.subtitle;
+  $("#practiceIntro").textContent = "Each stage has a clear checkoff. The scored assessment opens after every coursework stage is complete.";
   $("#availableQuestionCount").textContent = lessonReady ? available.length : 0;
-  $("#sentenceReadiness").textContent = !lessonReady ? "Complete the guided lesson first." : sentenceReady ? available.length + " ordered prompts use taught language." : "Meet the target bundles first.";
-  $("#readingReadiness").textContent = record.reading >= 1 ? "✓ Reading complete. Open it again whenever you want." : readingReady ? "Short text built from taught language." : "Complete two sentence prompts first.";
-  $("#writingReadiness").textContent = writingReady ? "Every visible requirement will be checked." : "Finish the sentence set first.";
-  $("#speakingReadiness").textContent = speakingReady ? "Transcript phrase check. Pronunciation scoring is unavailable." : "Pass the writing checklist first.";
-  $("#checkpointReadiness").textContent = checkpointReady ? "The full review is ready." : guided ? "Complete reading and writing first." : "Meet the remaining target bundles first.";
-  $("#practiceLearnFirst").textContent = !lessonReady ? "Open guided lesson" : guided ? "Review lesson and words" : "Review word deck";
+  $("#sentenceReadiness").textContent = sentenceComplete ? "✓ Sentence Lab complete. Practice again whenever you want." : !lessonReady ? "Complete the guided lesson first." : coreVerified < coreTotal ? `Recall ${coreTotal - coreVerified} more core bundle${coreTotal - coreVerified === 1 ? "" : "s"} first.` : available.length + " ordered prompts use taught language.";
+  $("#readingReadiness").textContent = activityIsComplete(module, "reading") ? "✓ Reading complete. Open it again whenever you want." : readingReady ? "Short text built from taught language." : "Complete two sentence prompts first.";
+  $("#writingReadiness").textContent = activityIsComplete(module, "writing") ? "✓ Writing complete. Revise it whenever you want." : writingReady ? "Every visible requirement will be checked." : "Finish the sentence set first.";
+  $("#speakingReadiness").textContent = activityIsComplete(module, "speaking") ? "✓ Speaking rehearsal complete. Pronunciation remains unscored." : speakingReady ? "Transcript phrase check. Pronunciation scoring is unavailable." : "Pass the writing checklist first.";
+  $("#checkpointReadiness").textContent = record.assessment.passedAt ? `✓ Assessment passed. Best score: ${Math.round((record.assessment.bestScore || 0) * 100)}%.` : checkpointReady ? record.assessment.attempts.length ? `Retake when ready. Best score: ${Math.round((record.assessment.bestScore || 0) * 100)}%.` : "Ready. Pass with 80% overall and each section minimum." : "Complete every coursework checkoff first.";
+  $("#practiceLearnFirst").textContent = !lessonReady ? "Open guided lesson" : coreVerified < coreTotal ? "Open typed word recall" : guided ? "Review lesson and words" : "Review word deck";
+  const stages = moduleStageStates(module);
+  $("#moduleJourneySummary").textContent = record.assessment.attempts.length ? `${stages.filter(stage => stage.complete).length} of ${stages.length} stages complete. Best assessment: ${Math.round((record.assessment.bestScore || 0) * 100)}%.` : `${stages.filter(stage => stage.complete).length} of ${stages.length} stages complete.`;
+  $("#moduleJourneySteps").innerHTML = stages.map(stage => `<li class="${stage.complete ? "complete" : stage.current ? "current" : ""}">${escapeHtml(stage.label)}</li>`).join("");
+  $("#practiceAssessmentRecord").hidden = record.assessment.attempts.length === 0;
+  $("#practiceAssessmentScores").innerHTML = record.assessment.attempts.map((attempt, index) => `<li>Attempt ${index + 1}: <strong>${Math.round(attempt.score * 100)}%</strong> · ${attempt.passed ? "Passed" : "Retake available"}</li>`).join("");
   $("#practiceStart").hidden = false;
   $("#activityShell").hidden = true;
   $("#quizSummary").hidden = true;
@@ -736,7 +992,7 @@ function renderPracticeMenu() {
 }
 
 function hideActivities() {
-  ["#quizShell", "#listeningTask", "#readingTask", "#writingTask", "#speakingTask"].forEach(selector => { $(selector).hidden = true; });
+  ["#assessmentIntro", "#quizShell", "#listeningTask", "#readingTask", "#writingTask", "#speakingTask"].forEach(selector => { $(selector).hidden = true; });
 }
 
 function openPracticeMode(mode) {
@@ -746,12 +1002,13 @@ function openPracticeMode(mode) {
   const lessonReady = lessonIsComplete(module);
   const resolved = completedPromptCount(module);
   const available = availableQuestionsFor(module);
+  const coreReady = verifiedCoreCount(module) === moduleCoreWords(module).length;
   const readiness = {
-    sentences: lessonReady && available.length > 0,
-    reading: !guided || (lessonReady && resolved >= Math.min(2, module.questions.length)),
-    writing: !guided || (lessonReady && resolved >= module.questions.length),
-    speaking: !guided || (lessonReady && resolved >= module.questions.length && record.writing >= 1),
-    checkpoint: available.length === module.questions.length && (!guided || (resolved >= module.questions.length && record.reading >= 1 && record.writing >= 1))
+    sentences: lessonReady && coreReady && available.length > 0,
+    reading: lessonReady && coreReady && resolved >= Math.min(2, module.questions.length),
+    writing: lessonReady && coreReady && resolved >= module.questions.length,
+    speaking: lessonReady && coreReady && resolved >= module.questions.length && activityIsComplete(module, "writing"),
+    checkpoint: courseworkIsComplete(module)
   };
   if (mode === "listening") {
     announceModule({ code: module.code, title: "Listening is being rebuilt with reviewed German audio" });
@@ -759,21 +1016,82 @@ function openPracticeMode(mode) {
   }
   if (!readiness[mode]) {
     announceModule({ code: module.code, title: !lessonReady ? "Complete the guided lesson first" : "Complete the earlier practice stage first" });
-    go("learn");
-    return;
+    return renderPracticeMenu();
   }
   $("#practiceStart").hidden = true;
+  $("#practiceAssessmentRecord").hidden = true;
   $("#activityShell").hidden = false;
   $("#quizSummary").hidden = true;
   hideActivities();
-  const names = { sentences: "SENTENCE LAB", checkpoint: "MODULE CHECKPOINT", listening: "LISTENING", reading: "READING", writing: "WRITING", speaking: "SPEAKING" };
+  const names = { sentences: "SENTENCE LAB", checkpoint: "MODULE ASSESSMENT", listening: "LISTENING", reading: "READING", writing: "WRITING", speaking: "SPEAKING" };
   $("#activityName").textContent = names[mode];
   if (mode === "sentences") startQuiz(false);
-  if (mode === "checkpoint") startQuiz(true);
+  if (mode === "checkpoint") renderAssessmentIntro();
   if (mode === "listening") renderListening();
   if (mode === "reading") renderReading();
   if (mode === "writing") renderWriting();
   if (mode === "speaking") renderSpeaking();
+}
+
+function renderAssessmentIntro() {
+  const module = activeModule();
+  const record = moduleRecord(module.id);
+  const coreCount = moduleCoreWords(module).length;
+  const sentenceCount = module.questions.length;
+  $("#assessmentIntro").hidden = false;
+  $("#assessmentIntroTitle").textContent = `${module.code}: ${module.title}`;
+  $("#assessmentIntroText").textContent = `${coreCount + sentenceCount + 2} responses cover ${coreCount} core vocabulary bundles, ${sentenceCount} sentence targets, one reading task, and one structured writing task.`;
+  $("#assessmentRules").innerHTML = [
+    "Answers are saved without correctness feedback during the attempt.",
+    "Pass with 80% overall, plus 70% in vocabulary and sentences, 50% in reading, and 60% in structured writing.",
+    "Every completed attempt stays in your score history. A lower retake keeps your best score.",
+    "Keyboard spellings such as ae, oe, ue, and ss receive full credit."
+  ].map(rule => `<li>${escapeHtml(rule)}</li>`).join("");
+  $("#assessmentPrior").hidden = record.assessment.attempts.length === 0;
+  $("#assessmentPrior").textContent = record.assessment.attempts.length ? `${record.assessment.attempts.length} prior attempt${record.assessment.attempts.length === 1 ? "" : "s"}. Best score: ${Math.round((record.assessment.bestScore || 0) * 100)}%.` : "";
+}
+
+function beginModuleAssessment() {
+  $("#assessmentIntro").hidden = true;
+  startQuiz(true);
+}
+
+function assessmentItemsFor(module) {
+  const vocabulary = moduleCoreWords(module).map(word => ({
+    id: `vocabulary:${word.id}`,
+    kind: "vocabulary",
+    type: "CORE VOCABULARY",
+    context: "Write the taught German form. Include the article when the bundle shows one.",
+    prompt: `Write the German for “${word.en}”.`,
+    answers: germanRecallAnswers(word),
+    explanation: word.bundle
+  })).sort(() => Math.random() - .5);
+  const sentences = module.questions.map(question => ({
+    ...question,
+    id: `sentence:${question.id}`,
+    sourceId: question.id,
+    kind: "sentences"
+  })).sort(() => Math.random() - .5);
+  const reading = [{
+    id: "reading:module-text",
+    kind: "reading",
+    type: "READING",
+    context: module.input.passage,
+    prompt: module.input.readPrompt,
+    answers: module.input.readAnswers,
+    explanation: "Return to the passage and locate the requested detail."
+  }];
+  const writing = [{
+    id: "writing:module-task",
+    kind: "writing",
+    type: "STRUCTURED WRITING",
+    context: module.task.guide.join(" • "),
+    prompt: module.task.writingPrompt,
+    longResponse: true,
+    answers: [module.task.model],
+    explanation: "The score checks the listed requirements and length target."
+  }];
+  return [...vocabulary, ...sentences, ...reading, ...writing];
 }
 
 function startQuiz(checkpoint) {
@@ -781,8 +1099,8 @@ function startQuiz(checkpoint) {
   const available = availableQuestionsFor(module);
   const unfinished = module.lesson && !checkpoint ? available.filter(question => !moduleRecord(module.id).completedPrompts[question.id]) : [];
   const source = checkpoint ? module.questions : unfinished.length ? unfinished : available;
-  const questions = module.lesson && !checkpoint ? [...source] : [...source].sort(() => Math.random() - .5);
-  quiz = { moduleId: module.id, checkpoint, questions, index: 0, firstCorrect: 0, recovered: 0, missed: [], originalTotal: questions.length, retry: false, inlineRetry: false };
+  const questions = checkpoint ? assessmentItemsFor(module) : module.lesson ? [...source] : [...source].sort(() => Math.random() - .5);
+  quiz = { moduleId: module.id, checkpoint, assessment: checkpoint, questions, index: 0, firstCorrect: 0, recovered: 0, missed: [], responses: [], originalTotal: questions.length, retry: false, inlineRetry: false };
   $("#quizShell").hidden = false;
   renderQuestion();
 }
@@ -790,21 +1108,30 @@ function startQuiz(checkpoint) {
 function renderQuestion() {
   const question = quiz.questions[quiz.index];
   if (!question) return finishQuizSet();
-  $("#quizMode").textContent = quiz.retry ? "REPAIR PASS" : quiz.checkpoint ? "MODULE CHECKPOINT" : "SENTENCE LAB";
+  $("#quizMode").textContent = quiz.retry ? "REPAIR PASS" : quiz.assessment ? "MODULE ASSESSMENT" : "SENTENCE LAB";
   $("#quizProgress").textContent = `${quiz.index + 1} / ${quiz.questions.length}`;
   $("#quizProgressBar").style.width = `${((quiz.index + 1) / quiz.questions.length) * 100}%`;
   $("#quizType").textContent = question.type;
   $("#quizContext").textContent = question.context;
   $("#quizPrompt").textContent = question.prompt;
-  const support = quiz.checkpoint ? null : question.support;
+  const support = quiz.assessment ? null : question.support;
   $("#quizSupport").hidden = !support;
   $("#quizSupport").innerHTML = support ? '<span>' + escapeHtml(support.title) + '</span><strong lang="de">' + escapeHtml(support.model) + '</strong><small>' + escapeHtml(support.translation) + '</small><p>' + escapeHtml(support.tip) + '</p>' : "";
-  const sourceBank = quiz.checkpoint ? [] : (question.wordBank || []);
+  const sourceBank = quiz.assessment ? [] : (question.wordBank || []);
   const bank = sourceBank.filter((_, index) => index % 2 === 1).concat(sourceBank.filter((_, index) => index % 2 === 0));
   $("#quizWordBank").hidden = bank.length === 0;
   $("#quizWordBank").innerHTML = bank.map(word => `<span>${escapeHtml(word)}</span>`).join("");
   $("#quizInput").value = "";
   $("#quizInput").disabled = false;
+  $("#quizLongInput").value = "";
+  $("#quizLongInput").disabled = false;
+  $("#quizShortAnswer").hidden = Boolean(question.longResponse);
+  $("#quizLongInput").hidden = !question.longResponse;
+  $("#quizLongSubmitButton").hidden = !question.longResponse;
+  $("#quizAnswerLabel").textContent = question.longResponse ? "Your response" : "Your answer";
+  $("#quizAnswerLabel").setAttribute("for", question.longResponse ? "quizLongInput" : "quizInput");
+  $("#quizSubmitButton").textContent = quiz.assessment ? "Save answer" : "Check";
+  $("#quizLongSubmitButton").textContent = quiz.assessment ? "Save response" : "Check response";
   $("#quizFeedback").hidden = true;
   $("#quizFeedback").className = "quiz-feedback";
   $("#quizCorrectAnswer").textContent = "";
@@ -812,7 +1139,7 @@ function renderQuestion() {
   $("#quizTryAgain").hidden = true;
   quiz.inlineRetry = false;
   $("#quizForm").hidden = false;
-  setTimeout(() => $("#quizInput").focus(), 40);
+  setTimeout(() => $(question.longResponse ? "#quizLongInput" : "#quizInput").focus(), 40);
 }
 
 function cleanSpacing(value) {
@@ -830,7 +1157,7 @@ function stripPunctuation(value) {
 function foldKeyboardCase(value) {
   return String(value).normalize("NFC")
     .replace(/Ä/g, "Ae").replace(/Ö/g, "Oe").replace(/Ü/g, "Ue")
-    .replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss");
+    .replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ẞ/g, "SS").replace(/ß/g, "ss");
 }
 
 function foldSpelling(value) {
@@ -1114,12 +1441,49 @@ function updateQuestionEvidence(question, result, retry) {
   saveState();
 }
 
+function writingAssessmentScore(module, text) {
+  const task = module.task;
+  const words = countWords(text);
+  if (task.checks?.length) {
+    const required = evaluateWritingChecks(task, text).filter(check => check.required !== false);
+    return required.length ? required.filter(check => check.met).length / required.length : 1;
+  }
+  const requirements = (task.required || []).map(item => requirementMet(text, item));
+  const points = requirements.filter(Boolean).length + Number(words >= task.minWords);
+  return points / Math.max(1, requirements.length + 1);
+}
+
+function gradeAssessmentResponse(question, value, module) {
+  if (question.kind === "vocabulary") {
+    const typed = normalizedRecall(value, "german");
+    const answer = question.answers.find(candidate => normalizedRecall(candidate, "german") === typed);
+    return { score: answer ? 1 : 0, correct: Boolean(answer), answer: question.answers[0] };
+  }
+  if (question.kind === "writing") {
+    const score = writingAssessmentScore(module, value);
+    return { score, correct: score >= 1, answer: module.task.model };
+  }
+  const result = classifyAnswer(value, question.answers, module.level);
+  return { score: result.correct ? 1 : 0, correct: result.correct, answer: result.answer };
+}
+
 function submitQuizAnswer(event) {
   event.preventDefault();
-  const value = $("#quizInput").value;
-  if (!value.trim()) return;
   const question = quiz.questions[quiz.index];
   const module = moduleById(quiz.moduleId);
+  const value = question.longResponse ? $("#quizLongInput").value : $("#quizInput").value;
+  if (!value.trim()) return;
+  if (quiz.assessment) {
+    const result = gradeAssessmentResponse(question, value, module);
+    quiz.responses.push({ id: question.id, kind: question.kind, type: question.type, prompt: question.prompt, value, answer: result.answer, score: result.score, explanation: question.explanation || "" });
+    const record = moduleRecord(module.id);
+    record.started = true;
+    saveState();
+    quiz.index += 1;
+    if (quiz.index >= quiz.questions.length) finishQuizSet();
+    else renderQuestion();
+    return;
+  }
   const result = classifyAnswer(value, question.answers, module.level);
   const repairAttempt = quiz.retry || quiz.inlineRetry;
   updateQuestionEvidence(question, result, repairAttempt);
@@ -1134,7 +1498,7 @@ function submitQuizAnswer(event) {
     : revealCorrection ? result.near ? "One form needs repair." : "Work through the marked spots."
     : "Use the taught pattern once more.";
   $("#quizFeedbackText").textContent = revealCorrection ? (result.note || question.explanation) : "Return to the taught pattern and build it once more.";
-  $("#quizComparison").innerHTML = revealCorrection ? answerComparisonHtml(value, result.answer) : answerAttemptHtml(value, !quiz.checkpoint);
+  $("#quizComparison").innerHTML = revealCorrection ? answerComparisonHtml(value, result.answer) : answerAttemptHtml(value, true);
   $("#quizCorrectAnswer").textContent = revealCorrection && result.note ? question.explanation : "";
   $("#quizInput").disabled = true;
   $("#quizForm").hidden = true;
@@ -1159,23 +1523,110 @@ function nextQuizQuestion() {
 }
 
 function finishQuizSet() {
+  if (quiz.assessment) return finishAssessment();
   $("#quizShell").hidden = true;
   $("#activityShell").hidden = true;
   $("#quizSummary").hidden = false;
   const stillMissed = quiz.missed.length;
   const total = quiz.originalTotal;
-  if (quiz.checkpoint && !quiz.retry) {
-    const record = moduleRecord(quiz.moduleId);
-    record.checkpointScore = quiz.firstCorrect / Math.max(1, total);
-    record.checkpointAt = today();
-    saveState();
-  }
+  $("#quizSummary").className = "quiz-summary";
+  $("#completionBurst").hidden = true;
+  $("#summaryEyebrow").textContent = "SET COMPLETE";
   $("#summaryTitle").textContent = quiz.retry ? `${quiz.recovered} question${quiz.recovered === 1 ? "" : "s"} repaired.` : `${quiz.firstCorrect} of ${total} correct on the first pass.`;
   $("#summaryText").textContent = stillMissed ? `${stillMissed} question${stillMissed === 1 ? " is" : "s are"} ready for a focused repair pass.` : "This set is clear for today. A later return will test how well it holds.";
   $("#summaryCorrect").textContent = quiz.firstCorrect;
+  $("#summaryCorrectLabel").textContent = "first-pass correct";
   $("#summaryRecovered").textContent = quiz.recovered;
+  $("#summaryRecoveredLabel").textContent = "recovered on retry";
   $("#summaryMissed").textContent = stillMissed;
+  $("#summaryMissedLabel").textContent = "ready for repair";
   $("#retryMissed").hidden = stillMissed === 0;
+  $("#retakeAssessment").hidden = true;
+  $("#nextModule").hidden = true;
+  $("#assessmentReview").hidden = true;
+  $("#assessmentHistory").hidden = true;
+  $("#summaryFootnote").textContent = "Same-session repairs help you understand the form. A later return supplies stronger evidence.";
+}
+
+function assessmentSectionScores(responses) {
+  const sectionNames = ["vocabulary", "sentences", "reading", "writing"];
+  return Object.fromEntries(sectionNames.map(section => {
+    const items = responses.filter(response => response.kind === section);
+    return [section, items.length ? items.reduce((sum, response) => sum + response.score, 0) / items.length : 0];
+  }));
+}
+
+function finishAssessment() {
+  const module = moduleById(quiz.moduleId);
+  const record = moduleRecord(module.id);
+  const sections = assessmentSectionScores(quiz.responses);
+  const score = sections.vocabulary * .30 + sections.sentences * .40 + sections.reading * .15 + sections.writing * .15;
+  const passed = score >= assessmentPassScore && sections.vocabulary >= .70 && sections.sentences >= .70 && sections.reading >= .50 && sections.writing >= .60;
+  const firstCompletion = passed && !record.assessment.passedAt;
+  const correct = quiz.responses.filter(response => response.score >= 1).length;
+  const attempt = {
+    date: new Date().toISOString(),
+    score,
+    passed,
+    correct,
+    total: quiz.responses.length,
+    sections
+  };
+  if (record.assessment.firstScore == null) record.assessment.firstScore = score;
+  record.assessment.latestScore = score;
+  record.assessment.bestScore = Math.max(record.assessment.bestScore || 0, score);
+  record.assessment.attempts.push(attempt);
+  record.assessment.attempts = record.assessment.attempts.slice(-10);
+  if (passed && !record.assessment.passedAt) record.assessment.passedAt = today();
+  if (passed && !record.completedAt) record.completedAt = today();
+  record.checkpointScore = score;
+  record.checkpointAt = today();
+  if (firstCompletion) record.celebrationSeen = true;
+  saveState();
+  $("#quizShell").hidden = true;
+  $("#activityShell").hidden = true;
+  $("#quizSummary").hidden = false;
+  $("#quizSummary").className = "quiz-summary" + (passed ? " module-complete" : "");
+  $("#completionBurst").hidden = !firstCompletion;
+  $("#summaryEyebrow").textContent = firstCompletion ? "MODULE COMPLETE" : passed ? "ASSESSMENT PASSED" : "ASSESSMENT COMPLETE";
+  $("#summaryTitle").textContent = firstCompletion ? `${module.code} complete. ${Math.round(score * 100)}%.` : passed ? `Passed with ${Math.round(score * 100)}%.` : `Score: ${Math.round(score * 100)}%.`;
+  const floorsMet = [sections.vocabulary >= .70, sections.sentences >= .70, sections.reading >= .50, sections.writing >= .60].filter(Boolean).length;
+  $("#summaryText").textContent = passed ? "Every section minimum is secure. This module is checked off." : `Passing requires 80% overall and each section minimum. ${floorsMet} of 4 section minimums were reached.`;
+  $("#summaryCorrect").textContent = `${Math.round(score * 100)}%`;
+  $("#summaryCorrectLabel").textContent = "latest score";
+  $("#summaryRecovered").textContent = `${correct}/${quiz.responses.length}`;
+  $("#summaryRecoveredLabel").textContent = "fully correct items";
+  $("#summaryMissed").textContent = `${Math.round((record.assessment.bestScore || 0) * 100)}%`;
+  $("#summaryMissedLabel").textContent = "best score";
+  const sectionLabels = { vocabulary: "Vocabulary", sentences: "Sentence production", reading: "Reading", writing: "Structured writing" };
+  const missed = quiz.responses.filter(response => response.score < 1);
+  $("#assessmentReview").hidden = false;
+  $("#assessmentReview").innerHTML = '<h3>Section scores</h3><ol>' + Object.entries(sections).map(([key, value]) => `<li><strong>${sectionLabels[key]}: ${Math.round(value * 100)}%</strong></li>`).join("") + '</ol>' + (missed.length ? '<h3>Review after the attempt</h3><ol>' + missed.map(response => `<li><strong>${escapeHtml(response.prompt)}</strong><small>Your answer: ${escapeHtml(response.value)}</small><small>Accepted form or model: ${escapeHtml(response.answer)}</small></li>`).join("") + '</ol>' : '<p>Every scored item received full credit.</p>');
+  $("#assessmentHistory").hidden = false;
+  $("#assessmentHistory").innerHTML = '<h3>Assessment history</h3><ol>' + [...record.assessment.attempts].reverse().map((item, index) => `<li>${index === 0 ? "Latest" : new Date(item.date).toLocaleDateString()}: <strong>${Math.round(item.score * 100)}%</strong> · ${item.passed ? "Passed" : "Review and retake"}</li>`).join("") + '</ol>';
+  $("#retryMissed").hidden = true;
+  $("#retakeAssessment").hidden = false;
+  const next = modules[modules.findIndex(item => item.id === module.id) + 1];
+  $("#nextModule").hidden = !passed || !next;
+  $("#nextModule").dataset.nextModule = next?.id || "";
+  $("#summaryFootnote").textContent = "Each retake is a new closed attempt. Your best score and full attempt history stay visible.";
+}
+
+function retakeModuleAssessment() {
+  $("#quizSummary").hidden = true;
+  $("#practiceStart").hidden = true;
+  $("#practiceAssessmentRecord").hidden = true;
+  $("#activityShell").hidden = false;
+  hideActivities();
+  $("#activityName").textContent = "MODULE ASSESSMENT";
+  renderAssessmentIntro();
+}
+
+function continueToNextModule() {
+  const id = $("#nextModule").dataset.nextModule;
+  if (!id) return renderPracticeMenu();
+  setActiveModule(id);
+  go("learn");
 }
 
 function retryMissedQuestions() {
@@ -1239,14 +1690,8 @@ function submitReading(event) {
   const value = $("#readingInput").value;
   if (!value.trim() || $("#readingInput").disabled) return;
   const result = classifyAnswer(value, module.input.readAnswers, module.level);
-  const record = moduleRecord(module.id);
-  record.reading = Math.max(record.reading || 0, result.correct ? 1 : .4);
-  if (!readingAttemptRecorded) {
-    state.skills.reading.attempts += 1;
-    if (result.correct) state.skills.reading.correct += 1;
-    readingAttemptRecorded = true;
-  }
-  saveState();
+  recordActivityResult(module.id, "reading", result.correct ? 1 : .4);
+  readingAttemptRecorded = true;
   const feedback = $("#readingFeedback");
   feedback.hidden = false;
   feedback.className = `task-feedback ${result.correct ? "success" : "repair"}`;
@@ -1336,6 +1781,9 @@ function renderWriting() {
   $("#writingInput").value = "";
   $("#writingCount").textContent = `0 words · target ${task.minWords}+`;
   $("#writingFeedback").hidden = true;
+  $("#writingActions").hidden = true;
+  $("#writingInput").disabled = false;
+  $("#checkWriting").disabled = false;
 }
 
 function checkWriting() {
@@ -1350,10 +1798,7 @@ function checkWriting() {
     const requiredPassed = requiredChecks.filter(check => check.met).length;
     const optionalMisses = checks.filter(check => check.required === false && !check.met).length;
     const ratioValue = requiredChecks.length ? requiredPassed / requiredChecks.length : 1;
-    const writingRecord = moduleRecord(module.id);
-    writingRecord.writing = Math.max(writingRecord.writing || 0, ratioValue);
-    state.skills.writing.attempts += 1;
-    saveState();
+    recordActivityResult(module.id, "writing", ratioValue);
     const writingFeedback = $("#writingFeedback");
     writingFeedback.hidden = false;
     writingFeedback.className = "task-feedback " + (ratioValue === 1 ? "success" : "repair");
@@ -1371,21 +1816,26 @@ function checkWriting() {
         const detail = check.detail || (optional && !check.met ? "Writing detail for your next pass" : "");
         return '<li class="' + status + '"><span>' + symbol + '</span><div><strong>' + escapeHtml(check.label) + '</strong>' + (detail ? '<small>' + escapeHtml(detail) + '</small>' : "") + '</div></li>';
       }).join("") + '</ul>' + model;
+    $("#writingActions").hidden = ratioValue < 1;
     return;
   }
   const requirements = task.required.map(item => ({ item: Array.isArray(item) ? item.join(" or ") : item, met: requirementMet(text, item) }));
   const lengthMet = words >= task.minWords;
   const metCount = requirements.filter(item => item.met).length;
   const ratio = (metCount + (lengthMet ? 1 : 0)) / (requirements.length + 1);
-  const record = moduleRecord(module.id);
-  record.writing = Math.max(record.writing || 0, ratio);
-  state.skills.writing.attempts += 1;
-  saveState();
+  recordActivityResult(module.id, "writing", ratio);
   const feedback = $("#writingFeedback");
   feedback.hidden = false;
   feedback.className = `task-feedback ${ratio === 1 ? "success" : "repair"}`;
   const fallbackModel = ratio >= .5 ? `<p class="model"><strong>Model:</strong> ${escapeHtml(task.model)}</p>` : "<p>The model appears after most requested parts are present.</p>";
   feedback.innerHTML = `<h3>${ratio === 1 ? "All requested building blocks are present." : "A revision pass has a clear target."}</h3><p>${lengthMet ? `Length target reached: ${words} words.` : `Current length: ${words} words. Target: ${task.minWords} or more.`}</p><ul>${requirements.map(item => `<li>${item.met ? "✓" : "○"} ${escapeHtml(item.item)}</li>`).join("")}</ul><p>This check tracks the requested features.</p>${fallbackModel}`;
+  $("#writingActions").hidden = ratio < 1;
+}
+
+function retryWriting() {
+  $("#writingFeedback").hidden = true;
+  $("#writingActions").hidden = true;
+  $("#writingInput").focus();
 }
 
 function renderSpeaking() {
@@ -1397,6 +1847,7 @@ function renderSpeaking() {
   $("#speakingGuide").innerHTML = task.speakingGuide.map(item => `<li>${escapeHtml(item)}</li>`).join("");
   $("#speakingTranscript").value = "";
   $("#speakingFeedback").hidden = true;
+  $("#speakingActions").hidden = true;
   const supported = Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
   $("#startRecognition").disabled = !supported;
   $("#startRecognition").textContent = supported ? "Start microphone" : "Type a transcript here";
@@ -1426,14 +1877,18 @@ function checkSpeaking() {
   if (!text.trim()) return;
   const requirements = task.speakingRequired.map(item => ({ item: Array.isArray(item) ? item.join(" or ") : item, met: requirementMet(text, item) }));
   const ratio = requirements.filter(item => item.met).length / Math.max(1, requirements.length);
-  const record = moduleRecord(module.id);
-  record.speaking = Math.max(record.speaking || 0, ratio);
-  state.skills.speaking.attempts += 1;
-  saveState();
+  recordActivityResult(module.id, "speaking", ratio);
   const feedback = $("#speakingFeedback");
   feedback.hidden = false;
   feedback.className = `task-feedback ${ratio === 1 ? "success" : "repair"}`;
   feedback.innerHTML = `<h3>${ratio === 1 ? "The target phrases appear in the transcript." : "Repeat once with the missing target phrase."}</h3><ul>${requirements.map(item => `<li>${item.met ? "✓" : "○"} ${escapeHtml(item.item)}</li>`).join("")}</ul><p>This transcript checks selected words and forms. Pronunciation quality is outside this check.</p><p class="model"><strong>Model:</strong> ${escapeHtml(task.speakingModel)}</p>`;
+  $("#speakingActions").hidden = ratio < 1;
+}
+
+function retrySpeaking() {
+  $("#speakingFeedback").hidden = true;
+  $("#speakingActions").hidden = true;
+  $("#speakingTranscript").focus();
 }
 
 function renderGrammar() {
@@ -1489,32 +1944,37 @@ function renderCulture() {
 }
 
 function skillModuleCount(skill) {
-  return modules.filter(module => Number(state.modules[module.id]?.[skill]) > 0).length;
+  return modules.filter(module => state.modules[module.id] && activityIsComplete(module, skill)).length;
 }
 
 function renderProgress() {
   const words = introducedWords();
   const accuracy = state.quiz.attempts ? Math.round((state.quiz.firstCorrect / state.quiz.attempts) * 100) : null;
   const started = modules.filter(module => state.modules[module.id]?.started || moduleWordCount(module, true) > 0).length;
+  const completed = modules.filter(module => moduleIsComplete(module)).length;
+  const verifiedCore = modules.reduce((sum, module) => sum + verifiedCoreCount(module), 0);
+  const coreTotal = modules.reduce((sum, module) => sum + moduleCoreWords(module).length, 0);
   $("#progressWords").textContent = words.length;
   $("#progressWordsDetail").textContent = `of ${allWords.length} course bundles`;
   $("#progressAccuracy").textContent = accuracy == null ? "No data" : `${accuracy}%`;
-  $("#progressModules").textContent = started;
-  $("#progressModulesDetail").textContent = `of ${modules.length} available`;
+  $("#progressModules").textContent = completed;
+  $("#progressModulesDetail").textContent = `of ${modules.length} modules complete · ${started} started`;
   $("#progressDue").textContent = dueWords().length;
   const skills = [
-    { key: "vocabulary", label: "Vocabulary bundles", value: Math.round(words.length / allWords.length * 100), detail: `${words.length} encountered` },
+    { key: "vocabulary", label: "Typed core-word recall", value: Math.round(verifiedCore / coreTotal * 100), detail: `${verifiedCore} of ${coreTotal} core bundles recalled` },
     { key: "sentences", label: "Typed sentence production", value: Math.round(Object.values(state.modules).reduce((sum, item) => sum + Object.keys(item.completedPrompts || {}).length, 0) / allQuestions.length * 100), detail: `${state.quiz.attempts} first-pass attempts` },
     { key: "reading", label: "Reading", value: Math.round(skillModuleCount("reading") / modules.length * 100), detail: `${skillModuleCount("reading")} modules practiced` },
     { key: "writing", label: "Guided writing", value: Math.round(skillModuleCount("writing") / modules.length * 100), detail: `${skillModuleCount("writing")} modules practiced` },
-    { key: "speaking", label: "Guided speaking", value: Math.round(skillModuleCount("speaking") / modules.length * 100), detail: `${skillModuleCount("speaking")} modules practiced` }
+    { key: "speaking", label: "Speaking rehearsal", value: Math.round(skillModuleCount("speaking") / modules.length * 100), detail: `${skillModuleCount("speaking")} modules complete` },
+    { key: "assessment", label: "Passed module assessments", value: Math.round(completed / modules.length * 100), detail: `${completed} modules passed` }
   ];
   $("#skillEvidence").innerHTML = skills.map(skill => `<div class="evidence-row"><div><strong>${skill.label}</strong><span>${skill.detail}</span></div><div class="evidence-track"><i style="width:${Math.min(100, skill.value)}%"></i></div></div>`).join("");
   $("#progressLevels").innerHTML = levels.map(level => {
     const group = modules.filter(module => module.level === level.id);
     const startedAtLevel = group.filter(module => state.modules[module.id]?.started || moduleWordCount(module, true) > 0).length;
+    const completedAtLevel = group.filter(module => moduleIsComplete(module)).length;
     const progress = levelProgress(level.id);
-    return `<div class="progress-level"><b>${level.id}</b><div><span>${escapeHtml(level.title)} · ${startedAtLevel} of ${group.length} modules started</span><div><i style="width:${progress}%"></i></div></div><small>${progress}% evidence</small></div>`;
+    return `<div class="progress-level"><b>${level.id}</b><div><span>${escapeHtml(level.title)} · ${completedAtLevel} complete · ${startedAtLevel} started</span><div><i style="width:${progress}%"></i></div></div><small>${progress}% complete</small></div>`;
   }).join("");
 }
 
@@ -1553,7 +2013,10 @@ function bindEvents() {
   $("#learnModuleSelect").addEventListener("change", event => { setActiveModule(event.target.value); prepareDeck(); });
   $("#practiceModuleSelect").addEventListener("change", event => { setActiveModule(event.target.value); renderPracticeMenu(); });
   $("#grammarModuleSelect").addEventListener("change", event => { setActiveModule(event.target.value); renderGrammar(); });
-  $("#flashcard").addEventListener("click", revealCard);
+  $("#flashStartRecall").addEventListener("click", startFlashRecall);
+  $("#flashRecallForm").addEventListener("submit", submitVocabularyRecall);
+  $("#flashSkip").addEventListener("click", skipVocabularyRecall);
+  $("#flashNext").addEventListener("click", continueVocabularyCard);
   $("#guidedLessonTab").addEventListener("click", () => setLearnMode("lesson"));
   $("#wordDeckTab").addEventListener("click", () => setLearnMode("deck"));
   $("#lessonPrevious").addEventListener("click", () => {
@@ -1563,7 +2026,6 @@ function bindEvents() {
   $("#lessonAction").addEventListener("click", checkLessonStep);
   $("#cardDirection").addEventListener("change", event => { state.cardDirection = event.target.value; saveState(); renderCard(); });
   $("#shuffleDeck").addEventListener("click", () => { deck = [...deck].sort(() => Math.random() - .5); deckIndex = 0; renderCard(); renderDeckStrip(); });
-  $$('[data-rating]').forEach(button => button.addEventListener("click", () => rateCard(button.dataset.rating)));
   $("#learnToPractice").addEventListener("click", () => go("practice"));
   $("#practiceLearnFirst").addEventListener("click", () => go("learn"));
   $$('[data-practice-mode]').forEach(button => button.addEventListener("click", () => openPracticeMode(button.dataset.practiceMode)));
@@ -1572,6 +2034,9 @@ function bindEvents() {
   $("#quizTryAgain").addEventListener("click", retryCurrentQuizAnswer);
   $("#quizNext").addEventListener("click", nextQuizQuestion);
   $("#retryMissed").addEventListener("click", retryMissedQuestions);
+  $("#retakeAssessment").addEventListener("click", retakeModuleAssessment);
+  $("#beginAssessment").addEventListener("click", beginModuleAssessment);
+  $("#nextModule").addEventListener("click", continueToNextModule);
   $("#finishQuiz").addEventListener("click", renderPracticeMenu);
   $("#listeningForm").addEventListener("submit", submitListening);
   $("#readingForm").addEventListener("submit", submitReading);
@@ -1579,8 +2044,12 @@ function bindEvents() {
   $("#readingContinue").addEventListener("click", renderPracticeMenu);
   $("#writingInput").addEventListener("input", event => { $("#writingCount").textContent = `${countWords(event.target.value)} words · target ${activeModule().task.minWords}+`; });
   $("#checkWriting").addEventListener("click", checkWriting);
+  $("#writingRetry").addEventListener("click", retryWriting);
+  $("#writingContinue").addEventListener("click", renderPracticeMenu);
   $("#startRecognition").addEventListener("click", startRecognition);
   $("#checkSpeaking").addEventListener("click", checkSpeaking);
+  $("#speakingRetry").addEventListener("click", retrySpeaking);
+  $("#speakingContinue").addEventListener("click", renderPracticeMenu);
   ["#vocabScope", "#vocabLevel"].forEach(selector => $(selector).addEventListener("change", renderVocabulary));
   $("#vocabSearch").addEventListener("input", renderVocabulary);
   $$('[data-tier]').forEach(button => button.addEventListener("click", () => {
