@@ -212,7 +212,7 @@ const els = {
 };
 
 function normalizeCore(value) {
-  return value.trim().toLocaleLowerCase("de-DE").replace(/[.!?,;:]+$/g, "").replace(/\s+/g, " ");
+  return value.normalize("NFC").trim().toLocaleLowerCase("de-DE").replace(/[.!?,;:]+$/g, "").replace(/\s+/g, " ");
 }
 
 function foldUmlauts(value) {
@@ -323,12 +323,11 @@ function capitalizationNotes(raw, ex) {
   return [...new Set(notes)];
 }
 
-function mechanicsNotes(raw, ex, umlautEquivalent) {
+function mechanicsNotes(raw, ex) {
   const notes = capitalizationNotes(raw, ex);
   if (ex.punctuation && !raw.trim().endsWith(ex.punctuation)) {
     notes.push(ex.punctuation === "?" ? "Finish a written question with a question mark." : "Finish a written sentence with a period.");
   }
-  if (umlautEquivalent) notes.push("Your ae/oe/ue spelling is accepted. In standard German spelling, use the umlaut shown below.");
   return notes;
 }
 
@@ -359,12 +358,13 @@ function gradeAnswer(raw) {
   const folded = foldUmlauts(core);
   const exactOrthography = ex.answers.some(answer => normalizeCore(answer) === core);
   const coreMatch = exactOrthography || ex.answers.some(answer => normalizedFold(answer) === folded);
-  const umlautEquivalent = coreMatch && !exactOrthography;
+  const keyboardEquivalent = coreMatch && !exactOrthography;
 
   if (coreMatch) {
-    const notes = mechanicsNotes(raw, ex, umlautEquivalent);
+    const notes = mechanicsNotes(raw, ex);
     secureCurrent();
     if (notes.length) showFeedback("partial", "The German works. Polish the writing.", notes.join(" "), ex);
+    else if (keyboardEquivalent) showFeedback("success", "Keyboard spelling accepted.", "The standard German spelling appears below.", ex);
     else showFeedback("success", "Correct form.", ex.success, ex);
     return;
   }

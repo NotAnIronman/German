@@ -91,6 +91,7 @@ let lessonStepIndex = 0;
 let lessonSelection = "";
 let lessonBuilt = [];
 let lessonStepPassed = false;
+let readingAttemptRecorded = false;
 
 function migrateLegacyWords() {
   let changed = false;
@@ -504,7 +505,7 @@ function renderLessonInteraction(step) {
     });
   }
   if (step.kind === "type") {
-    target.innerHTML = '<label for="lessonInput">' + escapeHtml(step.prompt) + '</label><input id="lessonInput" type="text" lang="de" placeholder="' + escapeHtml(step.placeholder || "") + '" autocomplete="off" />';
+    target.innerHTML = '<label for="lessonInput">' + escapeHtml(step.prompt) + '</label><input id="lessonInput" type="text" lang="de-DE" spellcheck="false" placeholder="' + escapeHtml(step.placeholder || "") + '" autocomplete="off" />';
   }
 }
 
@@ -717,12 +718,13 @@ function renderPracticeMenu() {
   modeButton("checkpoint").disabled = !checkpointReady;
   modeButton("listening").hidden = true;
   modeButton("listening").disabled = true;
+  modeButton("reading").classList.toggle("completed", record.reading >= 1);
   $("#practiceEyebrow").textContent = module.code + " · PRACTICE";
   $("#practiceTitle").textContent = module.title;
   $("#practiceIntro").textContent = guided ? "The guided lesson teaches each phrase first. Practice opens in stages as you use those patterns." : module.subtitle;
   $("#availableQuestionCount").textContent = lessonReady ? available.length : 0;
   $("#sentenceReadiness").textContent = !lessonReady ? "Complete the guided lesson first." : sentenceReady ? available.length + " ordered prompts use taught language." : "Meet the target bundles first.";
-  $("#readingReadiness").textContent = readingReady ? "Short text built from taught language." : "Complete two sentence prompts first.";
+  $("#readingReadiness").textContent = record.reading >= 1 ? "✓ Reading complete. Open it again whenever you want." : readingReady ? "Short text built from taught language." : "Complete two sentence prompts first.";
   $("#writingReadiness").textContent = writingReady ? "Every visible requirement will be checked." : "Finish the sentence set first.";
   $("#speakingReadiness").textContent = speakingReady ? "Transcript phrase check. Pronunciation scoring is unavailable." : "Pass the writing checklist first.";
   $("#checkpointReadiness").textContent = checkpointReady ? "The full review is ready." : guided ? "Complete reading and writing first." : "Meet the remaining target bundles first.";
@@ -825,8 +827,14 @@ function stripPunctuation(value) {
   return cleanSpacing(value).replace(/[.,!?;:()[\]{}"„“”‚‘’]+/g, "").replace(/\s+/g, " ").trim();
 }
 
+function foldKeyboardCase(value) {
+  return String(value).normalize("NFC")
+    .replace(/Ä/g, "Ae").replace(/Ö/g, "Oe").replace(/Ü/g, "Ue")
+    .replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss");
+}
+
 function foldSpelling(value) {
-  return String(value).toLocaleLowerCase("de-DE").replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss");
+  return foldKeyboardCase(value).toLocaleLowerCase("de-DE");
 }
 
 function editDistance(a, b) {
@@ -843,10 +851,6 @@ function editDistance(a, b) {
 function classifyAnswer(value, answers, level) {
   const raw = cleanSpacing(value);
   const strictMechanics = levelRank[level] >= levelRank.B1;
-  for (const answer of answers) {
-    const expected = cleanSpacing(answer);
-    if (raw === expected) return { correct: true, answer, note: "" };
-  }
   const rawWords = stripPunctuation(raw);
   const mechanicalMatches = answers.map(answer => {
     const expected = cleanSpacing(answer);
@@ -856,18 +860,28 @@ function classifyAnswer(value, answers, level) {
     return { answer, expected, expectedWords, sameWords, cost };
   }).filter(candidate => candidate.sameWords).sort((a, b) => a.cost - b.cost);
   if (mechanicalMatches.length) {
-    const { answer, expected, expectedWords } = mechanicalMatches[0];
+    const canonicalKeyboardMatch = mechanicalMatches.find(candidate =>
+      /[äöüß]/iu.test(candidate.expectedWords) &&
+      candidate.expectedWords.normalize("NFC").toLocaleLowerCase("de-DE") !== rawWords.normalize("NFC").toLocaleLowerCase("de-DE")
+    );
+    const { answer, expected, expectedWords } = canonicalKeyboardMatch || mechanicalMatches[0];
     const samePunctuation = foldSpelling(raw) === foldSpelling(expected);
     const punctuationDifference = !samePunctuation;
-    const caseDifference = rawWords !== expectedWords && rawWords.toLocaleLowerCase("de-DE") === expectedWords.toLocaleLowerCase("de-DE");
-    const spellingFallback = foldSpelling(rawWords) === foldSpelling(expectedWords) && rawWords.toLocaleLowerCase("de-DE") !== expectedWords.toLocaleLowerCase("de-DE") && !caseDifference;
+    const caseDifference = foldKeyboardCase(rawWords) !== foldKeyboardCase(expectedWords) && foldSpelling(rawWords) === foldSpelling(expectedWords);
+    const spellingFallback = foldSpelling(rawWords) === foldSpelling(expectedWords) && rawWords.normalize("NFC").toLocaleLowerCase("de-DE") !== expectedWords.normalize("NFC").toLocaleLowerCase("de-DE");
     if (strictMechanics && punctuationDifference) return { correct: false, near: true, kind: "punctuation", answer, note: `Match the standard punctuation: ${expected}` };
     if (strictMechanics && caseDifference) return { correct: false, near: true, kind: "capitalization", answer, note: "Capitalization is the remaining issue. Check the sentence opening and every German noun." };
     const notes = [];
     if (punctuationDifference) notes.push("Use the standard punctuation shown below");
     if (caseDifference) notes.push("Check the standard capitalization shown below");
-    if (spellingFallback) notes.push("The keyboard spelling is accepted. The standard German spelling appears below");
-    return { correct: true, answer, note: notes.join(". ") + (notes.length ? "." : "") };
+    if (spellingFallback) notes.push("Keyboard spelling accepted. The standard German spelling appears below");
+    return {
+      correct: true,
+      answer,
+      note: notes.join(". ") + (notes.length ? "." : ""),
+      acceptedKeyboard: spellingFallback,
+      needsRevision: punctuationDifference || caseDifference
+    };
   }
   const foldedRaw = foldSpelling(stripTerminal(raw));
   const closest = answers.reduce((best, answer) => {
@@ -993,7 +1007,7 @@ function renderAlignedRow(operations, side) {
     if (side === "actual") {
       if (operation.kind === "equal") marked = '<span class="answer-token correct">' + escapeHtml(token) + '</span>';
       else if (operation.kind === "capitalization") marked = markedCapitalization(operation.actual, operation.expected);
-      else if (operation.kind === "keyboard") marked = '<mark class="answer-token keyboard" title="Keyboard spelling">' + escapeHtml(token) + '</mark>';
+      else if (operation.kind === "keyboard") marked = '<mark class="answer-token keyboard" title="Accepted keyboard spelling">' + escapeHtml(token) + '</mark>';
       else if (operation.kind === "extra") marked = '<mark class="answer-token extra" title="Remove this text">⌫ ' + escapeHtml(token) + '</mark>';
       else marked = '<mark class="answer-token issue" title="Change this text">' + escapeHtml(token) + '</mark>';
     } else {
@@ -1015,7 +1029,7 @@ function issueMessage(operation) {
     if (firstOnly) return "≡ Use lowercase " + operation.expected[0] + " in " + operation.expected + ".";
     return "≡ Match the capitalization in " + operation.expected + ".";
   }
-  if (operation.kind === "keyboard") return "KEY Standard spelling: " + operation.expected + ".";
+  if (operation.kind === "keyboard") return "✓ Keyboard spelling accepted. Standard spelling: " + operation.expected + ".";
   if (operation.kind === "punctuation") return "PUNC Use " + operation.expected + " here.";
   if (operation.kind === "missing" && /^[.,!?;:]$/u.test(operation.expected)) return "PUNC Add “" + operation.expected + "”";
   if (operation.kind === "extra" && /^[.,!?;:]$/u.test(operation.actual)) return "PUNC Remove “" + operation.actual + "”";
@@ -1027,18 +1041,20 @@ function issueMessage(operation) {
 
 function answerComparisonHtml(value, answer) {
   const operations = alignAnswerTokens(value, answer);
-  const issues = operations.map(issueMessage).filter(Boolean);
+  const issues = [...new Set(operations.map(issueMessage).filter(Boolean))];
+  const keyboardOnly = operations.some(operation => operation.kind === "keyboard") && operations.every(operation => ["equal", "keyboard"].includes(operation.kind));
+  const standardLabel = keyboardOnly ? "Standard spelling" : "Corrected form";
   const valueEnding = /[.!?]$/u.test(value.trim()) ? "" : ".";
   const answerEnding = /[.!?]$/u.test(answer) ? "" : ".";
-  const screenReader = "Your answer: " + value + valueEnding + " Corrected form: " + answer + answerEnding + (issues.length ? " " + issues.join(" ") : "");
+  const screenReader = "Your answer: " + value + valueEnding + " " + standardLabel + ": " + answer + answerEnding + (issues.length ? " " + issues.join(" ") : "");
   return '<div class="comparison-sr">' + escapeHtml(screenReader) + '</div>' +
-    '<div class="comparison-row"><span>Your answer</span><p lang="de" aria-hidden="true">' + renderAlignedRow(operations, "actual") + '</p></div>' +
-    '<div class="comparison-row"><span>Corrected form</span><p lang="de" aria-hidden="true">' + renderAlignedRow(operations, "expected") + '</p></div>' +
+    '<div class="comparison-row"><span>Your answer</span><p lang="de-DE" aria-hidden="true">' + renderAlignedRow(operations, "actual") + '</p></div>' +
+    '<div class="comparison-row"><span>' + standardLabel + '</span><p lang="de-DE" aria-hidden="true">' + renderAlignedRow(operations, "expected") + '</p></div>' +
     (issues.length ? '<ul class="comparison-issues">' + issues.map(issue => '<li>' + escapeHtml(issue) + '</li>').join("") + '</ul>' : "");
 }
 
 function answerAttemptHtml(value, hasSupport) {
-  return '<div class="comparison-row attempt-only"><span>Your answer</span><p lang="de">' + escapeHtml(value) + '</p></div>' +
+  return '<div class="comparison-row attempt-only"><span>Your answer</span><p lang="de-DE">' + escapeHtml(value) + '</p></div>' +
     '<p class="comparison-prompt">' + (hasSupport ? "Use the support card and word bank, then edit your answer." : "Try the pattern once more, or return to the guided lesson.") + ' The corrected form appears once most of the pattern is in place.</p>';
 }
 
@@ -1108,7 +1124,7 @@ function submitQuizAnswer(event) {
   const repairAttempt = quiz.retry || quiz.inlineRetry;
   updateQuestionEvidence(question, result, repairAttempt);
   const feedbackPanel = $("#quizFeedback");
-  const coached = result.correct && Boolean(result.note);
+  const coached = result.correct && Boolean(result.needsRevision);
   const revealCorrection = result.correct || result.near || answerCoverage(value, result.answer) >= .5;
   feedbackPanel.hidden = false;
   feedbackPanel.className = "quiz-feedback " + (result.correct ? coached ? "close" : "" : result.near ? "close" : "wrong");
@@ -1203,29 +1219,52 @@ function submitListening(event) {
 
 function renderReading() {
   const module = activeModule();
+  readingAttemptRecorded = false;
   $("#readingTask").hidden = false;
   $("#readingTitle").textContent = `${module.code}: Read for a clear purpose`;
   $("#readingPassage").textContent = module.input.passage;
   $("#readingPrompt").textContent = module.input.readPrompt;
   $("#readingInput").value = "";
+  $("#readingInput").disabled = false;
+  $("#readingCheck").disabled = false;
   $("#readingFeedback").hidden = true;
+  $("#readingActions").hidden = true;
+  $("#readingRetry").hidden = true;
+  $("#readingContinue").hidden = true;
 }
 
 function submitReading(event) {
   event.preventDefault();
   const module = activeModule();
   const value = $("#readingInput").value;
-  if (!value.trim()) return;
+  if (!value.trim() || $("#readingInput").disabled) return;
   const result = classifyAnswer(value, module.input.readAnswers, module.level);
   const record = moduleRecord(module.id);
   record.reading = Math.max(record.reading || 0, result.correct ? 1 : .4);
-  state.skills.reading.attempts += 1;
-  if (result.correct) state.skills.reading.correct += 1;
+  if (!readingAttemptRecorded) {
+    state.skills.reading.attempts += 1;
+    if (result.correct) state.skills.reading.correct += 1;
+    readingAttemptRecorded = true;
+  }
   saveState();
   const feedback = $("#readingFeedback");
   feedback.hidden = false;
   feedback.className = `task-feedback ${result.correct ? "success" : "repair"}`;
-  feedback.innerHTML = `<h3>${result.correct ? "Detail located." : "Return to the relevant sentence."}</h3><p>${result.correct ? "Your answer is supported by the text." : diagnoseDifference(value, result.answer)}</p><p><strong>Answer:</strong> ${escapeHtml(result.answer)}</p>`;
+  feedback.innerHTML = `<h3>${result.correct ? "Detail located." : "Return to the relevant sentence."}</h3><p>${result.correct ? "Reading credit recorded." : diagnoseDifference(value, result.answer)}</p><p><strong>Answer:</strong> ${escapeHtml(result.answer)}</p>`;
+  $("#readingInput").disabled = true;
+  $("#readingCheck").disabled = true;
+  $("#readingActions").hidden = false;
+  $("#readingRetry").hidden = result.correct;
+  $("#readingContinue").hidden = !result.correct;
+}
+
+function retryReading() {
+  $("#readingFeedback").hidden = true;
+  $("#readingActions").hidden = true;
+  $("#readingInput").disabled = false;
+  $("#readingCheck").disabled = false;
+  $("#readingInput").focus();
+  $("#readingInput").select();
 }
 
 function countWords(value) {
@@ -1269,7 +1308,11 @@ function evaluateWritingCheck(check, text, words) {
   }
   if (check.type === "keyboardSpellings") {
     const found = (check.forms || []).filter(form => new RegExp("\\b" + form.typed + "\\b", "iu").test(text));
-    return { met: found.length === 0, detail: found.length ? "Standard spelling: " + found.map(form => form.standard).join(", ") : "" };
+    return {
+      met: true,
+      acceptedVariant: found.length > 0,
+      detail: found.length ? "Keyboard spelling accepted. Standard spelling: " + found.map(form => form.standard).join(", ") : ""
+    };
   }
   if (check.type === "punctuatedLines") {
     const missing = lines.map((line, index) => /[.!?]$/u.test(line) ? -1 : index + 1).filter(index => index > 0);
@@ -1532,6 +1575,8 @@ function bindEvents() {
   $("#finishQuiz").addEventListener("click", renderPracticeMenu);
   $("#listeningForm").addEventListener("submit", submitListening);
   $("#readingForm").addEventListener("submit", submitReading);
+  $("#readingRetry").addEventListener("click", retryReading);
+  $("#readingContinue").addEventListener("click", renderPracticeMenu);
   $("#writingInput").addEventListener("input", event => { $("#writingCount").textContent = `${countWords(event.target.value)} words · target ${activeModule().task.minWords}+`; });
   $("#checkWriting").addEventListener("click", checkWriting);
   $("#startRecognition").addEventListener("click", startRecognition);

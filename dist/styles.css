@@ -210,6 +210,8 @@ a { color: inherit; }
 .mode-card.featured p { color: #dce4f8; }
 .mode-card small { margin-top: auto; color: var(--blue); font-weight: 760; }
 .mode-card.featured small { color: #ffc684; }
+.mode-card.completed { border-color: var(--green); box-shadow: inset 0 0 0 1px var(--green); }
+.mode-card.completed small { color: var(--green); }
 .mode-card:disabled { opacity: .48; cursor: not-allowed; transform: none; box-shadow: none; }
 .activity-shell { width: min(900px, 100%); margin: 30px auto 0; }
 .activity-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; color: var(--muted); font-size: .72rem; font-weight: 850; letter-spacing: .08em; }
@@ -253,7 +255,7 @@ a { color: inherit; }
 .answer-token.correct, .correct-fragment { color: #17634f; text-decoration: underline; text-decoration-color: #85b8a8; text-underline-offset: 3px; }
 mark.answer-token, mark.case-character { color: inherit; }
 .answer-token.issue, .answer-token.extra, .case-character { background: #ffd7d9; color: #8e2630; text-decoration: underline double #c44e55; text-underline-offset: 3px; }
-.answer-token.keyboard { background: #fff0c7; color: #704a14; }
+.answer-token.keyboard { background: var(--green-soft); color: #17634f; text-decoration: underline; text-decoration-color: #85b8a8; text-underline-offset: 3px; }
 .answer-token.missing { background: #fff0c7; color: #704a14; }
 .answer-token.correction { background: #cfe8dd; color: #155744; }
 .comparison-issues { margin: 2px 0 0; padding-left: 20px; color: var(--ink-2); line-height: 1.5; }
@@ -282,6 +284,7 @@ mark.answer-token, mark.case-character { color: inherit; }
 .task-checklist { margin: 20px 0; padding: 18px 20px 18px 40px; background: #eef1f7; color: var(--ink-2); line-height: 1.55; }
 .task-actions, .speech-controls { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 12px; }
 .task-actions span { color: var(--muted); font-size: .8rem; }
+.reading-actions { justify-content: flex-end; }
 .task-feedback { margin-top: 22px; padding: 20px; border-left: 4px solid var(--blue); background: var(--blue-soft); line-height: 1.55; }
 .task-feedback.success { border-color: var(--green); background: var(--green-soft); }
 .task-feedback.repair { border-color: var(--orange); background: var(--orange-soft); }
