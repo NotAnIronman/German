@@ -162,10 +162,16 @@ function moduleWordCount(module, introducedOnly = false) {
   return introducedOnly ? words.filter(isIntroduced).length : words.length;
 }
 
+function moduleCoreWords(module) {
+  const core = module.words.filter(word => !word.supplemental);
+  return core.length ? core : module.words;
+}
+
 function moduleProgress(module) {
   const record = state.modules[module.id];
   if (!record) return 0;
-  const words = moduleWordCount(module, true) / Math.max(1, module.words.length);
+  const core = moduleCoreWords(module);
+  const words = core.filter(word => isIntroduced(globalWordId(module.id, word.id))).length / Math.max(1, core.length);
   const prompts = Object.keys(record.completedPrompts || {}).length / Math.max(1, module.questions.length);
   const skills = [record.listening, record.reading, record.writing, record.speaking].filter(value => Number(value) > 0).length / 4;
   const checkpoint = record.checkpointScore == null ? 0 : Math.min(1, record.checkpointScore);
@@ -263,11 +269,13 @@ function renderHome() {
   $("#homePromptCount").textContent = allQuestions.length;
   $("#continueUnit").textContent = `${module.code} · ${module.title.toUpperCase()}`;
   const introduced = moduleWordCount(module, true);
+  const core = moduleCoreWords(module);
+  const coreIntroduced = core.filter(word => isIntroduced(globalWordId(module.id, word.id))).length;
   const record = state.modules[module.id];
   const button = $("#continueButton");
-  if (introduced < module.words.length) {
-    $("#continueTitle").textContent = introduced ? "Continue the word deck" : module.title;
-    $("#continueText").textContent = introduced ? `${introduced} of ${module.words.length} bundles have been met in this module.` : module.subtitle;
+  if (coreIntroduced < core.length) {
+    $("#continueTitle").textContent = coreIntroduced ? "Continue the core word deck" : module.title;
+    $("#continueText").textContent = coreIntroduced ? `${coreIntroduced} of ${core.length} core bundles have been met in this module.` : module.subtitle;
     button.innerHTML = 'Open word deck <span>→</span>';
     button.onclick = () => go("learn");
   } else if (!record?.attempts) {
@@ -275,6 +283,12 @@ function renderHome() {
     $("#continueText").textContent = "The word deck is available. Sentence practice is the next useful step.";
     button.innerHTML = 'Open practice <span>→</span>';
     button.onclick = () => go("practice");
+  } else if (introduced < module.words.length) {
+    const remaining = module.words.length - introduced;
+    $("#continueTitle").textContent = "Widen this module's word bank";
+    $("#continueText").textContent = `${remaining} additional bundle${remaining === 1 ? " is" : "s are"} ready with a phrase, word family, or usage pattern.`;
+    button.innerHTML = 'Meet more language <span>→</span>';
+    button.onclick = () => go("learn");
   } else {
     $("#continueTitle").textContent = "Return from another angle";
     $("#continueText").textContent = "Choose listening, reading, writing, speaking, or the module checkpoint.";
@@ -314,7 +328,9 @@ function renderCourse() {
 }
 
 function renderModuleDetail(module) {
-  $("#moduleDetail").innerHTML = `<span class="eyebrow">${module.code} · ${moduleStatus(module).toUpperCase()}</span><h2>${escapeHtml(module.title)}</h2><p>${escapeHtml(module.subtitle)}</p><h3>You will learn to</h3><ul>${module.canDo.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ul><h3>Grammar focus</h3><ul>${module.grammar.map(item => `<li>${escapeHtml(item.title)}</li>`).join("")}</ul><div class="module-progress"><div><i style="width:${moduleProgress(module)}%"></i></div><small>${module.words.length} bundles · ${module.questions.length} typed prompts · ${moduleProgress(module)}% course evidence</small></div><div class="module-detail-actions"><button class="primary-button" type="button" data-module-learn="${module.id}">Learn words</button><button class="quiet-button" type="button" data-module-practice="${module.id}">Practice</button></div>`;
+  const expansionCount = module.words.filter(word => word.supplemental).length;
+  const bundleSummary = expansionCount ? `${moduleCoreWords(module).length} core + ${expansionCount} expansion bundles` : `${module.words.length} bundles`;
+  $("#moduleDetail").innerHTML = `<span class="eyebrow">${module.code} · ${moduleStatus(module).toUpperCase()}</span><h2>${escapeHtml(module.title)}</h2><p>${escapeHtml(module.subtitle)}</p><h3>You will learn to</h3><ul>${module.canDo.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ul><h3>Grammar focus</h3><ul>${module.grammar.map(item => `<li>${escapeHtml(item.title)}</li>`).join("")}</ul><div class="module-progress"><div><i style="width:${moduleProgress(module)}%"></i></div><small>${bundleSummary} · ${module.questions.length} typed prompts · ${moduleProgress(module)}% course evidence</small></div><div class="module-detail-actions"><button class="primary-button" type="button" data-module-learn="${module.id}">Learn words</button><button class="quiet-button" type="button" data-module-practice="${module.id}">Practice</button></div>`;
   $('[data-module-learn]').addEventListener("click", event => { setActiveModule(event.currentTarget.dataset.moduleLearn); go("learn"); });
   $('[data-module-practice]').addEventListener("click", event => { setActiveModule(event.currentTarget.dataset.modulePractice); go("practice"); });
 }
@@ -346,7 +362,7 @@ function renderCard() {
   const module = moduleById(word.moduleId);
   const direction = cardDirectionFor();
   $("#deckPosition").textContent = `${deckIndex + 1} / ${deck.length}`;
-  $("#cardUnit").textContent = targetedWordId ? "FOCUSED REVIEW" : `${module.code} · ${module.title.toUpperCase()}`;
+  $("#cardUnit").textContent = targetedWordId ? "FOCUSED REVIEW" : word.supplemental ? `${module.code} · EXPANSION` : `${module.code} · ${module.title.toUpperCase()}`;
   $("#flashPrompt").textContent = direction === "german" ? "GERMAN" : "ENGLISH";
   $("#flashFront").textContent = direction === "german" ? word.de : word.en;
   $("#flashAnswer").textContent = direction === "german" ? word.en : word.de;
@@ -411,7 +427,9 @@ function renderDeckStrip() {
 function renderDeckStatus() {
   const module = activeModule();
   const count = moduleWordCount(module, true);
-  $("#learnDeckStatus").textContent = targetedWordId ? "Focused review" : `${count} of ${module.words.length} bundles met`;
+  const expansionCount = module.words.filter(word => word.supplemental).length;
+  const expansionText = expansionCount ? ` · ${expansionCount} expansion bundles` : "";
+  $("#learnDeckStatus").textContent = targetedWordId ? "Focused review" : `${count} of ${module.words.length} bundles met${expansionText}`;
 }
 
 function speakText(text, lang = "de-DE") {
@@ -873,7 +891,7 @@ function renderVocabulary() {
     const tier = tierFor(record);
     const due = record?.nextReview && record.nextReview <= now();
     const module = moduleById(word.moduleId);
-    return `<tr><td><strong>${escapeHtml(word.de)}</strong><small>${escapeHtml(word.bundle)}</small></td><td><span>${escapeHtml(word.en)}</span><small>${escapeHtml(word.example)}</small></td><td>${word.level}<small>${module.code}</small></td><td><span class="tier-pill"><i class="tier-dot ${tier}"></i>${tierLabel(tier)}</span><div class="evidence-mini"><i style="width:${evidencePercent(record)}%"></i></div></td><td><button class="vocab-action" type="button" data-review-word="${word.globalId}">${due ? "Review due" : isIntroduced(word.globalId) ? "Review bundle" : "Meet word"}</button></td></tr>`;
+    return `<tr><td><strong>${escapeHtml(word.de)}</strong><small>${escapeHtml(word.bundle)}</small></td><td><span>${escapeHtml(word.en)}</span><small>${escapeHtml(word.example)}</small></td><td>${word.level}<small>${module.code}${word.supplemental ? " · expansion" : ""}</small></td><td><span class="tier-pill"><i class="tier-dot ${tier}"></i>${tierLabel(tier)}</span><div class="evidence-mini"><i style="width:${evidencePercent(record)}%"></i></div></td><td><button class="vocab-action" type="button" data-review-word="${word.globalId}">${due ? "Review due" : isIntroduced(word.globalId) ? "Review bundle" : "Meet word"}</button></td></tr>`;
   }).join("");
   $$('[data-review-word]').forEach(button => button.addEventListener("click", () => {
     targetedWordId = button.dataset.reviewWord;
