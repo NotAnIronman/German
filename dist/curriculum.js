@@ -521,7 +521,7 @@
         ["verspaetung", "die Verspätung, die Verspätungen", "delay", "Verspätung haben", "Der Zug hat zwanzig Minuten Verspätung.", "The train is twenty minutes late."],
         ["ausfallen", "ausfallen, ist ausgefallen", "to be cancelled", "ausfallen · fällt aus", "Der Regionalzug fällt aus.", "The regional train is cancelled."],
         ["umsteigen", "umsteigen, ist umgestiegen", "to change trains", "in Bamberg umsteigen", "In Bamberg müssen wir umsteigen.", "We have to change in Bamberg."],
-        ["gleis", "das Gleis, die Gleise", "platform / track", "von Gleis neun", "Der Zug fährt von Gleis neun.", "The train leaves from platform nine."],
+        ["gleis", "das Gleis, die Gleise", "platform / track", "von Gleis neun abfahren", "Der Zug fährt von Gleis neun ab.", "The train leaves from platform nine."],
         ["verbindung", "die Verbindung, die Verbindungen", "connection / route", "eine direkte Verbindung", "Diese Verbindung ist schneller.", "This connection is faster."],
         ["reservieren", "reservieren", "to reserve", "einen Platz reservieren", "Ich habe einen Sitzplatz reserviert.", "I reserved a seat."],
         ["weiterfahren", "weiterfahren, ist weitergefahren", "to continue traveling", "weiterfahren · fährt weiter", "Wir fahren mit der U-Bahn weiter.", "We continue by subway."],

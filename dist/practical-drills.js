@@ -30,7 +30,24 @@
     return match ? match[1] : "";
   };
 
+  const modelSentenceCue = word => {
+    const german = String(word.example || "");
+    const notes = [];
+    if (/\b(?:Sie|Ihnen|Ihr(?:e|en|er|es|em)?)\b/u.test(german)) notes.push("Use formal Sie.");
+    else if (/\b(?:du|dich|dir|dein(?:e|en|er|es|em)?)\b/iu.test(german) || /^(?:Komm|Bring|Nimm|Gib|Mach|Sei|Hab|Fahr|Geh|Lies|Sprich|Ruf|Hör|Schreib|Sag|Hilf|Bleib)\b/u.test(german)) notes.push("Use informal du.");
+    const genderPair = String(word.bundle || "").match(/\bder\s+([A-ZÄÖÜ][\p{L}-]+).*?\bdie\s+([A-ZÄÖÜ][\p{L}-]+in)\b/u);
+    if (genderPair && new RegExp(`\\b${genderPair[2]}\\b`, "u").test(german)) notes.push("The person is a woman.");
+    else if (genderPair && new RegExp(`\\b${genderPair[1]}\\b`, "u").test(german)) notes.push("The person is a man.");
+    return `${word.exampleEn}${notes.length ? ` ${notes.join(" ")}` : ""}`;
+  };
+
   course.modules.forEach(module => {
+    const rangeMatch = module.task.writingPrompt.match(/\b(\d+)\s+to\s+(\d+)\s+words?\b/iu)
+      || module.task.writingPrompt.match(/\bbetween\s+(\d+)\s+and\s+(\d+)\s+words?\b/iu);
+    if (rangeMatch) {
+      module.task.minWords = Number(rangeMatch[1]);
+      module.task.maxWords = Number(rangeMatch[2]);
+    }
     const requiredWordIds = new Set(module.questions.flatMap(question => question.requires || []));
     module.words.forEach(word => {
       if (requiredWordIds.has(word.id)) word.supplemental = false;
@@ -41,7 +58,9 @@
     const candidates = [
       ...coreWords.filter(word => !usedWords.has(word.id)),
       ...coreWords.filter(word => usedWords.has(word.id))
-    ].filter(word => !existingAnswers.has(answerKey(word.example)));
+    ].filter(word => !existingAnswers.has(answerKey(word.example))
+      && answerKey(word.example) !== answerKey(word.bundle)
+      && answerKey(word.example) !== answerKey(word.de));
 
     let candidateIndex = 0;
     while (module.questions.length < targetPromptCount && candidateIndex < candidates.length) {
@@ -50,27 +69,31 @@
       let id = baseId;
       let suffix = 2;
       while (module.questions.some(question => question.id === id)) id = `${baseId}-${suffix++}`;
+      const supportModel = [word.bundle, word.de].find(candidate => candidate && ![word.example, ...(word.variants || [])].some(answer => answerKey(answer) === answerKey(candidate))) || "Review the taught bundle in the guided lesson.";
       module.questions.push({
         id,
         type: "ACTIVE RECALL",
-        context: contexts[module.level],
-        prompt: `Write the German sentence you would use for: ${word.exampleEn}`,
+        context: `${contexts[module.level]} Rebuild the model sentence with the same people, register, and gender shown in the bundle.`,
+        prompt: `Use “${word.bundle}” to recall the model sentence for: ${modelSentenceCue(word)}`,
         answers: [word.example],
         explanation: `The useful bundle is ${word.bundle}.`,
         requires: [word.id],
-        wordBank: []
+        wordBank: [],
+        support: {
+          title: "Use the taught bundle",
+          model: supportModel,
+          tip: modelSentenceCue(word)
+        }
       });
       existingAnswers.add(answerKey(word.example));
     }
 
     if (!module.task.checks?.length) {
       const nounWords = [...new Set(module.words.map(nounHead).filter(Boolean))].slice(0, 12);
-      const requiredLabel = item => {
-        const match = module.words.find(word => answerKey(`${word.de} ${word.bundle}`).includes(answerKey(item)));
-        return match ? `Use ${match.de}` : `Include ${item}`;
-      };
+      const requiredLabel = item => `Include ${Array.isArray(item) ? item.join(" or ") : item}`;
       module.task.checks = [
         { label: `Write at least ${module.task.minWords} words`, type: "minWords", value: module.task.minWords },
+        ...(module.task.maxWords ? [{ label: `Write no more than ${module.task.maxWords} words`, type: "maxWords", value: module.task.maxWords }] : []),
         ...(module.task.required || []).map(item => ({
           label: requiredLabel(item),
           type: "regex",
@@ -85,6 +108,8 @@
           required: rank[module.level] < rank.A2 ? false : true
         }] : [])
       ];
+    } else if (module.task.maxWords && !module.task.checks.some(check => check.type === "maxWords")) {
+      module.task.checks.push({ label: `Write no more than ${module.task.maxWords} words`, type: "maxWords", value: module.task.maxWords });
     }
   });
 
@@ -97,17 +122,19 @@
     module.questions.forEach(question => {
       if (!question.wordBank?.length) {
         const words = question.answers[0]
-          .replace(/[.!?]/gu, "")
+          .replace(/[.!?]+$/gu, "")
           .split(/\s+/u)
           .filter(Boolean);
         question.wordBank = [...new Set(words)].sort((a, b) => a.localeCompare(b, "de"));
       }
       if (!question.support) {
-        const model = module.grammar
-          .map(card => card.example)
-          .find(example => example && !(question.answers || []).includes(example)) || "Use the pattern from the guided lesson.";
+        const bundleModel = (question.requires || [])
+          .map(id => module.words.find(word => word.id === id)?.bundle)
+          .filter(Boolean)
+          .join(" · ") || "Use the pattern from the guided lesson.";
+        const model = (question.answers || []).some(answer => answerKey(answer) === answerKey(bundleModel)) ? "Review the taught bundle in the guided lesson." : bundleModel;
         question.support = {
-          title: "Use the taught pattern",
+          title: "Use the taught bundle",
           model,
           tip: question.explanation
         };
@@ -119,5 +146,10 @@
     const levelDifference = rank[a.level] - rank[b.level];
     if (levelDifference) return levelDifference;
     return Number(a.code.split(".")[1]) - Number(b.code.split(".")[1]);
+  });
+
+  course.modules.forEach((module, index) => {
+    if (index === 0) delete module.prerequisite;
+    else module.prerequisite = course.modules[index - 1].id;
   });
 })();

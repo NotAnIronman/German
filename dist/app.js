@@ -8,11 +8,25 @@ if (!course?.modules?.length) {
 const levels = course.levels;
 const modules = course.modules;
 
+function modelSentenceCue(word) {
+  const german = String(word.example || "");
+  const notes = [];
+  if (/\b(?:Sie|Ihnen|Ihr(?:e|en|er|es|em)?)\b/u.test(german)) notes.push("Use formal Sie.");
+  else if (/\b(?:du|dich|dir|dein(?:e|en|er|es|em)?)\b/iu.test(german) || /^(?:Komm|Bring|Nimm|Gib|Mach|Sei|Hab|Fahr|Geh|Lies|Sprich|Ruf|Hör|Schreib|Sag|Hilf|Bleib)\b/u.test(german)) notes.push("Use informal du.");
+  const genderPair = String(word.bundle || "").match(/\bder\s+([A-ZÄÖÜ][\p{L}-]+).*?\bdie\s+([A-ZÄÖÜ][\p{L}-]+in)\b/u);
+  if (genderPair && new RegExp(`\\b${genderPair[2]}\\b`, "u").test(german)) notes.push("The person is a woman.");
+  else if (genderPair && new RegExp(`\\b${genderPair[1]}\\b`, "u").test(german)) notes.push("The person is a man.");
+  return `${word.exampleEn}${notes.length ? ` ${notes.join(" ")}` : ""}`;
+}
+
 function generatedLessonFor(module) {
   const core = module.words.filter(word => !word.supplemental);
   const midpoint = Math.ceil(core.length / 2);
   const firstTarget = core[0];
   const transferTarget = core[core.length - 1];
+  const choicePosition = [...module.id].reduce((total, character) => total + character.codePointAt(0), 0) % 3;
+  const meaningOptions = core.slice(1, 3).map(word => word.bundle);
+  meaningOptions.splice(choicePosition, 0, firstTarget.bundle);
   const bundleStep = (id, title, group) => ({
     id,
     kind: "teach",
@@ -32,7 +46,7 @@ function generatedLessonFor(module) {
         kind: "teach",
         label: "PURPOSE",
         title: "What this module prepares you to do",
-        body: module.canDo.join(" "),
+        body: module.canDo.map(goal => /[.!?]$/u.test(goal) ? goal : `${goal}.`).join(" "),
         note: "These goals return in Sentence Lab, skill work, and the module assessment."
       },
       ...module.grammar.map((item, index) => ({
@@ -51,7 +65,7 @@ function generatedLessonFor(module) {
         title: "Recognize a useful bundle",
         body: "Choose the German bundle that matches the meaning. You can review the examples above before answering.",
         prompt: `Which bundle means: ${firstTarget.en}?`,
-        options: [firstTarget, ...core.slice(1, 3)].map(word => word.bundle),
+        options: meaningOptions,
         answer: firstTarget.bundle,
         retry: "Match the meaning to the complete bundle shown in the previous step.",
         success: "You recognized the bundle in context.",
@@ -63,8 +77,8 @@ function generatedLessonFor(module) {
         kind: "type",
         label: "GUIDED PRODUCTION",
         title: "Produce one complete sentence",
-        body: "Use the example you just studied. Keyboard spellings such as ae, oe, ue, and ss are accepted.",
-        prompt: `Write in German: ${transferTarget.exampleEn}`,
+        body: "Rebuild the model sentence with the same people, register, and gender shown in the bundle. Keyboard spellings such as ae, oe, ue, and ss are accepted.",
+        prompt: `Recall the model sentence for “${transferTarget.bundle}”: ${modelSentenceCue(transferTarget)}`,
         placeholder: "Type the complete German sentence",
         answers: [transferTarget.example],
         retry: "Return to the second bundle group and copy the sentence once with care.",
@@ -96,7 +110,7 @@ const $$ = selector => [...document.querySelectorAll(selector)];
 const now = () => Date.now();
 const today = () => new Date().toISOString().slice(0, 10);
 const dayMs = 86400000;
-const assessmentVersion = 2;
+const assessmentVersion = 3;
 const assessmentPassScore = .8;
 
 const defaultState = {
@@ -547,16 +561,24 @@ function renderHome() {
     button.onclick = () => go("practice");
   } else if (!record.assessment.passedAt) {
     $("#continueTitle").textContent = record.assessment.attempts.length ? "Retake the module assessment" : "Take the module assessment";
-    $("#continueText").textContent = record.assessment.attempts.length ? `Best score: ${Math.round((record.assessment.bestScore || 0) * 100)}%. Reach 80% and the section minimums to complete the module.` : "This closed attempt covers every core word, every sentence target, reading, and structured writing.";
+    $("#continueText").textContent = record.assessment.attempts.length ? `Best score: ${Math.round((record.assessment.bestScore || 0) * 100)}%. Reach 80% and the section minimums to complete the module.` : "This closed attempt covers every core word, every sentence target, reading, structured writing, and a speaking transcript.";
     button.innerHTML = 'Open assessment <span>→</span>';
     button.onclick = () => go("practice");
   } else {
     const index = modules.findIndex(item => item.id === module.id);
-    const next = modules[index + 1];
-    $("#continueTitle").textContent = next ? `${module.code} complete. Continue to ${next.code}.` : "The full A0 to B2 pathway is complete";
-    $("#continueText").textContent = next ? `Your best assessment score is ${Math.round((record.assessment.bestScore || 0) * 100)}%. Spaced vocabulary reviews remain available.` : "Every module assessment has been passed. Keep using delayed review and real conversation to strengthen access.";
-    button.innerHTML = next ? `Open ${next.code} <span>→</span>` : 'Review course progress <span>→</span>';
-    button.onclick = () => { if (next) setActiveModule(next.id); go(next ? "learn" : "progress"); };
+    const allComplete = modules.every(moduleIsComplete);
+    const laterIncomplete = modules.slice(index + 1).find(item => !moduleIsComplete(item));
+    const next = laterIncomplete || modules.find(item => !moduleIsComplete(item));
+    $("#continueTitle").textContent = allComplete
+      ? "The full A0 to B2 pathway is complete"
+      : laterIncomplete
+        ? `${module.code} complete. Continue to ${next.code}.`
+        : `${module.code} complete. Continue your course at ${next.code}.`;
+    $("#continueText").textContent = allComplete
+      ? "Every module assessment has been passed. Keep using delayed review and real conversation to strengthen access."
+      : `Your best assessment score is ${Math.round((record.assessment.bestScore || 0) * 100)}%. Spaced vocabulary reviews remain available.`;
+    button.innerHTML = allComplete ? 'Review course progress <span>→</span>' : `Open ${next.code} <span>→</span>`;
+    button.onclick = () => { if (!allComplete) setActiveModule(next.id); go(allComplete ? "progress" : "learn"); };
   }
   $("#homeLevelPath").innerHTML = levels.map((level, index) => `${index ? '<div class="path-line"></div>' : ""}<button class="path-level ${module.level === level.id ? "active" : ""}" type="button" data-level-go="${level.id}"><b>${level.id}</b><span>${escapeHtml(level.title)}</span><small>${modules.filter(item => item.level === level.id).length} modules · ${levelProgress(level.id)}%</small></button>`).join("");
   $$('[data-level-go]').forEach(button => button.addEventListener("click", () => {
@@ -1085,10 +1107,10 @@ function renderAssessmentIntro() {
   const sentenceCount = module.questions.length;
   $("#assessmentIntro").hidden = false;
   $("#assessmentIntroTitle").textContent = `${module.code}: ${module.title}`;
-  $("#assessmentIntroText").textContent = `${coreCount + sentenceCount + 2} responses cover ${coreCount} core vocabulary bundles, ${sentenceCount} sentence targets, one reading task, and one structured writing task.`;
+  $("#assessmentIntroText").textContent = `${coreCount + sentenceCount + 3} responses cover ${coreCount} core vocabulary bundles, ${sentenceCount} sentence targets, one reading task, one structured writing task, and one speaking transcript.`;
   $("#assessmentRules").innerHTML = [
     "Answers are saved without correctness feedback during the attempt.",
-    "Pass with 80% overall, plus 70% in vocabulary and sentences, 50% in reading, and 60% in structured writing.",
+    "Pass with 80% overall, plus 70% in vocabulary and sentences, 50% in reading, and 60% in structured writing and speaking.",
     "Every completed attempt stays in your score history. A lower retake keeps your best score.",
     "Keyboard spellings such as ae, oe, ue, and ss receive full credit."
   ].map(rule => `<li>${escapeHtml(rule)}</li>`).join("");
@@ -1143,7 +1165,17 @@ function assessmentItemsFor(module) {
     answers: [module.task.model],
     explanation: "The score checks the listed requirements and length target."
   }];
-  return [...vocabulary, ...sentences, ...reading, ...writing];
+  const speaking = [{
+    id: "speaking:module-task",
+    kind: "speaking",
+    type: "SPEAKING TRANSCRIPT",
+    context: [...module.task.speakingGuide, `Use at least ${speakingMinimumWords(module)} words.`].join(" • "),
+    prompt: `${module.task.speakingPrompt} Type the words you would say.`,
+    longResponse: true,
+    answers: [module.task.speakingModel],
+    explanation: "The score checks the target phrases and a useful minimum length. Pronunciation remains unscored."
+  }];
+  return [...vocabulary, ...sentences, ...reading, ...writing, ...speaking];
 }
 
 function startQuiz(checkpoint) {
@@ -1268,6 +1300,93 @@ function classifyAnswer(value, answers, level) {
     return distance < best.distance ? { distance, answer } : best;
   }, { distance: Infinity, answer: answers[0] });
   return { correct: false, near: closest.distance <= Math.max(1, Math.round(foldedRaw.length * .08)), answer: closest.answer, note: "" };
+}
+
+const readingStopWords = new Set([
+  "a", "an", "and", "are", "as", "at", "be", "because", "by", "for", "from", "has", "have", "in", "is", "it", "of", "on", "or", "so", "that", "the", "their", "then", "they", "this", "to", "was", "were", "what", "when", "which", "who", "with",
+  "aber", "als", "am", "an", "auf", "aus", "bei", "das", "dass", "dem", "den", "der", "des", "die", "ein", "eine", "einem", "einen", "einer", "er", "es", "für", "fuer", "hat", "haben", "im", "in", "ist", "kann", "mit", "nach", "nur", "oder", "sich", "sie", "sind", "so", "soll", "und", "vom", "von", "vor", "war", "waren", "weil", "wenn", "werden", "wird", "zu", "zum", "zur"
+]);
+
+function readingTokens(value) {
+  return (foldSpelling(value).match(/[\p{L}\p{N}]+/gu) || [])
+    .filter(token => !readingStopWords.has(token) && (token.length > 2 || /^\d+$/u.test(token)));
+}
+
+function readingTokenMatch(actual, expected) {
+  if (actual === expected) return true;
+  if (/^\d+$/u.test(actual) || /^\d+$/u.test(expected)) return false;
+  const shortest = Math.min(actual.length, expected.length);
+  if (shortest >= 4 && (actual.includes(expected) || expected.includes(actual))) return true;
+  return shortest >= 5 && actual.slice(0, 5) === expected.slice(0, 5);
+}
+
+function readingPromptCount(prompt) {
+  const folded = foldSpelling(prompt);
+  if (/\b(?:three|drei)\b/u.test(folded)) return 3;
+  if (/\b(?:two|zwei)\b/u.test(folded)) return 2;
+  return 0;
+}
+
+function readingEvidence(value, answer, prompt) {
+  const actual = [...new Set(readingTokens(value))];
+  const clauses = String(answer).split(/[.;]+/u).map(readingTokens).filter(tokens => tokens.length);
+  if (!actual.length || !clauses.length) return { met: false, progress: 0, matched: 0, required: 1 };
+  let matched = 0;
+  let required = 0;
+  let everyClause = true;
+  clauses.forEach(expectedTokens => {
+    const unique = [...new Set(expectedTokens)];
+    const clauseMatches = unique.filter(expected => actual.some(token => readingTokenMatch(token, expected))).length;
+    const clauseRequired = unique.length <= 2 ? unique.length : unique.length <= 6 ? 2 : 3;
+    matched += Math.min(clauseMatches, clauseRequired);
+    required += clauseRequired;
+    if (clauseMatches < clauseRequired) everyClause = false;
+  });
+  const listedFacts = readingPromptCount(prompt);
+  if (listedFacts) required = Math.max(required, listedFacts + Math.max(0, clauses.length - 1));
+  const progress = Math.min(1, matched / Math.max(1, required));
+  return { met: everyClause && matched >= required, progress, matched, required };
+}
+
+function readingRequirementResults(value, requirements) {
+  return (requirements || []).map(requirement => ({
+    ...requirement,
+    met: (requirement.patterns || []).some(pattern => [String(value), foldKeyboardCase(value)].some(candidate => new RegExp(pattern, "iu").test(candidate)))
+  }));
+}
+
+function readingAnswerResult(value, answers, level, prompt = "", requirements = []) {
+  const actual = foldSpelling(stripPunctuation(value));
+  const direct = answers.find(answer => foldSpelling(stripPunctuation(answer)) === actual);
+  if (direct) return { correct: true, score: 1, answer: direct, note: "" };
+  const paddedActual = ` ${actual} `;
+  const contained = answers.find(answer => {
+    const expected = foldSpelling(stripPunctuation(answer));
+    return expected && paddedActual.includes(` ${expected} `);
+  });
+  if (contained) return { correct: true, score: 1, answer: contained, note: "Your sentence contains the requested detail." };
+  if (requirements.length) {
+    const checks = readingRequirementResults(value, requirements);
+    const met = checks.filter(check => check.met).length;
+    const score = met / checks.length;
+    const missing = checks.filter(check => !check.met).map(check => check.label);
+    return {
+      correct: score === 1,
+      score: score === 1 ? 1 : score >= .5 ? .5 : 0,
+      answer: answers[0],
+      note: score === 1 ? "Your wording gives every requested detail." : `${met} of ${checks.length} requested details are present. Review: ${missing.join(", ")}.`
+    };
+  }
+  const evidence = answers.map(answer => ({ answer, ...readingEvidence(value, answer, prompt) }))
+    .sort((a, b) => b.progress - a.progress)[0];
+  if (evidence?.met) return { correct: true, score: 1, answer: evidence.answer, note: "Your wording gives the required evidence." };
+  const fallback = classifyAnswer(value, answers, level);
+  return {
+    ...fallback,
+    score: evidence?.progress >= .5 ? .5 : 0,
+    answer: evidence?.answer || fallback.answer,
+    note: fallback.note || ""
+  };
 }
 
 function tokens(value) {
@@ -1501,7 +1620,8 @@ function writingAssessmentScore(module, text) {
     return required.length ? required.filter(check => check.met).length / required.length : 1;
   }
   const requirements = (task.required || []).map(item => requirementMet(text, item));
-  const points = requirements.filter(Boolean).length + Number(words >= task.minWords);
+  const lengthMet = words >= task.minWords && (!task.maxWords || words <= task.maxWords);
+  const points = requirements.filter(Boolean).length + Number(lengthMet);
   return points / Math.max(1, requirements.length + 1);
 }
 
@@ -1515,6 +1635,11 @@ function gradeAssessmentResponse(question, value, module) {
     const score = writingAssessmentScore(module, value);
     return { score, correct: score >= 1, answer: module.task.model };
   }
+  if (question.kind === "speaking") {
+    const score = speakingAssessmentScore(module, value);
+    return { score, correct: score >= 1, answer: module.task.speakingModel };
+  }
+  if (question.kind === "reading") return readingAnswerResult(value, question.answers, module.level, question.prompt, module.input.readRequired || []);
   const result = classifyAnswer(value, question.answers, module.level);
   return { score: result.correct ? 1 : 0, correct: result.correct, answer: result.answer };
 }
@@ -1601,7 +1726,7 @@ function finishQuizSet() {
 }
 
 function assessmentSectionScores(responses) {
-  const sectionNames = ["vocabulary", "sentences", "reading", "writing"];
+  const sectionNames = ["vocabulary", "sentences", "reading", "writing", "speaking"];
   return Object.fromEntries(sectionNames.map(section => {
     const items = responses.filter(response => response.kind === section);
     return [section, items.length ? items.reduce((sum, response) => sum + response.score, 0) / items.length : 0];
@@ -1612,8 +1737,8 @@ function finishAssessment() {
   const module = moduleById(quiz.moduleId);
   const record = moduleRecord(module.id);
   const sections = assessmentSectionScores(quiz.responses);
-  const score = sections.vocabulary * .30 + sections.sentences * .40 + sections.reading * .15 + sections.writing * .15;
-  const passed = score >= assessmentPassScore && sections.vocabulary >= .70 && sections.sentences >= .70 && sections.reading >= .50 && sections.writing >= .60;
+  const score = sections.vocabulary * .25 + sections.sentences * .30 + sections.reading * .15 + sections.writing * .20 + sections.speaking * .10;
+  const passed = score >= assessmentPassScore && sections.vocabulary >= .70 && sections.sentences >= .70 && sections.reading >= .50 && sections.writing >= .60 && sections.speaking >= .60;
   const firstCompletion = passed && !record.assessment.passedAt;
   const correct = quiz.responses.filter(response => response.score >= 1).length;
   const attempt = {
@@ -1642,15 +1767,15 @@ function finishAssessment() {
   $("#completionBurst").hidden = !firstCompletion;
   $("#summaryEyebrow").textContent = firstCompletion ? "MODULE COMPLETE" : passed ? "ASSESSMENT PASSED" : "ASSESSMENT COMPLETE";
   $("#summaryTitle").textContent = firstCompletion ? `${module.code} complete. ${Math.round(score * 100)}%.` : passed ? `Passed with ${Math.round(score * 100)}%.` : `Score: ${Math.round(score * 100)}%.`;
-  const floorsMet = [sections.vocabulary >= .70, sections.sentences >= .70, sections.reading >= .50, sections.writing >= .60].filter(Boolean).length;
-  $("#summaryText").textContent = passed ? "Every section minimum is secure. This module is checked off." : `Passing requires 80% overall and each section minimum. ${floorsMet} of 4 section minimums were reached.`;
+  const floorsMet = [sections.vocabulary >= .70, sections.sentences >= .70, sections.reading >= .50, sections.writing >= .60, sections.speaking >= .60].filter(Boolean).length;
+  $("#summaryText").textContent = passed ? "Every section minimum is secure. This module is checked off." : `Passing requires 80% overall and each section minimum. ${floorsMet} of 5 section minimums were reached.`;
   $("#summaryCorrect").textContent = `${Math.round(score * 100)}%`;
   $("#summaryCorrectLabel").textContent = "latest score";
   $("#summaryRecovered").textContent = `${correct}/${quiz.responses.length}`;
   $("#summaryRecoveredLabel").textContent = "fully correct items";
   $("#summaryMissed").textContent = `${Math.round((record.assessment.bestScore || 0) * 100)}%`;
   $("#summaryMissedLabel").textContent = "best score";
-  const sectionLabels = { vocabulary: "Vocabulary", sentences: "Sentence production", reading: "Reading", writing: "Structured writing" };
+  const sectionLabels = { vocabulary: "Vocabulary", sentences: "Sentence production", reading: "Reading", writing: "Structured writing", speaking: "Speaking transcript" };
   const missed = quiz.responses.filter(response => response.score < 1);
   $("#assessmentReview").hidden = false;
   $("#assessmentReview").innerHTML = '<h3>Section scores</h3><ol>' + Object.entries(sections).map(([key, value]) => `<li><strong>${sectionLabels[key]}: ${Math.round(value * 100)}%</strong></li>`).join("") + '</ol>' + (missed.length ? '<h3>Review after the attempt</h3><ol>' + missed.map(response => `<li><strong>${escapeHtml(response.prompt)}</strong><small>Your answer: ${escapeHtml(response.value)}</small><small>Accepted form or model: ${escapeHtml(response.answer)}</small></li>`).join("") + '</ol>' : '<p>Every scored item received full credit.</p>');
@@ -1741,13 +1866,13 @@ function submitReading(event) {
   const module = activeModule();
   const value = $("#readingInput").value;
   if (!value.trim() || $("#readingInput").disabled) return;
-  const result = classifyAnswer(value, module.input.readAnswers, module.level);
-  recordActivityResult(module.id, "reading", result.correct ? 1 : .4);
+  const result = readingAnswerResult(value, module.input.readAnswers, module.level, module.input.readPrompt, module.input.readRequired || []);
+  recordActivityResult(module.id, "reading", result.correct ? 1 : Math.max(.4, result.score || 0));
   readingAttemptRecorded = true;
   const feedback = $("#readingFeedback");
   feedback.hidden = false;
   feedback.className = `task-feedback ${result.correct ? "success" : "repair"}`;
-  feedback.innerHTML = `<h3>${result.correct ? "Detail located." : "Return to the relevant sentence."}</h3><p>${result.correct ? "Reading credit recorded." : diagnoseDifference(value, result.answer)}</p><p><strong>Answer:</strong> ${escapeHtml(result.answer)}</p>`;
+  feedback.innerHTML = `<h3>${result.correct ? "Detail located." : "Return to the relevant sentence."}</h3><p>${result.correct ? "Reading credit recorded." : escapeHtml(result.note || diagnoseDifference(value, result.answer))}</p><p><strong>Answer:</strong> ${escapeHtml(result.answer)}</p>`;
   $("#readingInput").disabled = true;
   $("#readingCheck").disabled = true;
   $("#readingActions").hidden = false;
@@ -1771,29 +1896,99 @@ function countWords(value) {
 function requirementMet(text, requirement) {
   const options = Array.isArray(requirement) ? requirement : [requirement];
   const folded = foldSpelling(text);
-  return options.some(option => folded.includes(foldSpelling(option)));
+  return options.some(option => {
+    const target = foldSpelling(option).trim();
+    const escaped = target.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+    const hasSpaces = /\s/u.test(target);
+    const body = hasSpaces ? escaped.replace(/\s+/gu, "\\s+") : target.length <= 3 ? escaped : escaped + "[\\p{L}\\p{M}-]*";
+    return new RegExp(`(?:^|[^\\p{L}\\p{N}])${body}(?=$|[^\\p{L}\\p{N}])`, "u").test(folded);
+  });
+}
+
+function speakingMinimumWords(module) {
+  const floor = { A0: 6, A1: 12, A2: 18, B1: 25, B2: 28 }[module.level] || 12;
+  const modelWords = countWords(module.task.speakingModel);
+  return Math.min(modelWords, Math.max(floor, Math.ceil(modelWords * .5)));
+}
+
+function speakingChecks(module, text) {
+  const task = module.task;
+  const words = countWords(text);
+  const targets = task.speakingRequired.map(item => ({
+    item: Array.isArray(item) ? item.join(" or ") : item,
+    met: requirementMet(text, item)
+  }));
+  const minimum = speakingMinimumWords(module);
+  return [...targets, { item: `${minimum}+ words`, met: words >= minimum, detail: `${words} words` }];
+}
+
+function speakingAssessmentScore(module, text) {
+  const checks = speakingChecks(module, text);
+  return checks.filter(check => check.met).length / Math.max(1, checks.length);
 }
 
 function writingLines(text) {
   return String(text).split(/\r?\n/).map(line => line.trim()).filter(Boolean);
 }
 
+function writingLineIsStructural(line, index, lines) {
+  const folded = foldSpelling(line).toLocaleLowerCase("de-DE").replace(/\s+/gu, " ").trim();
+  const isSubject = /^betreff\s*:/u.test(folded);
+  const isSalutation = /^(?:sehr geehrte(?:r|n)?\b|guten (?:tag|morgen|abend)\b|hallo\b|liebe(?:r|n)?\b)[^.!?]*,$/u.test(folded);
+  const isClosing = value => /^(?:mit freundlichen gruessen|freundliche gruesse|viele gruesse|liebe gruesse|beste gruesse|herzliche gruesse|vielen dank und freundliche gruesse),?$/u.test(value);
+  if (isSubject || isSalutation || isClosing(folded)) return true;
+  const closingIndex = lines.slice(0, index).findLastIndex(prior => isClosing(foldSpelling(prior).toLocaleLowerCase("de-DE").replace(/\s+/gu, " ").trim()));
+  const followsClosing = closingIndex >= 0 && index - closingIndex <= 2;
+  const isShortSignatureLine = /^[\p{L}\p{M}'-]+(?:\s+[\p{L}\p{M}'-]+){0,3}$/u.test(line);
+  return followsClosing && isShortSignatureLine;
+}
+
 function evaluateWritingCheck(check, text, words) {
   const lines = writingLines(text);
   if (check.type === "lineCount") {
     const actual = lines.length;
-    return { met: actual === check.value, detail: actual + " line" + (actual === 1 ? "" : "s") };
+    const met = check.value != null ? actual === check.value : actual >= (check.min || 0) && actual <= (check.max || Infinity);
+    return { met, detail: actual + " line" + (actual === 1 ? "" : "s") };
+  }
+  if (check.type === "wordsPerLine") {
+    const counts = lines.map(countWords);
+    const met = counts.length > 0 && counts.every(value => value === check.value);
+    return { met, detail: counts.length ? counts.join(", ") + " words by line" : "No lines yet" };
+  }
+  if (check.type === "sentenceCount") {
+    const punctuated = (String(text).match(/[.!?]+(?=\s|$)/gu) || []).length;
+    const actual = Math.max(punctuated, lines.length);
+    const met = check.value != null ? actual === check.value : actual >= (check.min || 0) && actual <= (check.max || Infinity);
+    return { met, detail: actual + " sentence unit" + (actual === 1 ? "" : "s") };
+  }
+  if (check.type === "questionCount") {
+    const actual = (String(text).match(/\?/gu) || []).length;
+    const met = actual >= (check.min || check.value || 1);
+    return { met, detail: actual + " question" + (actual === 1 ? "" : "s") };
+  }
+  if (check.type === "distinctRegexCount") {
+    const flags = (check.flags || "iu").includes("g") ? check.flags || "giu" : (check.flags || "iu") + "g";
+    const actual = Math.max(...[String(text), foldKeyboardCase(text)].map(candidate => {
+      const matches = [...candidate.matchAll(new RegExp(check.pattern, flags))].map(match => foldSpelling(match[0]));
+      return new Set(matches).size;
+    }));
+    return { met: actual >= check.min, detail: actual + " distinct marker" + (actual === 1 ? "" : "s") };
+  }
+  if (check.type === "regexCount") {
+    const flags = (check.flags || "iu").includes("g") ? check.flags || "giu" : (check.flags || "iu") + "g";
+    const actual = Math.max(...[String(text), foldKeyboardCase(text)].map(candidate => [...candidate.matchAll(new RegExp(check.pattern, flags))].length));
+    return { met: actual >= check.min, detail: actual + " matching part" + (actual === 1 ? "" : "s") };
   }
   if (check.type === "minWords") return { met: words >= check.value, detail: words + " words" };
   if (check.type === "maxWords") return { met: words <= check.value, detail: words + " words" };
   if (check.type === "regex") {
-    const expression = new RegExp(check.pattern, check.flags || "u");
-    return { met: expression.test(text), detail: "" };
+    const met = [String(text), foldKeyboardCase(text)].some(candidate => new RegExp(check.pattern, check.flags || "u").test(candidate));
+    return { met, detail: "" };
   }
   if (check.type === "regexLine") {
-    const expression = new RegExp(check.pattern, check.flags || "u");
     const line = lines[check.line] || "";
-    return { met: expression.test(line), detail: line ? "Line " + (check.line + 1) : "Line " + (check.line + 1) + " is empty" };
+    const met = [line, foldKeyboardCase(line)].some(candidate => new RegExp(check.pattern, check.flags || "u").test(candidate));
+    return { met, detail: line ? "Line " + (check.line + 1) : "Line " + (check.line + 1) + " is empty" };
   }
   if (check.type === "capitalization") {
     const expected = new Map((check.words || []).map(word => [word.toLocaleLowerCase("de-DE"), word]));
@@ -1812,7 +2007,7 @@ function evaluateWritingCheck(check, text, words) {
     };
   }
   if (check.type === "punctuatedLines") {
-    const missing = lines.map((line, index) => /[.!?]$/u.test(line) ? -1 : index + 1).filter(index => index > 0);
+    const missing = lines.map((line, index) => /[.!?]$/u.test(line) || writingLineIsStructural(line, index, lines) ? -1 : index + 1).filter(index => index > 0);
     return { met: lines.length > 0 && missing.length === 0, detail: missing.length ? "Check line" + (missing.length === 1 ? " " : "s ") + missing.join(", ") : "" };
   }
   return { met: false, detail: "This check needs review." };
@@ -1823,6 +2018,10 @@ function evaluateWritingChecks(task, text) {
   return (task.checks || []).map(check => ({ ...check, ...evaluateWritingCheck(check, text, words) }));
 }
 
+function writingTargetLabel(task) {
+  return task.maxWords ? `${task.minWords} to ${task.maxWords}` : `${task.minWords}+`;
+}
+
 function renderWriting() {
   const module = activeModule();
   const task = module.task;
@@ -1831,7 +2030,7 @@ function renderWriting() {
   $("#writingPrompt").textContent = task.writingPrompt;
   $("#writingGuide").innerHTML = task.guide.map(item => `<li>${escapeHtml(item)}</li>`).join("");
   $("#writingInput").value = "";
-  $("#writingCount").textContent = `0 words · target ${task.minWords}+`;
+  $("#writingCount").textContent = `0 words · target ${writingTargetLabel(task)}`;
   $("#writingFeedback").hidden = true;
   $("#writingActions").hidden = true;
   $("#writingInput").disabled = false;
@@ -1872,7 +2071,7 @@ function checkWriting() {
     return;
   }
   const requirements = task.required.map(item => ({ item: Array.isArray(item) ? item.join(" or ") : item, met: requirementMet(text, item) }));
-  const lengthMet = words >= task.minWords;
+  const lengthMet = words >= task.minWords && (!task.maxWords || words <= task.maxWords);
   const metCount = requirements.filter(item => item.met).length;
   const ratio = (metCount + (lengthMet ? 1 : 0)) / (requirements.length + 1);
   recordActivityResult(module.id, "writing", ratio);
@@ -1880,7 +2079,7 @@ function checkWriting() {
   feedback.hidden = false;
   feedback.className = `task-feedback ${ratio === 1 ? "success" : "repair"}`;
   const fallbackModel = ratio >= .5 ? `<p class="model"><strong>Model:</strong> ${escapeHtml(task.model)}</p>` : "<p>The model appears after most requested parts are present.</p>";
-  feedback.innerHTML = `<h3>${ratio === 1 ? "All requested building blocks are present." : "A revision pass has a clear target."}</h3><p>${lengthMet ? `Length target reached: ${words} words.` : `Current length: ${words} words. Target: ${task.minWords} or more.`}</p><ul>${requirements.map(item => `<li>${item.met ? "✓" : "○"} ${escapeHtml(item.item)}</li>`).join("")}</ul><p>This check tracks the requested features.</p>${fallbackModel}`;
+  feedback.innerHTML = `<h3>${ratio === 1 ? "All requested building blocks are present." : "A revision pass has a clear target."}</h3><p>${lengthMet ? `Length target reached: ${words} words.` : `Current length: ${words} words. Target: ${writingTargetLabel(task)}.`}</p><ul>${requirements.map(item => `<li>${item.met ? "✓" : "○"} ${escapeHtml(item.item)}</li>`).join("")}</ul><p>This check tracks the requested features.</p>${fallbackModel}`;
   $("#writingActions").hidden = ratio < 1;
 }
 
@@ -1896,7 +2095,8 @@ function renderSpeaking() {
   $("#speakingTask").hidden = false;
   $("#speakingTitle").textContent = `${module.code}: Rehearse familiar phrases`;
   $("#speakingPrompt").textContent = task.speakingPrompt;
-  $("#speakingGuide").innerHTML = task.speakingGuide.map(item => `<li>${escapeHtml(item)}</li>`).join("");
+  const minimum = speakingMinimumWords(module);
+  $("#speakingGuide").innerHTML = [...task.speakingGuide, `Use at least ${minimum} words in the transcript.`].map(item => `<li>${escapeHtml(item)}</li>`).join("");
   $("#speakingTranscript").value = "";
   $("#speakingFeedback").hidden = true;
   $("#speakingActions").hidden = true;
@@ -1927,13 +2127,14 @@ function checkSpeaking() {
   const task = module.task;
   const text = $("#speakingTranscript").value;
   if (!text.trim()) return;
-  const requirements = task.speakingRequired.map(item => ({ item: Array.isArray(item) ? item.join(" or ") : item, met: requirementMet(text, item) }));
+  const requirements = speakingChecks(module, text);
   const ratio = requirements.filter(item => item.met).length / Math.max(1, requirements.length);
   recordActivityResult(module.id, "speaking", ratio);
   const feedback = $("#speakingFeedback");
   feedback.hidden = false;
   feedback.className = `task-feedback ${ratio === 1 ? "success" : "repair"}`;
-  feedback.innerHTML = `<h3>${ratio === 1 ? "The target phrases appear in the transcript." : "Repeat once with the missing target phrase."}</h3><ul>${requirements.map(item => `<li>${item.met ? "✓" : "○"} ${escapeHtml(item.item)}</li>`).join("")}</ul><p>This transcript checks selected words and forms. Pronunciation quality is outside this check.</p><p class="model"><strong>Model:</strong> ${escapeHtml(task.speakingModel)}</p>`;
+  const model = ratio >= .5 ? `<p class="model"><strong>Model after submission:</strong> ${escapeHtml(task.speakingModel)}</p>` : "<p>The model appears after most required parts are present.</p>";
+  feedback.innerHTML = `<h3>${ratio === 1 ? "The target phrases and response length are present." : "Repeat once with the missing parts."}</h3><ul>${requirements.map(item => `<li>${item.met ? "✓" : "○"} ${escapeHtml(item.item)}${item.detail ? `: ${escapeHtml(item.detail)}` : ""}</li>`).join("")}</ul><p>This transcript checks selected words, forms, and response length. Pronunciation quality is outside this check.</p>${model}`;
   $("#speakingActions").hidden = ratio < 1;
 }
 
@@ -2094,7 +2295,7 @@ function bindEvents() {
   $("#readingForm").addEventListener("submit", submitReading);
   $("#readingRetry").addEventListener("click", retryReading);
   $("#readingContinue").addEventListener("click", renderPracticeMenu);
-  $("#writingInput").addEventListener("input", event => { $("#writingCount").textContent = `${countWords(event.target.value)} words · target ${activeModule().task.minWords}+`; });
+  $("#writingInput").addEventListener("input", event => { $("#writingCount").textContent = `${countWords(event.target.value)} words · target ${writingTargetLabel(activeModule().task)}`; });
   $("#checkWriting").addEventListener("click", checkWriting);
   $("#writingRetry").addEventListener("click", retryWriting);
   $("#writingContinue").addEventListener("click", renderPracticeMenu);

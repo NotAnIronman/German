@@ -17,10 +17,10 @@
     "model": "Mein Wohnzimmer ist groß und sehr hell. Neben der Tür steht ein hoher Schrank mit vielen Büchern. Auf dem kleinen Tisch liegt eine schwarze Zeitung. In der Ecke neben dem Fenster steht eine grüne Lampe. Ich stelle eine neue Pflanze auf den Schrank. Danach hänge ich ein buntes Bild an die Wand."
   },
   "a1-plans-and-leisure": {
-    "model": "Hallo Mia, ich lade dich am Samstag zu einem Filmabend bei mir ein. Wir treffen uns um 18 Uhr in meiner Wohnung und sehen eine Komödie. Danach kochen wir zusammen. Bring bitte ein Getränk mit. Hast du Zeit? Gib mir bitte bis Donnerstag Bescheid. Viele Grüße, Sam"
+    "model": "Hallo Mia,\n\nich lade dich am Samstag zu einem Filmabend bei mir ein. Wir treffen uns um 18 Uhr in meiner Wohnung und sehen eine Komödie. Danach kochen wir zusammen. Bring bitte ein Getränk mit. Hast du Zeit? Gib mir bitte bis Donnerstag Bescheid.\n\nViele Grüße\nSam"
   },
   "a1-travel-and-services": {
-    "model": "Guten Tag, mein Name ist Sam Lee. Ich habe eine Reservierung für ein Einzelzimmer von Freitag bis Sonntag. Am Freitag komme ich gegen 18 Uhr an. Ist die Rezeption dann noch geöffnet? Ich habe eine Frage zum Frühstück: Ist es im Preis enthalten? Vielen Dank. Mit freundlichen Grüßen, Sam Lee",
+    "model": "Guten Tag,\n\nmein Name ist Sam Lee. Ich habe eine Reservierung für ein Einzelzimmer von Freitag bis Sonntag. Am Freitag komme ich gegen 18 Uhr an. Ist die Rezeption dann noch geöffnet? Ich habe eine Frage zum Frühstück: Ist es im Preis enthalten? Vielen Dank.\n\nMit freundlichen Grüßen\nSam Lee",
     "speakingModel": "Entschuldigung, wie komme ich zum Bahnhof? Also gehe ich zuerst geradeaus, dann rechts und bis zur Haltestelle. Ist das richtig? Danke für Ihre Hilfe."
   },
   "a1-health-past-checkpoint": {
@@ -34,32 +34,32 @@
     "speakingModel": "Der Tisch steht an der Wand, und auf dem Tisch liegt ein Buch. Stell die Lampe neben das Sofa. Leg das Buch auf den Tisch und häng das Bild an die Wand."
   },
   "a2-termine-plaene": {
-    "model": "Guten Tag Frau Kaya, leider muss ich unseren Termin am Dienstag um 15 Uhr absagen, weil ich an diesem Nachmittag einen wichtigen Arzttermin habe. Als neue Zeit kann ich Ihnen Mittwoch um 14 Uhr anbieten. Alternativ hätte ich am Donnerstag um 10 Uhr Zeit. Passt Ihnen einer dieser beiden Termine? Bitte geben Sie mir bis morgen kurz Bescheid, damit ich den neuen Termin eintragen kann. Vielen Dank für Ihr Verständnis. Freundliche Grüße, Daniel Vogt"
+    "model": "Guten Tag Frau Kaya,\n\nleider muss ich unseren Termin am Dienstag um 15 Uhr absagen, weil ich an diesem Nachmittag einen wichtigen Arzttermin habe. Als neue Zeit kann ich Ihnen Mittwoch um 14 Uhr anbieten. Alternativ hätte ich am Donnerstag um 10 Uhr Zeit. Passt Ihnen einer dieser beiden Termine? Bitte geben Sie mir bis morgen kurz Bescheid, damit ich den neuen Termin eintragen kann. Vielen Dank für Ihr Verständnis.\n\nFreundliche Grüße\nDaniel Vogt"
   },
   "a2-gesundheit": {
-    "model": "Guten Tag, seit Montag habe ich Fieber, starke Halsschmerzen und nachts auch Husten. Die Beschwerden sind seit gestern stärker geworden, und ich kann kaum schlafen. Könnte ich bitte heute oder morgen einen Termin bekommen? Am Vormittag bin ich bis elf Uhr erreichbar. Am Nachmittag kann ich jederzeit in die Praxis kommen. Brauche ich vorher einen Test? Vielen Dank für Ihre Rückmeldung. Freundliche Grüße, Sam Lee"
+    "model": "Guten Tag,\n\nseit Montag habe ich Fieber, starke Halsschmerzen und nachts auch Husten. Die Beschwerden sind seit gestern stärker geworden, und ich kann kaum schlafen. Könnte ich bitte heute oder morgen einen Termin bekommen? Am Vormittag bin ich bis elf Uhr erreichbar. Am Nachmittag kann ich jederzeit in die Praxis kommen. Brauche ich vorher einen Test? Vielen Dank für Ihre Rückmeldung.\n\nFreundliche Grüße\nSam Lee"
   },
   "a2-arbeit-lernen": {
-    "model": "Hallo Lara, könntest du mir bitte den neuen Monatsbericht erklären? Ich verstehe besonders die Tabelle auf Seite drei und die Zahlen im letzten Abschnitt noch nicht. Kannst du mir außerdem die aktuelle Datei schicken? Ich muss den fertigen Bericht bis Donnerstag um zwölf Uhr an Frau Klein senden. Danke für deine Hilfe. Wenn du heute Zeit hast, können wir kurz telefonieren. Viele Grüße, Sam"
+    "model": "Hallo Lara,\n\nkönntest du mir bitte den neuen Monatsbericht erklären? Ich verstehe besonders die Tabelle auf Seite drei und die Zahlen im letzten Abschnitt noch nicht. Kannst du mir außerdem die aktuelle Datei schicken? Ich muss den fertigen Bericht bis Donnerstag um zwölf Uhr an Frau Klein senden. Danke für deine Hilfe. Wenn du heute Zeit hast, können wir kurz telefonieren.\n\nViele Grüße\nSam"
   },
   "a2-unterwegs": {
     "model": "Route A dauert zwei Stunden und kostet 34 Euro. Sie ist zwanzig Minuten langsamer als Route B, aber sie ist bequemer, weil die Verbindung direkt ist. Bei Route A muss ich also nicht umsteigen. Route B kostet nur 24 Euro und ist damit günstiger als Route A. Allerdings muss ich in Bamberg umsteigen und dort dreißig Minuten warten. Trotzdem wähle ich Route A. Die direkte Verbindung ist für mich angenehmer, und ich komme ohne langen Aufenthalt ans Ziel."
   },
   "a2-einkaufen-service": {
-    "model": "Guten Tag, ich möchte diesen schwarzen Pullover in Größe M umtauschen. Der weiche Pullover gefällt mir sehr, aber er ist an den Ärmeln zu klein. Den Kassenbon habe ich noch, und der Pullover ist ungetragen. Könnten Sie mir bitte einen größeren Pullover in Größe L schicken? Falls dieses Modell nicht mehr verfügbar ist, hätte ich gern eine blaue Jacke zum gleichen Preis. Bitte teilen Sie mir mit, wie der Umtausch abläuft. Vielen Dank für Ihre Hilfe. Freundliche Grüße, Nora Beck"
+    "model": "Guten Tag,\n\nich möchte diesen schwarzen Pullover in Größe M umtauschen. Der weiche Pullover gefällt mir sehr, aber er ist an den Ärmeln zu klein. Den Kassenbon habe ich noch, und der Pullover ist ungetragen. Könnten Sie mir bitte einen größeren Pullover in Größe L schicken? Falls dieses Modell nicht mehr verfügbar ist, hätte ich gern eine blaue Jacke zum gleichen Preis. Bitte teilen Sie mir mit, wie der Umtausch abläuft. Vielen Dank für Ihre Hilfe.\n\nFreundliche Grüße\nNora Beck"
   },
   "a2-einladen-meinen": {
-    "model": "Hallo Mila, vielen Dank für deine Einladung zum Picknick am Samstag. Ich komme gern, weil ich an diesem Wochenende frei habe. Wenn das Wetter gut bleibt, bin ich gegen vier Uhr im Stadtpark. Wo genau treffen wir uns? Soll ich eine Decke mitbringen? Ich kann einen großen Salat und etwas Brot vorbereiten. Wenn du schon genug Essen hast, bringe ich Getränke mit. Gib mir bitte Bescheid, falls sich die Uhrzeit ändert. Ich freue mich auf die Feier. Liebe Grüße, Sami"
+    "model": "Hallo Mila,\n\nvielen Dank für deine Einladung zum Picknick am Samstag. Ich komme gern, weil ich an diesem Wochenende frei habe. Wenn das Wetter gut bleibt, bin ich gegen vier Uhr im Stadtpark. Wo genau treffen wir uns? Soll ich eine Decke mitbringen? Ich kann einen großen Salat und etwas Brot vorbereiten. Wenn du schon genug Essen hast, bringe ich Getränke mit. Gib mir bitte Bescheid, falls sich die Uhrzeit ändert. Ich freue mich auf die Feier.\n\nLiebe Grüße\nSami"
   },
   "b1-erzaehlen": {
     "model": "Letzten Freitag wollte ich meine Schwester in Köln besuchen. Es war früher Abend, der Bahnhof war voll, und draußen regnete es stark. Nachdem ich im Zug einen Kaffee gekauft hatte, setzte ich mich ans Fenster und hörte Musik. In Köln stieg ich aus und ging zum Ausgang. Plötzlich bemerkte ich, dass meine Tasche fehlte. Ich hatte sie neben meinem Sitz stehen lassen. Zuerst geriet ich in Panik, danach meldete ich den Verlust am Serviceschalter. Ein Mitarbeiter rief den Zugbegleiter an. Zum Glück hatte eine Reisende die Tasche gefunden und abgegeben. Eine Stunde später konnte ich sie am Fundbüro abholen. Am Ende kam ich verspätet bei meiner Schwester an, aber alle wichtigen Sachen waren noch da."
   },
   "b1-wohnen-nachbarschaft": {
-    "model": "Sehr geehrte Frau Klein, seit fast zwei Wochen stehen mehrere Fahrräder im Treppenhaus, das laut Hausordnung als Fluchtweg frei bleiben muss. Besonders problematisch ist das große Lastenrad, das direkt vor der Kellertür steht. Die Tür, durch die viele Mieterinnen und Mieter täglich gehen, lässt sich deshalb nur halb öffnen. Gestern habe ich bereits mit dem Nachbarn gesprochen, dem eines der Fahrräder gehört. Er konnte jedoch nicht sagen, wem die anderen Räder gehören. Der Hausmeister, der für den Fahrradraum zuständig ist, war telefonisch nicht erreichbar. Könnten Sie bitte alle Besitzer informieren und dafür sorgen, dass die Fahrräder bis Freitag in den Kellerraum gebracht werden? Eine zusätzliche Markierung im Treppenhaus könnte ähnliche Probleme künftig verhindern. Vielen Dank für Ihre Unterstützung. Mit freundlichen Grüßen, Sara Nguyen",
+    "model": "Sehr geehrte Frau Klein,\n\nseit fast zwei Wochen stehen mehrere Fahrräder im Treppenhaus, das laut Hausordnung als Fluchtweg frei bleiben muss. Besonders problematisch ist das große Lastenrad, das direkt vor der Kellertür steht. Die Tür, durch die viele Mieterinnen und Mieter täglich gehen, lässt sich deshalb nur halb öffnen. Gestern habe ich bereits mit dem Nachbarn gesprochen, dem eines der Fahrräder gehört. Er konnte jedoch nicht sagen, wem die anderen Räder gehören. Der Hausmeister, der für den Fahrradraum zuständig ist, war telefonisch nicht erreichbar. Könnten Sie bitte alle Besitzer informieren und dafür sorgen, dass die Fahrräder bis Freitag in den Kellerraum gebracht werden? Eine zusätzliche Markierung im Treppenhaus könnte ähnliche Probleme künftig verhindern. Vielen Dank für Ihre Unterstützung.\n\nMit freundlichen Grüßen\nSara Nguyen",
     "speakingModel": "Im Treppenhaus stehen mehrere Fahrräder, die den Fluchtweg blockieren. Der Hausmeister, der für das Gebäude zuständig ist, könnte die Besitzer informieren. Außerdem sollte der Fahrradraum im Keller geöffnet werden. So bliebe der Weg frei, und alle hätten einen sicheren Abstellplatz."
   },
   "b1-beruf-bildung": {
-    "model": "Sehr geehrte Frau Vogt, mit großem Interesse bewerbe ich mich um die ausgeschriebene Stelle im Kundenservice. Seit drei Jahren arbeite ich in einem Hotel, wo ich Gäste persönlich, telefonisch und per E-Mail berate. Dadurch habe ich viel Erfahrung im Umgang mit Fragen und Beschwerden gesammelt. Außerdem bin ich für Reservierungen und die Einarbeitung neuer Kolleginnen und Kollegen verantwortlich. Der sichere Umgang mit dem Computer gehört zu meinem Arbeitsalltag. Zurzeit besuche ich eine Weiterbildung, um meine schriftliche Kommunikation auf Deutsch weiter zu verbessern. Die Stelle interessiert mich besonders, weil ich gern in einem internationalen Team arbeiten und mehr Verantwortung übernehmen möchte. Ab dem 1. Oktober bin ich verfügbar. Über eine Einladung zu einem Vorstellungsgespräch freue ich mich sehr. Meinen Lebenslauf finden Sie im Anhang. Mit freundlichen Grüßen, Sam Lee"
+    "model": "Sehr geehrte Frau Vogt,\n\nmit großem Interesse bewerbe ich mich um die ausgeschriebene Stelle im Kundenservice. Seit drei Jahren arbeite ich in einem Hotel, wo ich Gäste persönlich, telefonisch und per E-Mail berate. Dadurch habe ich viel Erfahrung im Umgang mit Fragen und Beschwerden gesammelt. Außerdem bin ich für Reservierungen und die Einarbeitung neuer Kolleginnen und Kollegen verantwortlich. Der sichere Umgang mit dem Computer gehört zu meinem Arbeitsalltag. Zurzeit besuche ich eine Weiterbildung, um meine schriftliche Kommunikation auf Deutsch weiter zu verbessern. Die Stelle interessiert mich besonders, weil ich gern in einem internationalen Team arbeiten und mehr Verantwortung übernehmen möchte. Ab dem 1. Oktober bin ich verfügbar. Über eine Einladung zu einem Vorstellungsgespräch freue ich mich sehr. Meinen Lebenslauf finden Sie im Anhang.\n\nMit freundlichen Grüßen\nSam Lee"
   },
   "b1-medien-information": {
     "model": "In einem Gruppenchat wird behauptet, dass am kommenden Freitag alle Busse im Stadtgebiet kostenlos fahren. Als Quelle wird nur ein Bild mit einer auffälligen Überschrift geteilt. Laut der aktuellen Meldung auf der Website des Verkehrsverbunds gilt die Aktion jedoch ausschließlich für Kinder bis vierzehn Jahre. Erwachsene benötigen weiterhin eine gültige Fahrkarte. Bestätigt sind damit der Aktionstag und das kostenlose Angebot für diese Altersgruppe. Unklar bleibt, wer das Bild im Gruppenchat erstellt hat und ob es sich auf eine ältere Aktion bezieht. Ich weiß außerdem nicht, ob einzelne Gemeinden zusätzliche Angebote planen. Diese Frage ließe sich durch einen Anruf beim Verkehrsverbund überprüfen. Bis eine offizielle Auskunft vorliegt, würde ich die Nachricht nur mit dem Link zur Originalmeldung weitergeben.",
@@ -111,5 +111,121 @@
     if (!module) throw new Error(`Missing module for task model: ${moduleId}`);
     Object.assign(module.task, taskUpdate);
   });
-})();
 
+  const speakingUpdates = {
+    "a0-everyday-things": {
+      speakingRequired: ["ist", "das", "ein", "eine"]
+    },
+    "a0-numbers-spelling-forms": {
+      model: "Mein Vorname ist Lina.\nMein Nachname ist Roth.\nMeine Telefonnummer ist 503.\nMeine E-Mail-Adresse ist lina@example.de."
+    },
+    "a0-conversation-repair": {
+      model: "Entschuldigung.\nIch verstehe das nicht.\nKönnen Sie das wiederholen?\nKönnen Sie das aufschreiben?\nA-D-R-E-S-S-E. Ist das richtig?"
+    },
+    "a0-time-date-schedule": {
+      model: "Der Kurs ist am Montag.\nEr fängt um neun Uhr an.\nDie Pause ist um zehn Uhr.\nDer Kurs hört um elf Uhr auf."
+    },
+    "a1-daily-routine": {
+      speakingModel: "Ich stehe um sieben Uhr auf. Dann frühstücke ich. Um acht Uhr arbeite ich. Um zwölf Uhr mache ich Pause. Ich gehe oft zu Fuß. Am Abend lerne ich Deutsch."
+    },
+    "a1-plans-and-leisure": {
+      speakingModel: "Kommst du am Samstag mit ins Kino? Der Film beginnt um acht. Wenn du keine Zeit hast, können wir uns am Sonntag treffen. Gut, dann treffen wir uns am Sonntag um fünf."
+    },
+    "a1-health-past-checkpoint": {
+      speakingModel: "Am Wochenende bin ich nach Hamburg gefahren. Ich habe eine Freundin besucht. Danach haben wir in einem Café gegessen. Das Wetter war kalt. Heute bin ich müde, aber zufrieden."
+    },
+    "a1-public-transport-tickets": {
+      speakingGuide: ["Repeat the destination", "State the delay", "Ask for the track", "Ask where to change", "Ask for the arrival time"]
+    },
+    "a1-restaurant-needs-payment": {
+      speakingRequired: [["hätte", "möchte"], "Gericht", ["ohne", "allergisch gegen", "Allergie"], "Rechnung", "bezahlen"]
+    },
+    "a1-hotel-checkin-problems": {
+      speakingRequired: ["Reservierung", "Frühstück", ["Aufzug", "Lift"], "auschecken", "ruhig"]
+    },
+    "a2-erlebnisse": {
+      speakingPrompt: "Tell a short weekend story and answer one follow-up question.",
+      speakingModel: "Am Wochenende bin ich nach Bonn gefahren. Zuerst habe ich Mara getroffen. Dann haben wir einen Markt besucht. Später haben wir gekocht. Am Ende war ich müde und zufrieden. Mit wem bist du gefahren? Mit meiner Freundin."
+    },
+    "a2-termine-plaene": {
+      speakingModel: "Guten Tag, hier ist Daniel Vogt. Ich muss den Termin am Dienstag verschieben, weil ich arbeiten muss. Passt Ihnen Mittwoch um vierzehn Uhr? Alternativ kann ich am Donnerstag um zehn Uhr. Gut, dann sehen wir uns am Mittwoch."
+    },
+    "a2-unterwegs": {
+      speakingGuide: ["Name the cancelled train", "Ask where to change", "Ask whether the proposed route is direct or faster", "Confirm your choice"]
+    },
+    "a2-einkaufen-service": {
+      speakingRequired: ["groesse", ["passt", "zu klein", "zu groß", "zu gross"]]
+    },
+    "a2-einladen-meinen": {
+      speakingModel: "Ich lade dich am Samstag um vier Uhr in den Park ein. Wir feiern dort, weil das Wetter gut sein soll. Wenn es regnet, gehen wir zu mir. Gib mir bitte Bescheid."
+    },
+    "a2-work-schedules": {
+      speakingRequired: [["Schicht", "Frühschicht", "Spätschicht"], "weil", "tauschen", "also"]
+    },
+    "a2-housing-search": {
+      speakingRequired: ["Wohnung", ["Warmmiete", "Gesamtmiete", "Miete"], "besichtig", ["passt", "möglich", "moeglich", "geht"]]
+    },
+    "b1-erzaehlen": {
+      speakingPrompt: "Tell a structured story with a surprise and an earlier event."
+    },
+    "b1-umwelt-mobilitaet": {
+      speakingModel: "In der Innenstadt werden neue Radwege gebaut. Zwei Kreuzungen müssen sicherer gestaltet werden, damit mehr Menschen Rad fahren. Die Maßnahme kostet Geld. Darum beginnt die Stadt mit einem kleinen Abschnitt und prüft die Kosten nach sechs Monaten."
+    },
+    "b1-argumentieren": {
+      speakingPrompt: "Give a structured position, respond to one objection, and propose a compromise.",
+      speakingModel: "Meiner Meinung nach braucht der Platz mehr Bäume. Einerseits kosten die Maßnahmen Geld, andererseits verbessert sich die Aufenthaltsqualität. Außerdem werden die Wege sicherer. Die Lieferdienste brauchen Zugang. Die Kosten lassen sich durch einen einjährigen Versuch begrenzen. Ein Kompromiss wären feste Lieferzeiten am Morgen."
+    },
+    "b1-job-applications": {
+      speakingPrompt: "Give a structured interview answer. Introduce your relevant experience, support one strength with an example, explain your interest in the role, and ask one informed question.",
+      speakingRequired: ["seit", "Stärke", "Beispiel", "weil", "welche"]
+    },
+    "b1-media-comparison": {
+      speakingPrompt: "Give a structured source briefing. State what is confirmed, attribute two claims, compare the evidence, identify one missing perspective, and recommend a next check."
+    },
+    "b1-healthcare-decisions": {
+      speakingRequired: ["seit", "stärker", "versucht", "verstanden", ["wann", "welchen Warnzeichen"]],
+      speakingModel: "Seit fünf Tagen habe ich Schmerzen im rechten Knie. Nach der Wanderung waren sie leicht, aber beim Treppensteigen werden sie stärker, ungefähr sechs von zehn. In Ruhe werden sie besser. Ich habe versucht, das Knie zu kühlen, und gestern Ibuprofen genommen. Wenn ich Sie richtig verstanden habe, soll ich es drei Tage schonen und weiter kühlen. Bei welchen Warnzeichen soll ich sofort wiederkommen?"
+    },
+    "b2-positionen": {
+      speakingPrompt: "Present a structured position, answer an objection, and state one condition for success.",
+      speakingModel: "Ich halte die Vier-Tage-Woche für sinnvoll, sofern die Beschäftigten an der Planung beteiligt werden. Obwohl die Umstellung Geld kostet, kann sie die Zufriedenheit erhöhen. Außerdem kann das Modell die Personalgewinnung erleichtern. Der Einwand einer höheren Arbeitsdichte ist berechtigt. Deshalb braucht jedes Team klare Grenzen. Erfolgreich ist es nur, wenn Ziele und Arbeitslast realistisch bleiben."
+    },
+    "b2-quellen": {
+      speakingPrompt: "Give a concise source briefing with one unresolved question."
+    },
+    "b2-relativ-partizip": {
+      speakingModel: "Die Initiative, die im letzten Jahr gestartet wurde, hilft betroffenen Haushalten. Die Beratenden, deren Erfahrung besonders wichtig ist, werten Verbrauchsdaten aus. Die gewonnenen Erkenntnisse fließen in ein neues Programm ein. Offen bleibt: Wie wird das Programm langfristig finanziert?"
+    },
+    "b2-haltung": {
+      speakingRequired: [["dürfte", "könnte"], "doch"]
+    },
+    "b2-kohaesion": {
+      speakingRequired: ["indem", ["sodass", "so dass"]]
+    },
+    "b2-integration": {
+      speakingPrompt: "Give an extended proposal and address two likely follow-up questions.",
+      speakingModel: "Auf dem Stadtplatz treffen wirtschaftliche Erreichbarkeit, Barrierefreiheit und Aufenthaltsqualität aufeinander. Geschäftsleute erklären, sie brauchten verlässliche Lieferzeiten. Anwohnende wünschen weniger Verkehr, mehr Grün und sichere Wege. Daraus entsteht ein Zielkonflikt. Ich schlage eine zwölfmonatige Testphase mit einer Lieferzone von 6 bis 10 Uhr, mobilen Bäumen und einer freien barrierefreien Route vor. Eine Einschränkung sind die Kosten und eine mögliche Verlagerung des Verkehrs. Deshalb sollten Lieferungen, Beschwerden, Fußgängerzahlen und Umsätze ausgewertet werden. Wie werden die Kosten begrenzt? Mobile Elemente vermeiden zunächst einen vollständigen Umbau. Bleibt die Lieferzufahrt erhalten? Ja, sie bleibt morgens von 6 bis 10 Uhr geöffnet. Zum Schluss lässt sich festhalten: Ein zeitlich begrenzter Versuch liefert die Daten für eine dauerhafte Entscheidung."
+    },
+    "b2-verhandlungen": {
+      speakingPrompt: "Lead an extended negotiation about a proposed change in working hours. Open the agenda item, state your priority, clarify the other position, disagree on one detail, make a counterproposal, negotiate one condition, and summarize the provisional agreement.",
+      speakingModel: "Auf der Tagesordnung stehen heute die geplanten Servicezeiten. Unsere Priorität ist eine verlässliche Erreichbarkeit. Verstehe ich Sie richtig, dass Sie längeren Öffnungszeiten zustimmen, sofern die Übergabe geregelt ist? Zwei Tage bis 19 Uhr halte ich wegen der knappen Abendbesetzung für schwierig. Wäre es denkbar, zunächst an drei Tagen bis 18 Uhr zu öffnen? Wir könnten nach sechs Wochen die Auslastung prüfen. Als Bedingung sollte das Team die Dienstpläne vier Wochen vorher erhalten. Wir halten fest, dass wir einen dreimonatigen Test vorbereiten. Offen bleibt die Vertretung bei Krankheit."
+    },
+    "b2-behoerdenpost": {
+      speakingModel: "Guten Tag. Ich rufe wegen des Bescheids vom 4. März an. Das Aktenzeichen lautet BP-482/26. Am 10. Februar habe ich den Antrag gestellt, am 12. Februar den Mietvertrag hochgeladen und am 4. März den ablehnenden Bescheid erhalten. Der Bescheid nennt den Mietvertrag als fehlend, obwohl ich eine Eingangsbestätigung habe. Welche Frist gilt für den Widerspruch? Kann ich ihn beim genannten Amt über das Serviceportal einreichen? Verstehe ich Sie richtig: Ich prüfe heute die Rechtsbehelfsbelehrung und die Frist, reiche den Widerspruch beim genannten Amt ein, nenne das Aktenzeichen und füge die Eingangsbestätigung bei? Bitte nennen Sie mir noch eine Kontaktadresse für Rückfragen."
+    },
+    "b2-praesentieren": {
+      speakingPrompt: "Give an extended presentation on the mobility trial and handle two likely follow-up questions. Introduce the relevance and structure, describe two figures, qualify one result, explain a limitation, give a recommendation, clarify an ambiguous question, and answer within the evidence available.",
+      speakingModel: "Guten Morgen. Heute geht es um unseren Mobilitätstest. Das Thema ist relevant, weil Dienstreisen einen großen Teil unserer betrieblichen Emissionen verursachen. Zunächst beschreibe ich die Daten, anschließend die Ergebnisse und abschließend meine Empfehlung. Wie aus der Abbildung hervorgeht, stieg der Bahnanteil von 28 auf 43 Prozent. Die Emissionen sanken um rund zwölf Prozent. Die Datengrundlage umfasst allerdings nur eine Abteilung und sechs Monate. Deshalb empfehle ich einen weiteren Test. Wenn ich Ihre Frage richtig verstehe, möchten Sie die langfristige Wirkung kennen. Dazu liegen uns noch keine Daten vor. Wie haben sich die Kosten entwickelt? Die Kosten blieben im Test nahezu unverändert; für andere Abteilungen ist das noch offen."
+    },
+    "b2-mediation-konflikt": {
+      speakingPrompt: "Moderate an extended conflict conversation. Invite each concern, summarize both views neutrally, clarify one disputed fact, identify a shared interest, reframe one fixed demand, propose a conditional trial, assign responsibilities, and confirm the review date.",
+      speakingModel: "Vielen Dank. Welche Sorge möchten die Anwohnenden zuerst nennen? Welche Einschränkung sieht die Gruppe? Ich fasse zusammen: Die Gruppe braucht zwei nutzbare Abendtermine, und die Anwohnenden wünschen eine verlässliche Ruhezeit. Habe ich Sie richtig verstanden, dass vor allem die Gespräche im Hof nach 21 Uhr stören? Endete die Musik selbst bei den gemeldeten Terminen pünktlich? Die Forderung nach keinen Abendproben lässt sich als Bedarf nach einer verlässlichen Ruhezeit formulieren. Gemeinsam ist Ihnen der Wunsch nach festen Terminen und einer direkten Ansprechperson. Ich schlage einen achtwöchigen Test vor. Die Anwohnenden akzeptieren zwei Proben, sofern die Musik um 20.45 Uhr endet. Die Gruppe nutzt danach den Haupteingang, meidet den Hof und veröffentlicht Termine zwei Wochen vorher. Frau Kaya sammelt Rückmeldungen. Wir halten fest, dass nach vier Wochen eine gemeinsame Auswertung stattfindet."
+    }
+  };
+
+  Object.entries(speakingUpdates).forEach(([moduleId, taskUpdate]) => {
+    const module = course.modules.find(item => item.id === moduleId);
+    if (!module) throw new Error(`Missing module for speaking update: ${moduleId}`);
+    Object.assign(module.task, taskUpdate);
+  });
+})();

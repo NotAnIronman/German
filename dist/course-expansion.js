@@ -1868,11 +1868,14 @@
       {
         "id": "a1rn-bestellung",
         "de": "die Bestellung, die Bestellungen",
-        "en": "order",
+        "en": "order (noun)",
         "bundle": "die Bestellung · die Bestellungen",
         "example": "Die Bestellung ist komplett.",
         "exampleEn": "The order is complete.",
-        "variants": []
+        "variants": [],
+        "recall": {
+          "enAnswers": ["order", "order (noun)"]
+        }
       },
       {
         "id": "a1rn-rechnung",
@@ -2355,8 +2358,8 @@
         "de": "die Rückgabe, die Rückgaben",
         "en": "return",
         "bundle": "die Rückgabe · die Rückgaben",
-        "example": "Die Rückgabe ist am Schalter.",
-        "exampleEn": "Returns are handled at the counter.",
+        "example": "Sie können die Ware am Schalter zurückgeben.",
+        "exampleEn": "You can return the item at the counter.",
         "variants": [
           "die Rueckgabe, die Rueckgaben"
         ]
@@ -3881,9 +3884,10 @@
         "id": "a29-q4",
         "type": "REASON",
         "context": "You are contacting the property manager.",
-        "prompt": "Say that you are calling because the heating does not work.",
+        "prompt": "Say that you are calling because the heating does not work, then ask who will take care of it.",
         "answers": [
-          "Ich rufe an, weil die Heizung nicht funktioniert."
+          "Ich rufe an, weil die Heizung nicht funktioniert. Wer kümmert sich darum?",
+          "Ich rufe an, weil die Heizung nicht funktioniert. Wer kuemmert sich darum?"
         ],
         "explanation": "The finite verb stands at the end of the weil clause.",
         "requires": [
@@ -3893,7 +3897,8 @@
           "ich rufe an",
           "weil",
           "die Heizung",
-          "nicht funktioniert"
+          "nicht funktioniert",
+          "wer kümmert sich darum?"
         ]
       },
       {
@@ -3997,7 +4002,7 @@
         "Besichtigung",
         "?"
       ],
-      "model": "Guten Tag Frau Neumann, ich interessiere mich für die Wohnung in der Lindenstraße. Ich arbeite in der Nähe und möchte am 1. Mai einziehen. Ich rauche nicht und habe keine Haustiere. Wie hoch ist die Kaution? Außerdem möchte ich wissen, ob ein Keller zur Wohnung gehört. Wäre eine Besichtigung am Donnerstag um 17 Uhr möglich? Ich freue mich auf Ihre Rückmeldung. Freundliche Grüße, Sam Lee",
+      "model": "Guten Tag Frau Neumann,\n\nich interessiere mich für die Wohnung in der Lindenstraße. Ich arbeite in der Nähe und möchte am 1. Mai einziehen. Ich rauche nicht und habe keine Haustiere. Wie hoch ist die Kaution? Außerdem möchte ich wissen, ob ein Keller zur Wohnung gehört. Wäre eine Besichtigung am Donnerstag um 17 Uhr möglich? Ich freue mich auf Ihre Rückmeldung.\n\nFreundliche Grüße\nSam Lee",
       "speakingPrompt": "Call about an apartment. Explain which listing you mean, ask about total cost and availability, arrange a viewing, and check one practical detail.",
       "speakingGuide": [
         "Identify the listing",
@@ -4457,7 +4462,7 @@
         "übernehm",
         "Rückmeldung"
       ],
-      "model": "Guten Morgen Frau Keller, ich kann meine Schicht am Freitag leider nicht übernehmen, weil ich einen wichtigen Arzttermin habe. Ich habe schon mit Leon gesprochen. Er kann die Frühschicht übernehmen, und ich übernehme dafür seine Spätschicht am Dienstag. Den Tausch habe ich bereits mit Leon abgesprochen. Ist diese Lösung für Sie in Ordnung? Bitte geben Sie mir kurz Rückmeldung. Viele Grüße, Mia Santos",
+      "model": "Guten Morgen Frau Keller,\n\nich kann meine Schicht am Freitag leider nicht übernehmen, weil ich einen wichtigen Arzttermin habe. Ich habe schon mit Leon gesprochen. Er kann die Frühschicht übernehmen, und ich übernehme dafür seine Spätschicht am Dienstag. Den Tausch habe ich bereits mit Leon abgesprochen. Ist diese Lösung für Sie in Ordnung? Bitte geben Sie mir kurz Rückmeldung.\n\nViele Grüße\nMia Santos",
       "speakingPrompt": "Tell a colleague about a schedule conflict. Explain the reason, suggest a fair swap, ask whether it works, and confirm the new arrangement.",
       "speakingGuide": [
         "Name the conflicting shift",
@@ -4906,7 +4911,7 @@
         "Gebühr",
         "?"
       ],
-      "model": "Guten Tag, ich bin vor Kurzem umgezogen und brauche einen Termin, um meinen neuen Wohnsitz anzumelden. Meine aktuelle Anschrift lautet Rosenweg 8 in 50667 Köln. Können Sie mir bitte sagen, welche Unterlagen ich mitbringen muss? Entsteht für die Anmeldung eine Gebühr? Am Dienstagvormittag kann ich leider nicht kommen. Mittwoch oder Donnerstag ab 14 Uhr wären für mich möglich. Vielen Dank für Ihre Rückmeldung. Freundliche Grüße, Amir Haddad",
+      "model": "Guten Tag,\n\nich bin vor Kurzem umgezogen und brauche einen Termin, um meinen neuen Wohnsitz anzumelden. Meine aktuelle Anschrift lautet Rosenweg 8 in 50667 Köln. Können Sie mir bitte sagen, welche Unterlagen ich mitbringen muss? Entsteht für die Anmeldung eine Gebühr? Am Dienstagvormittag kann ich leider nicht kommen. Mittwoch oder Donnerstag ab 14 Uhr wären für mich möglich. Vielen Dank für Ihre Rückmeldung.\n\nFreundliche Grüße\nAmir Haddad",
       "speakingPrompt": "Call an office to arrange an appointment. Name the service, ask about availability and documents, explain one scheduling limit, and repeat the final date and time.",
       "speakingGuide": [
         "State your purpose",
@@ -5355,7 +5360,7 @@
       ]
     },
     "task": {
-      "writingPrompt": "Write a 70 to 95 word message to a rail service desk. Identify the disrupted trip, explain what happened to your connection, state whether you still want to travel, and request either rebooking or refund information plus written confirmation.",
+      "writingPrompt": "Write a 70 to 95 word message to a rail service desk. Identify the disrupted trip, explain what happened to your connection, state that you still want to travel, request rebooking, and ask for written confirmation.",
       "minWords": 70,
       "guide": [
         "Include the date and route",
@@ -5371,7 +5376,7 @@
         "umbuch",
         "bestät"
       ],
-      "model": "Guten Tag, ich reise am 18. August von Köln nach Basel. Mein Zug hatte 50 Minuten Verspätung, deshalb habe ich den Anschluss in Mannheim verpasst. Ich möchte die Reise noch heute fortsetzen. Meine Buchungsnummer lautet AB1234, die Fahrkarte habe ich als PDF beigefügt. Können Sie mich bitte auf die nächste Verbindung umbuchen? Gilt meine Sitzplatzreservierung weiterhin? Bitte bestätigen Sie mir die neue Verbindung schriftlich. Vielen Dank und freundliche Grüße, Elena Ruiz",
+      "model": "Guten Tag,\n\nich reise am 18. August von Köln nach Basel. Mein Zug hatte 50 Minuten Verspätung, deshalb habe ich den Anschluss in Mannheim verpasst. Ich möchte die Reise noch heute fortsetzen. Meine Buchungsnummer lautet AB1234, die Fahrkarte habe ich als PDF beigefügt. Können Sie mich bitte auf die nächste Verbindung umbuchen? Gilt meine Sitzplatzreservierung weiterhin? Bitte bestätigen Sie mir die neue Verbindung schriftlich. Vielen Dank.\n\nFreundliche Grüße\nElena Ruiz",
       "speakingPrompt": "At a service desk, explain a missed connection, ask for the fastest available route, check ticket validity, and repeat the final travel plan.",
       "speakingGuide": [
         "State your original route",
@@ -5842,7 +5847,7 @@
         "Lebenslauf",
         "Gespräch"
       ],
-      "model": "Sehr geehrte Frau Brandt, mit großem Interesse bewerbe ich mich um die Stelle als Projektassistenz. Seit drei Jahren koordiniere ich Termine und bereite Besprechungen für ein internationales Team vor. Außerdem kommuniziere ich täglich auf Deutsch und Englisch mit Kunden. Diese Erfahrung passt gut zu Ihren Anforderungen. Besonders reizt mich die Möglichkeit, an internationalen Projekten mitzuwirken und Abläufe zuverlässig zu koordinieren. Die Stelle interessiert mich auch, weil ich künftig mehr Verantwortung in der Projektarbeit übernehmen möchte. Meine strukturierte Arbeitsweise hat mir geholfen, bei mehreren Fristen den Überblick zu behalten. Meinen Lebenslauf und zwei Arbeitszeugnisse finden Sie im Anhang. Über die Einladung zu einem persönlichen Gespräch freue ich mich sehr. Mit freundlichen Grüßen, Amina Mensah",
+      "model": "Sehr geehrte Frau Brandt,\n\nmit großem Interesse bewerbe ich mich um die Stelle als Projektassistenz. Seit drei Jahren koordiniere ich Termine und bereite Besprechungen für ein internationales Team vor. Außerdem kommuniziere ich täglich auf Deutsch und Englisch mit Kunden. Diese Erfahrung passt gut zu Ihren Anforderungen. Besonders reizt mich die Möglichkeit, an internationalen Projekten mitzuwirken und Abläufe zuverlässig zu koordinieren. Die Stelle interessiert mich auch, weil ich künftig mehr Verantwortung in der Projektarbeit übernehmen möchte. Meine strukturierte Arbeitsweise hat mir geholfen, bei mehreren Fristen den Überblick zu behalten. Meinen Lebenslauf und zwei Arbeitszeugnisse finden Sie im Anhang. Über die Einladung zu einem persönlichen Gespräch freue ich mich sehr.\n\nMit freundlichen Grüßen\nAmina Mensah",
       "speakingPrompt": "Give a two-minute interview answer. Introduce your relevant experience, support one strength with an example, explain your interest in the role, and ask one informed question.",
       "speakingGuide": [
         "Lead with the experience most relevant to the role",
@@ -6316,7 +6321,7 @@
         "bis",
         "schriftlich"
       ],
-      "model": "Betreff: Mängelmeldung zur Heizung in Wohnung 14. Sehr geehrte Damen und Herren, seit dem 1. Februar bleibt die Heizung im Wohnzimmer vollständig kalt. Den Mangel habe ich am 4. Februar telefonisch gemeldet. Obwohl mir ein Rückruf zugesagt wurde, habe ich bisher keinen Termin erhalten. Die Raumtemperatur lag an drei Abenden unter 17 Grad. Die niedrige Temperatur beeinträchtigt die Nutzung des Wohnzimmers, besonders abends und am Wochenende. Fotos des Thermometers mit Datum finden Sie im Anhang. Bitte lassen Sie die Heizung bis zum 12. Februar überprüfen und teilen Sie mir bis zum 8. Februar einen Termin mit. Zugang ist werktags ab 16 Uhr oder nach Absprache mittwochs ab 13 Uhr möglich. Bitte bestätigen Sie den Eingang dieser Nachricht schriftlich. Mit freundlichen Grüßen, Sara Nguyen",
+      "model": "Betreff: Mängelmeldung zur Heizung in Wohnung 14\n\nSehr geehrte Damen und Herren,\n\nseit dem 1. Februar bleibt die Heizung im Wohnzimmer vollständig kalt. Den Mangel habe ich am 4. Februar telefonisch gemeldet. Obwohl mir ein Rückruf zugesagt wurde, habe ich bisher keinen Termin erhalten. Die Raumtemperatur lag an drei Abenden unter 17 Grad. Die niedrige Temperatur beeinträchtigt die Nutzung des Wohnzimmers, besonders abends und am Wochenende. Fotos des Thermometers mit Datum finden Sie im Anhang. Bitte lassen Sie die Heizung bis zum 12. Februar überprüfen und teilen Sie mir bis zum 8. Februar einen Termin mit. Zugang ist werktags ab 16 Uhr oder nach Absprache mittwochs ab 13 Uhr möglich. Bitte bestätigen Sie den Eingang dieser Nachricht schriftlich.\n\nMit freundlichen Grüßen\nSara Nguyen",
       "speakingPrompt": "Call property management about an unresolved defect. Give the timeline, explain the current impact, respond to one proposed appointment, and summarize the agreement.",
       "speakingGuide": [
         "Identify the apartment and defect",
@@ -7265,7 +7270,7 @@
         "Termin",
         "?"
       ],
-      "model": "Guten Tag, seit fünf Tagen habe ich Schmerzen im rechten Knie. Sie begannen nach einer längeren Wanderung und lagen zuerst bei etwa drei von zehn. Seit gestern haben sie sich verschlimmert: Beim Treppensteigen erreichen sie ungefähr sechs von zehn. In Ruhe verbessern sie sich. Das Knie ist leicht geschwollen, aber ich habe kein Fieber und kann das Bein noch belasten. Außerdem hatte ich bisher keine vergleichbaren Kniebeschwerden. Ich habe versucht, das Knie zu kühlen, und einmal Ibuprofen genommen, das ich gut vertragen habe. Sollte ich das Knie bis zum Termin weiter belasten oder schonen? Wäre ein Termin in dieser Woche möglich, oder sollte ich mich an eine andere Stelle wenden? Sie erreichen mich tagsüber unter der angegebenen Nummer. Vielen Dank und freundliche Grüße, Jonas Weber",
+      "model": "Guten Tag,\n\nseit fünf Tagen habe ich Schmerzen im rechten Knie. Sie begannen nach einer längeren Wanderung und lagen zuerst bei etwa drei von zehn. Seit gestern haben sie sich verschlimmert: Beim Treppensteigen erreichen sie ungefähr sechs von zehn. In Ruhe verbessern sie sich. Das Knie ist leicht geschwollen, aber ich habe kein Fieber und kann das Bein noch belasten. Außerdem hatte ich bisher keine vergleichbaren Kniebeschwerden. Ich habe versucht, das Knie zu kühlen, und einmal Ibuprofen genommen, das ich gut vertragen habe. Sollte ich das Knie bis zum Termin weiter belasten oder schonen? Wäre ein Termin in dieser Woche möglich, oder sollte ich mich an eine andere Stelle wenden? Sie erreichen mich tagsüber unter der angegebenen Nummer. Für eine kurze Rückmeldung wäre ich Ihnen sehr dankbar. Vielen Dank.\n\nFreundliche Grüße\nJonas Weber",
       "speakingPrompt": "Give a structured symptom history at an appointment. Cover onset, location, intensity, pattern, relevant actions, and one concern. Then repeat the clinician's plan and ask about warning signs.",
       "speakingGuide": [
         "Describe one symptom at a time",
@@ -7784,7 +7789,7 @@
         "vorbehalt",
         "bis zum"
       ],
-      "model": "Auf der Tagesordnung stand die geplante Einführung flexibler Servicezeiten. Frau Aydin schlug eine dreimonatige Pilotphase ab dem 1. Juli vor. Das Team solle an zwei Tagen länger erreichbar sein und den Arbeitstag entsprechend später beginnen. Herr Vogt unterstützte den Versuch zwar grundsätzlich, allerdings verlangte er eine verlässliche Übergaberegelung. Außerdem müsse der Betriebsrat die Dienstpläne vor dem Start prüfen. Als Gegenangebot wurde vorgeschlagen, den Test zunächst auf zwei Wochentage zu begrenzen. Nach kurzer Beratung einigte sich die Gruppe auf drei Monate mit einer Auswertung nach sechs Wochen. Wir halten fest, dass die Pilotphase am 1. Juli beginnt, unter dem Vorbehalt, dass zwei Bedingungen erfüllt sind. Die Teamleitung legt bis zum 10. Juni eine schriftliche Übergaberegelung vor. Danach erhält der Betriebsrat die Dienstpläne zur Prüfung. Die Finanzabteilung ist für die Kostenauswertung verantwortlich und berichtet am 15. August. Offen bleibt die Vertretung bei kurzfristigen Krankheitsausfällen. Diesen Punkt greift die Teamleitung beim nächsten Treffen erneut auf. Über eine dauerhafte Fortführung entscheidet die Projektgruppe im September.",
+      "model": "Auf der Tagesordnung stand die geplante Einführung flexibler Servicezeiten. Frau Aydin schlug eine dreimonatige Pilotphase ab dem 1. Juli vor. Das Team solle an zwei Tagen länger erreichbar sein und den Arbeitstag entsprechend später beginnen. Herr Vogt unterstützte den Versuch zwar grundsätzlich, allerdings verlangte er eine verlässliche Übergaberegelung. Außerdem müsse der Betriebsrat die Dienstpläne vor dem Start prüfen. Als Gegenangebot schlug er vor, nur einen Abend pro Woche zu verlängern und den Versuch bereits nach sechs Wochen auszuwerten. Nach kurzer Beratung einigte sich die Gruppe auf zwei verlängerte Tage über drei Monate mit einer ersten Auswertung nach sechs Wochen. Wir halten fest, dass die Pilotphase am 1. Juli beginnt, unter dem Vorbehalt, dass zwei Bedingungen erfüllt sind. Die Teamleitung legt bis zum 10. Juni eine schriftliche Übergaberegelung vor. Danach erhält der Betriebsrat die Dienstpläne zur Prüfung. Die Finanzabteilung ist für die Kostenauswertung verantwortlich und berichtet am 15. August. Offen bleibt die Vertretung bei kurzfristigen Krankheitsausfällen. Diesen Punkt greift die Teamleitung beim nächsten Treffen erneut auf. Über eine dauerhafte Fortführung entscheidet die Projektgruppe im September.",
       "speakingPrompt": "Lead a two to three minute negotiation about a proposed change in working hours. Open the agenda item, state your priority, clarify the other position, disagree on one detail, make a counterproposal, negotiate one condition, and summarize the provisional agreement.",
       "speakingGuide": [
         "Open with the agenda item and desired outcome",
@@ -9269,11 +9274,11 @@
       {
         "id": "b212-q7",
         "type": "CONDITIONAL COMPROMISE",
-        "context": "Residents can accept two evening rehearsals per week if they end at 9 p.m. and dates arrive two weeks early.",
+        "context": "Residents will accept two evening rehearsals per week. In return, the youth center will end by 9 p.m., announce dates two weeks early, and name a contact person.",
         "prompt": "Formulate the compromise with sofern and im Gegenzug.",
         "answers": [
-          "Die Vereinbarung lautet: Die Anwohnenden akzeptieren zwei Abendproben pro Woche, sofern diese um 21 Uhr enden und zwei Wochen vorher angekündigt werden. Im Gegenzug ziehen sie ihre Forderung nach einem vollständigen Abendverbot zurück.",
-          "Folgende Vereinbarung wird getroffen: Sofern die Proben spätestens um 21 Uhr enden und zwei Wochen im Voraus angekündigt werden, stimmen die Anwohnenden zwei Abendterminen pro Woche zu. Im Gegenzug verzichten sie auf die Forderung nach einem generellen Verbot."
+          "Die Anwohnenden akzeptieren zwei Abendproben pro Woche, sofern das Jugendzentrum die Proben um 21 Uhr beendet und zwei Wochen vorher ankündigt. Im Gegenzug benennt das Zentrum eine feste Ansprechperson für Beschwerden.",
+          "Sofern die Proben spätestens um 21 Uhr enden und zwei Wochen im Voraus angekündigt werden, stimmen die Anwohnenden zwei Abendterminen pro Woche zu. Im Gegenzug stellt das Jugendzentrum eine feste Kontaktperson zur Verfügung."
         ],
         "explanation": "The formulation gives the concession, safeguards, and reciprocal step in a form that can be recorded.",
         "requires": [
@@ -9284,7 +9289,7 @@
           "akzeptieren",
           "21 Uhr",
           "im Gegenzug",
-          "zurückziehen"
+          "Ansprechperson"
         ]
       },
       {
