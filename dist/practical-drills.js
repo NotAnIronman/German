@@ -75,7 +75,7 @@
         type: "ACTIVE RECALL",
         context: `${contexts[module.level]} Rebuild the model sentence with the same people, register, and gender shown in the bundle.`,
         prompt: `Use “${word.bundle}” to recall the model sentence for: ${modelSentenceCue(word)}`,
-        answers: [word.example],
+        answers: [word.example, ...(word.practiceAnswers || [])],
         explanation: `The useful bundle is ${word.bundle}.`,
         requires: [word.id],
         wordBank: [],

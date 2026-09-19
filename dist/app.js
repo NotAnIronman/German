@@ -87,7 +87,7 @@ function generatedLessonFor(module) {
         body: "Rebuild the model sentence with the same people, register, and gender shown in the bundle. Keyboard spellings such as ae, oe, ue, and ss are accepted.",
         prompt: `Recall the model sentence for “${transferTarget.bundle}”: ${modelSentenceCue(transferTarget)}`,
         placeholder: "Type the complete German sentence",
-        answers: [transferTarget.example],
+        answers: [transferTarget.example, ...(transferTarget.practiceAnswers || [])],
         retry: "Return to the second bundle group and copy the sentence once with care.",
         success: "You produced the first complete sentence from this module.",
         teaches: [transferTarget.id]
@@ -775,7 +775,7 @@ function renderGuidedLesson() {
   $("#lessonPrevious").disabled = lessonStepIndex === 0;
   const finalStep = lessonStepIndex === steps.length - 1;
   const interactive = ["choice", "arrange", "type"].includes(step.kind);
-  $("#lessonAction").innerHTML = lessonStepPassed ? (finalStep ? 'Open sentence practice <span>→</span>' : 'Continue <span>→</span>') : interactive ? "Check" : (finalStep ? 'Finish lesson <span>→</span>' : 'Continue <span>→</span>');
+  $("#lessonAction").innerHTML = lessonStepPassed ? (finalStep ? 'Open word deck <span>→</span>' : 'Continue <span>→</span>') : interactive ? "Check" : (finalStep ? 'Finish lesson <span>→</span>' : 'Continue <span>→</span>');
 }
 
 function checkLessonStep() {
@@ -784,13 +784,20 @@ function checkLessonStep() {
   const step = steps[lessonStepIndex];
   const finalStep = lessonStepIndex === steps.length - 1;
   if (lessonStepPassed) {
-    if (finalStep) return go("practice");
+    if (finalStep) return setLearnMode("deck");
     lessonStepIndex += 1;
     return renderGuidedLesson();
   }
   if (step.kind === "teach") {
     completeLessonStep(module, step);
-    if (finalStep) return go("practice");
+    if (finalStep) {
+      lessonStepPassed = true;
+      $("#lessonFeedback").hidden = false;
+      $("#lessonFeedback").className = "lesson-feedback success";
+      $("#lessonFeedback").innerHTML = "<strong>Guided lesson complete.</strong><p>The word deck is unlocked.</p>";
+      $("#lessonAction").innerHTML = 'Open word deck <span>→</span>';
+      return;
+    }
     lessonStepIndex += 1;
     return renderGuidedLesson();
   }
@@ -815,8 +822,10 @@ function checkLessonStep() {
   const successDetail = typedResult?.note
     ? typedResult.note + " Standard form: " + typedResult.answer
     : step.success || "Continue when you are ready.";
-  feedback.innerHTML = "<strong>That pattern is in place.</strong><p>" + escapeHtml(successDetail) + "</p>";
-  $("#lessonAction").innerHTML = finalStep ? 'Open sentence practice <span>→</span>' : 'Continue <span>→</span>';
+  feedback.innerHTML = finalStep
+    ? "<strong>Guided lesson complete.</strong><p>The word deck is unlocked. " + escapeHtml(successDetail) + "</p>"
+    : "<strong>That pattern is in place.</strong><p>" + escapeHtml(successDetail) + "</p>";
+  $("#lessonAction").innerHTML = finalStep ? 'Open word deck <span>→</span>' : 'Continue <span>→</span>';
 }
 
 function prepareDeck() {
@@ -852,7 +861,7 @@ function splitRecallParts(value) {
 }
 
 function germanRecallAnswers(word) {
-  const source = word.recall?.deAnswers || splitRecallParts(word.de);
+  const source = word.recall?.deAnswers || [word.de, ...splitRecallParts(word.de)];
   return [...new Set(source.flatMap(value => {
     const trimmed = String(value).trim();
     const short = /^(?:der|die|das)\s/iu.test(trimmed) && trimmed.includes(",")
@@ -865,7 +874,7 @@ function germanRecallAnswers(word) {
 }
 
 function englishRecallAnswers(word) {
-  const source = word.recall?.enAnswers || splitRecallParts(word.en);
+  const source = word.recall?.enAnswers || [word.en, ...splitRecallParts(word.en)];
   return [...new Set(source.flatMap(value => {
     const trimmed = String(value).trim();
     return [trimmed, trimmed.replace(/^to\s+/iu, ""), trimmed.replace(/^(?:a|an|the)\s+/iu, "")];
@@ -873,16 +882,36 @@ function englishRecallAnswers(word) {
 }
 
 function normalizedRecall(value, direction) {
-  let normalized = stripPunctuation(String(value || "").replace(/\.{2,}/gu, " "));
+  let normalized = stripPunctuation(String(value || "").replace(/\.{2,}/gu, " ").replace(/\s*([/·])\s*/gu, " $1 "));
   if (direction === "meaning") normalized = normalized.replace(/^to\s+/iu, "").replace(/^(?:a|an|the)\s+/iu, "");
   return foldSpelling(normalized);
+}
+
+function adjacentTransposition(value, expected) {
+  if (value.length !== expected.length) return false;
+  const differences = [...value].map((character, index) => character === expected[index] ? -1 : index).filter(index => index >= 0);
+  return differences.length === 2 && differences[1] === differences[0] + 1 && value[differences[0]] === expected[differences[1]] && value[differences[1]] === expected[differences[0]];
+}
+
+function minorRecallTypo(value, answer, level, direction) {
+  if (level !== "A0") return false;
+  const typedTokens = normalizedRecall(value, direction).split(/\s+/u);
+  const answerTokens = normalizedRecall(answer, direction).split(/\s+/u);
+  if (typedTokens.length !== answerTokens.length || typedTokens.some(token => /[/·\d]/u.test(token))) return false;
+  const differences = typedTokens.map((token, index) => ({ token, expected: answerTokens[index] })).filter(pair => pair.token !== pair.expected);
+  if (differences.length !== 1) return false;
+  const { token, expected } = differences[0];
+  if (Math.min(token.length, expected.length) < 5) return false;
+  if (adjacentTransposition(token, expected)) return true;
+  return editDistance(token, expected) === 1 && token[0] === expected[0] && token[token.length - 1] === expected[expected.length - 1];
 }
 
 function classifyVocabularyRecall(value, word, direction) {
   const answers = direction === "meaning" ? englishRecallAnswers(word) : germanRecallAnswers(word);
   const typed = normalizedRecall(value, direction);
   const answer = answers.find(candidate => normalizedRecall(candidate, direction) === typed);
-  return { correct: Boolean(answer), answer: answers[0], accepted: answer || null };
+  const near = !answer && answers.find(candidate => minorRecallTypo(value, candidate, word.level, direction));
+  return { correct: Boolean(answer), near: Boolean(near), kind: near ? "typo" : "", answer: answers[0], accepted: answer || null };
 }
 
 function renderCard() {
@@ -904,6 +933,7 @@ function renderCard() {
   $("#flashRecallForm").hidden = unseen;
   $("#flashResult").hidden = true;
   $("#flashResult").className = "flash-result";
+  $("#flashResultAnswerLabel").textContent = "";
   $("#flashRecallInput").value = "";
   $("#flashRecallInput").disabled = false;
   $("#flashRecallInput").lang = direction === "german" ? "en-US" : "de-DE";
@@ -935,6 +965,8 @@ function submitVocabularyRecall(event) {
   if (!value.trim() || cardRevealed) return;
   const direction = cardDirectionFor() === "german" ? "meaning" : "german";
   const result = classifyVocabularyRecall(value, word, direction);
+  const module = moduleById(word.moduleId);
+  const coreWasComplete = verifiedCoreCount(module) === moduleCoreWords(module).length;
   const stamp = now();
   const delayed = record.lastTest && stamp - record.lastTest >= 20 * 3600000;
   record.introduced = true;
@@ -948,6 +980,9 @@ function submitVocabularyRecall(event) {
     if (delayed) record.delayed = Number(record.delayed || 0) + 1;
     const intervals = [1, 3, 7, 14, 30, 60];
     record.nextReview = stamp + intervals[Math.min(intervals.length - 1, record.typedCorrect - 1)] * dayMs;
+  } else if (result.near) {
+    record.nextReview = stamp + 3 * 60000;
+    if (!deck.slice(deckIndex + 1).some(item => item.globalId === word.globalId)) deck.push({ ...word });
   } else {
     record.misses = Number(record.misses || 0) + 1;
     record.nextReview = stamp + 10 * 60000;
@@ -957,11 +992,20 @@ function submitVocabularyRecall(event) {
   addDay(record);
   cardRevealed = true;
   saveState();
+  const coreNowComplete = verifiedCoreCount(module) === moduleCoreWords(module).length;
+  const milestone = result.correct && !coreWasComplete && coreNowComplete;
   $("#flashRecallForm").hidden = true;
   $("#flashResult").hidden = false;
-  $("#flashResult").className = "flash-result " + (result.correct ? "correct" : "repair");
-  $("#flashResultTitle").textContent = result.correct ? "Correct. Retrieval recorded." : "This bundle will return soon.";
-  $("#flashResultText").textContent = result.correct ? "A later review will show whether it stays available." : `Your answer: ${value}`;
+  $("#flashResult").className = "flash-result " + (result.correct ? "correct" : result.near ? "close" : "repair") + (milestone ? " milestone" : "");
+  $("#flashResultTitle").textContent = milestone ? "Core recall complete." : result.correct ? "Correct." : result.near ? "Almost there." : "Review this bundle once more.";
+  $("#flashResultText").textContent = milestone
+    ? `Accepted: “${value}” All ${moduleCoreWords(module).length} core bundles are ready for Sentence Lab.`
+    : result.correct
+      ? `Accepted: “${value}” This bundle will return in a later review.`
+      : result.near
+        ? "The meaning is clear. Check one spelling detail. This bundle will return soon."
+        : `Your answer: “${value}”`;
+  $("#flashResultAnswerLabel").textContent = result.correct || result.near ? "Course form" : "Answer to study";
   $("#flashResultAnswer").textContent = direction === "meaning" ? word.en : word.de;
   $("#flashResultBundle").textContent = word.bundle;
   $("#flashResultExample").textContent = `${word.example} | ${word.exampleEn}`;
@@ -985,6 +1029,7 @@ function skipVocabularyRecall() {
   $("#flashResult").className = "flash-result repair";
   $("#flashResultTitle").textContent = "Study this bundle once more.";
   $("#flashResultText").textContent = "No retrieval credit was added.";
+  $("#flashResultAnswerLabel").textContent = "Answer to study";
   $("#flashResultAnswer").textContent = cardDirectionFor() === "german" ? word.en : word.de;
   $("#flashResultBundle").textContent = word.bundle;
   $("#flashResultExample").textContent = `${word.example} | ${word.exampleEn}`;
@@ -1342,7 +1387,7 @@ function classifyAnswer(value, answers, level) {
       answer,
       note: notes.join(". ") + (notes.length ? "." : ""),
       acceptedKeyboard: spellingFallback,
-      needsRevision: punctuationDifference || caseDifference
+      needsRevision: level !== "A0" && (punctuationDifference || caseDifference)
     };
   }
   const foldedRaw = foldSpelling(stripTerminal(raw));
@@ -1759,10 +1804,12 @@ function finishQuizSet() {
   $("#quizSummary").hidden = false;
   const stillMissed = quiz.missed.length;
   const total = quiz.originalTotal;
-  $("#quizSummary").className = "quiz-summary";
+  const moduleTotal = moduleById(quiz.moduleId).questions.length;
+  const cleared = stillMissed === 0;
+  $("#quizSummary").className = "quiz-summary" + (cleared ? " stage-complete" : "");
   $("#completionBurst").hidden = true;
-  $("#summaryEyebrow").textContent = "SET COMPLETE";
-  $("#summaryTitle").textContent = quiz.retry ? `${quiz.recovered} question${quiz.recovered === 1 ? "" : "s"} repaired.` : `${quiz.firstCorrect} of ${total} correct on the first pass.`;
+  $("#summaryEyebrow").textContent = cleared ? "SENTENCE LAB COMPLETE" : "SET COMPLETE";
+  $("#summaryTitle").textContent = cleared && !quiz.retry ? `All ${moduleTotal} sentence patterns are complete.` : quiz.retry ? `${quiz.recovered} question${quiz.recovered === 1 ? "" : "s"} repaired.` : `${quiz.firstCorrect} of ${total} correct on the first pass.`;
   $("#summaryText").textContent = stillMissed ? `${stillMissed} question${stillMissed === 1 ? " is" : "s are"} ready for a focused repair pass.` : "This set is clear for today. A later return will test how well it holds.";
   $("#summaryCorrect").textContent = quiz.firstCorrect;
   $("#summaryCorrectLabel").textContent = "first-pass correct";
@@ -1776,6 +1823,7 @@ function finishQuizSet() {
   $("#assessmentReview").hidden = true;
   $("#assessmentHistory").hidden = true;
   $("#summaryFootnote").textContent = "Same-session repairs help you understand the form. A later return supplies stronger evidence.";
+  $("#summaryTitle").focus();
 }
 
 function assessmentSectionScores(responses) {
@@ -1793,6 +1841,9 @@ function finishAssessment() {
   const score = sections.vocabulary * .25 + sections.sentences * .30 + sections.reading * .15 + sections.writing * .20 + sections.speaking * .10;
   const passed = score >= assessmentPassScore && sections.vocabulary >= .70 && sections.sentences >= .70 && sections.reading >= .50 && sections.writing >= .60 && sections.speaking >= .60;
   const firstCompletion = passed && !record.assessment.passedAt;
+  const hadPriorAttempt = record.assessment.attempts.length > 0;
+  const previousBest = record.assessment.bestScore || 0;
+  const personalBest = hadPriorAttempt && score > previousBest + .005;
   const correct = quiz.responses.filter(response => response.score >= 1).length;
   const attempt = {
     date: new Date().toISOString(),
@@ -1818,10 +1869,15 @@ function finishAssessment() {
   $("#quizSummary").hidden = false;
   $("#quizSummary").className = "quiz-summary" + (passed ? " module-complete" : "");
   $("#completionBurst").hidden = !firstCompletion;
-  $("#summaryEyebrow").textContent = firstCompletion ? "MODULE COMPLETE" : passed ? "ASSESSMENT PASSED" : "ASSESSMENT COMPLETE";
-  $("#summaryTitle").textContent = firstCompletion ? `${module.code} complete. ${Math.round(score * 100)}%.` : passed ? `Passed with ${Math.round(score * 100)}%.` : `Score: ${Math.round(score * 100)}%.`;
+  $("#summaryEyebrow").textContent = firstCompletion ? "MODULE COMPLETE" : personalBest ? "PERSONAL BEST" : passed ? "ASSESSMENT PASSED" : "ASSESSMENT COMPLETE";
+  $("#summaryTitle").textContent = firstCompletion ? `${module.code} complete. ${Math.round(score * 100)}%.` : personalBest ? `New best score: ${Math.round(score * 100)}%.` : passed ? `Passed with ${Math.round(score * 100)}%.` : `Score: ${Math.round(score * 100)}%.`;
   const floorsMet = [sections.vocabulary >= .70, sections.sentences >= .70, sections.reading >= .50, sections.writing >= .60, sections.speaking >= .60].filter(Boolean).length;
-  $("#summaryText").textContent = passed ? "Every section minimum is secure. This module is checked off." : `Passing requires 80% overall and each section minimum. ${floorsMet} of 5 section minimums were reached.`;
+  const next = modules[modules.findIndex(item => item.id === module.id) + 1];
+  $("#summaryText").textContent = firstCompletion
+    ? `Every section minimum is secure. ${next ? `${next.code} is ready.` : "The full course pathway is checked off."}`
+    : passed
+      ? "Every section minimum is secure. This module is checked off."
+      : `Passing requires 80% overall and each section minimum. ${floorsMet} of 5 section minimums were reached.`;
   $("#summaryCorrect").textContent = `${Math.round(score * 100)}%`;
   $("#summaryCorrectLabel").textContent = "latest score";
   $("#summaryRecovered").textContent = `${correct}/${quiz.responses.length}`;
@@ -1831,15 +1887,15 @@ function finishAssessment() {
   const sectionLabels = { vocabulary: "Vocabulary", sentences: "Sentence production", reading: "Reading", writing: "Structured writing", speaking: "Speaking transcript" };
   const missed = quiz.responses.filter(response => response.score < 1);
   $("#assessmentReview").hidden = false;
-  $("#assessmentReview").innerHTML = '<h3>Section scores</h3><ol>' + Object.entries(sections).map(([key, value]) => `<li><strong>${sectionLabels[key]}: ${Math.round(value * 100)}%</strong></li>`).join("") + '</ol>' + (missed.length ? '<h3>Review after the attempt</h3><ol>' + missed.map(response => `<li><strong>${escapeHtml(response.prompt)}</strong><small>Your answer: ${escapeHtml(response.value)}</small><small>Accepted form or model: ${escapeHtml(response.answer)}</small></li>`).join("") + '</ol>' : '<p>Every scored item received full credit.</p>');
+  $("#assessmentReview").innerHTML = '<h3>Section scores</h3><ol>' + Object.entries(sections).map(([key, value]) => `<li><strong>${sectionLabels[key]}: ${Math.round(value * 100)}%</strong></li>`).join("") + '</ol>' + (missed.length ? '<h3>Review after the attempt</h3><ol>' + missed.map(response => `<li><strong>${escapeHtml(response.prompt)}</strong><small>Your answer: ${escapeHtml(response.value)}</small><small>Reference answer: ${escapeHtml(response.answer)}</small></li>`).join("") + '</ol>' : '<p>Every scored item received full credit.</p>');
   $("#assessmentHistory").hidden = false;
   $("#assessmentHistory").innerHTML = '<h3>Assessment history</h3><ol>' + [...record.assessment.attempts].reverse().map((item, index) => `<li>${index === 0 ? "Latest" : new Date(item.date).toLocaleDateString()}: <strong>${Math.round(item.score * 100)}%</strong> · ${item.passed ? "Passed" : "Review and retake"}</li>`).join("") + '</ol>';
   $("#retryMissed").hidden = true;
   $("#retakeAssessment").hidden = false;
-  const next = modules[modules.findIndex(item => item.id === module.id) + 1];
   $("#nextModule").hidden = !passed || !next;
   $("#nextModule").dataset.nextModule = next?.id || "";
   $("#summaryFootnote").textContent = "Each retake is a new closed attempt. Your best score and full attempt history stay visible.";
+  $("#summaryTitle").focus();
 }
 
 function retakeModuleAssessment() {

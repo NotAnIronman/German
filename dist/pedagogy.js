@@ -142,13 +142,13 @@
         ]
       },
       questions: [
-        question("intro", "GUIDED BUILD", "You want to say hello and give your name.", "Use the model with the name Sam.", ["Hallo, ich bin Sam.", "Hallo! Ich bin Sam."], "Hallo opens the exchange. Ich bin gives your name.", ["hallo", "sein"], ["Hallo,", "ich", "bin", "Sam."], { title: "Use this pattern", model: "Hallo, ich bin Mina.", translation: "Hello, I am Mina.", tip: "Replace Mina with Sam." }),
+        question("intro", "GUIDED BUILD", "You want to say hello and give your name.", "Introduce yourself as Sam.", ["Hallo, ich bin Sam.", "Hallo! Ich bin Sam.", "Hallo, ich heiße Sam.", "Hallo! Ich heiße Sam."], "Hallo opens the exchange. Ich bin and Ich heiße can both give your name.", ["hallo"], ["Hallo,", "ich", "bin", "Sam."], { title: "Use either name pattern", model: "Hallo, ich bin Mina. · Hallo, ich heiße Mina.", translation: "Hello, I am Mina. · Hello, my name is Mina.", tip: "Replace Mina with Sam." }),
         question("ask-name", "PATTERN", "You meet someone in an informal setting and use du.", "Ask their name.", ["Wie heißt du?"], "The informal question is Wie heißt du?", ["heissen"], ["Wie", "heißt", "du?"], { title: "Use the informal partner", model: "Wie heißen Sie?", translation: "What is your name? Formal", tip: "Change the formal pair heißen Sie to the informal pair from the lesson." }),
         question("ask-name-formal", "REGISTER", "You are meeting an adult for the first time.", "Ask for their name formally.", ["Wie heißen Sie?"], "The formal question uses heißen Sie.", ["heissen"], ["Wie", "heißen", "Sie?"], { title: "Start from the informal form", model: "Wie heißt du?", translation: "What is your name? Informal", tip: "Use the formal pair from the lesson." }),
         question("formal-morning", "REGISTER", "You greet Mr. Yilmaz formally in the morning.", "Write: Good morning, Mr. Yilmaz.", ["Guten Morgen, Herr Yilmaz.", "Guten Morgen, Herr Yilmaz!"], "Herr plus the family name makes the greeting formal.", ["guten-tag"], ["Guten", "Morgen,", "Herr", "Yilmaz."], { title: "Transfer the title", model: "Guten Morgen, Frau Roth.", translation: "Good morning, Ms. Roth.", tip: "Use Herr with Mr. Yilmaz." }),
         question("informal-feeling", "PATTERN", "You are speaking with a friend and use du.", "Ask: How are you?", ["Wie geht es dir?", "Wie geht's dir?"], "Dir belongs in the informal phrase.", ["wie-gehts"], ["Wie", "geht", "es", "dir?"], { title: "Change the register", model: "Wie geht es Ihnen?", translation: "How are you? Formal", tip: "Use the informal partner of Ihnen." }),
         question("formal-feeling", "REGISTER", "You are speaking formally with Ms. Roth.", "Ask how she is and include her title and family name.", ["Wie geht es Ihnen, Frau Roth?", "Wie geht's Ihnen, Frau Roth?"], "Ihnen belongs in the formal phrase.", ["wie-gehts"], ["Wie", "geht", "es", "Ihnen,", "Frau", "Roth?"], { title: "Build from the informal form", model: "Wie geht es dir, Lea?", translation: "How are you, Lea? Informal", tip: "Use Ihnen and Frau Roth for the formal version." }),
-        question("response", "CHUNK", "Someone asks how you are.", "Say that you are well and thank them.", ["Mir geht es gut, danke.", "Mir geht's gut, danke."], "Mir geht es gut is a complete response. Danke follows after a comma.", ["wie-gehts", "danke"], ["Mir", "geht", "es", "gut,", "danke."], { title: "Complete the response", model: "Mir geht es ___, danke.", translation: "I am ___, thank you.", tip: "Use the word for well from the lesson." }),
+        question("response", "CHUNK", "Someone asks how you are.", "Say that you are well and thank them.", ["Mir geht es gut, danke.", "Mir geht's gut, danke.", "Gut, danke."], "Mir geht es gut and Gut, danke are both natural responses.", ["wie-gehts", "danke"], ["Mir", "geht", "es", "gut,", "danke."], { title: "Complete the response", model: "Mir geht es ___, danke.", translation: "I am ___, thank you.", tip: "Use the word for well from the lesson." }),
         question("goodbye", "RECALL", "The first meeting is finished.", "Write one of the two goodbyes from the lesson.", ["Auf Wiedersehen.", "Auf Wiedersehen!", "Tschüss.", "Tschüss!"], "Auf Wiedersehen is formal. Tschüss is common in informal situations.", ["tschuess"], ["Auf", "Wiedersehen."], { title: "Recall one farewell", model: "The lesson taught one formal and one informal goodbye.", translation: "Choose either one.", tip: "Use the two-word formal phrase or the one-word informal phrase." })
       ],
       input: {
@@ -315,14 +315,14 @@
 
   const safeWordCards = {
     "a0-first-contact": {
-      hallo: { bundle: "Hallo!", example: "Hallo, ich bin Mina.", exampleEn: "Hello, I am Mina." },
-      "guten-tag": { bundle: "Guten Morgen · Guten Tag · Guten Abend", example: "Guten Tag, Frau Roth.", exampleEn: "Hello, Ms. Roth." },
+      hallo: { bundle: "Hallo!", example: "Hallo, ich bin Mina.", exampleEn: "Hello, I am Mina.", practiceAnswers: ["Hallo, ich heiße Mina.", "Hallo! Ich heiße Mina."] },
+      "guten-tag": { bundle: "Guten Morgen · Guten Tag · Guten Abend", example: "Guten Tag, Frau Roth.", exampleEn: "Hello, Ms. Roth.", practiceAnswers: ["Guten Morgen, Frau Roth.", "Guten Abend, Frau Roth."] },
       tschuess: { bundle: "Tschüss · Auf Wiedersehen", example: "Auf Wiedersehen.", exampleEn: "Goodbye." },
       danke: { bundle: "Danke! · Gut, danke.", example: "Gut, danke.", exampleEn: "Well, thank you." },
       bitte: { bundle: "Bitte!", example: "Bitte!", exampleEn: "Please! / You are welcome!" },
       sein: { bundle: "ich bin", example: "Ich bin Mina.", exampleEn: "I am Mina." },
       heissen: { bundle: "ich heiße · du heißt · Sie heißen", example: "Ich heiße Nora.", exampleEn: "My name is Nora." },
-      "wie-gehts": { bundle: "Wie geht es dir? · Wie geht es Ihnen?", example: "Mir geht es gut, danke.", exampleEn: "I am well, thank you." }
+      "wie-gehts": { bundle: "Wie geht es dir? · Wie geht es Ihnen?", example: "Mir geht es gut, danke.", exampleEn: "I am well, thank you.", recall: { enAnswers: ["How are you?", "How are you doing?"] } }
     },
     "a0-personal-details": {
       name: { de: "Mein Name ist ...", en: "my name is ...", bundle: "Mein Name ist Ravi.", example: "Mein Name ist Ravi.", exampleEn: "My name is Ravi." },
