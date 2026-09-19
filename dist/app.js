@@ -508,6 +508,8 @@ function go(view) {
   if (view === "grammar") renderGrammar();
   if (view === "vocabulary") renderVocabulary();
   if (view === "culture") renderCulture();
+  if (view === "reading-library") window.SatzwerkExtensions?.renderReadingLibrary();
+  if (view === "audio-lab") window.SatzwerkExtensions?.renderAudioLab();
   if (view === "progress") renderProgress();
   if (view === "sources") renderSources();
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -2241,6 +2243,8 @@ function renderProgress() {
   const completed = modules.filter(module => moduleIsComplete(module)).length;
   const verifiedCore = modules.reduce((sum, module) => sum + verifiedCoreCount(module), 0);
   const coreTotal = modules.reduce((sum, module) => sum + moduleCoreWords(module).length, 0);
+  const readingLibrary = window.SATZWERK_READINGS || [];
+  const passedLibraryReadings = readingLibrary.filter(item => state.readings?.[item.id]?.version === item.version && state.readings?.[item.id]?.passedAt).length;
   $("#progressWords").textContent = words.length;
   $("#progressWordsDetail").textContent = `of ${allWords.length} course bundles`;
   $("#progressAccuracy").textContent = accuracy == null ? "No data" : `${accuracy}%`;
@@ -2251,6 +2255,7 @@ function renderProgress() {
     { key: "vocabulary", label: "Typed core-word recall", value: Math.round(verifiedCore / coreTotal * 100), detail: `${verifiedCore} of ${coreTotal} core bundles recalled` },
     { key: "sentences", label: "Typed sentence production", value: Math.round(Object.values(state.modules).reduce((sum, item) => sum + Object.keys(item.completedPrompts || {}).length, 0) / allQuestions.length * 100), detail: `${state.quiz.attempts} first-pass attempts` },
     { key: "reading", label: "Reading", value: Math.round(skillModuleCount("reading") / modules.length * 100), detail: `${skillModuleCount("reading")} modules practiced` },
+    { key: "reading-library", label: "Graded reading track", value: Math.round(passedLibraryReadings / Math.max(1, readingLibrary.length) * 100), detail: `${passedLibraryReadings} of ${readingLibrary.length} complete texts passed` },
     { key: "writing", label: "Guided writing", value: Math.round(skillModuleCount("writing") / modules.length * 100), detail: `${skillModuleCount("writing")} modules practiced` },
     { key: "speaking", label: "Speaking rehearsal", value: Math.round(skillModuleCount("speaking") / modules.length * 100), detail: `${skillModuleCount("speaking")} modules complete` },
     { key: "assessment", label: "Passed module assessments", value: Math.round(completed / modules.length * 100), detail: `${completed} modules passed` }
@@ -2288,7 +2293,7 @@ function registerModelTools() {
     name: "open_learning_view",
     title: "Open Satzwerk view",
     description: "Open one visible Satzwerk area.",
-    inputSchema: { type: "object", properties: { view: { type: "string", enum: ["home", "course", "learn", "practice", "grammar", "vocabulary", "culture", "progress", "sources"] } }, required: ["view"], additionalProperties: false },
+    inputSchema: { type: "object", properties: { view: { type: "string", enum: ["home", "course", "learn", "practice", "grammar", "vocabulary", "culture", "reading-library", "audio-lab", "progress", "sources"] } }, required: ["view"], additionalProperties: false },
     annotations: { readOnlyHint: false, untrustedContentHint: false },
     execute(input) { go(input.view); return { opened: input.view }; }
   });

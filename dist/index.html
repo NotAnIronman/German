@@ -25,8 +25,10 @@
             <button class="nav-item" type="button" data-view="grammar"><span>05</span>Grammar</button>
             <button class="nav-item" type="button" data-view="vocabulary"><span>06</span>Vocabulary</button>
             <button class="nav-item" type="button" data-view="culture"><span>07</span>Culture</button>
-            <button class="nav-item" type="button" data-view="progress"><span>08</span>Progress</button>
-            <button class="nav-item" type="button" data-view="sources"><span>09</span>Sources</button>
+            <button class="nav-item" type="button" data-view="reading-library"><span>08</span>Reading</button>
+            <button class="nav-item" type="button" data-view="audio-lab"><span>09</span>Voice study</button>
+            <button class="nav-item" type="button" data-view="progress"><span>10</span>Progress</button>
+            <button class="nav-item" type="button" data-view="sources"><span>11</span>Sources</button>
           </nav>
           <div class="sidebar-foot"><strong>Focused workshop</strong><a href="./case-lab.html">A2 Case Lab <span>↗</span></a></div>
         </aside>
@@ -124,13 +126,30 @@
 
           <section class="view" id="view-culture" aria-labelledby="cultureTitle" hidden><div class="page-heading compact-heading"><div><span class="eyebrow">LANGUAGE IN PEOPLE'S LIVES</span><h1 id="cultureTitle">Context for the choices you will hear</h1><p>These notes introduce regional language, everyday expectations, and register. Each note links to its source.</p></div></div><div class="level-tabs" id="cultureLevelTabs" aria-label="Culture note levels"></div><div class="culture-grid" id="cultureGrid"></div></section>
 
+          <section class="view" id="view-reading-library" aria-labelledby="readingLibraryTitle" hidden>
+            <div class="page-heading compact-heading"><div><span class="eyebrow">GRADED READING TRACK</span><h1 id="readingLibraryTitle">Build distance, speed, and judgment</h1><p>Read complete texts across daily life, work, public information, stories, and argument. The questions stay closed until the end of each attempt.</p></div><div class="deck-progress"><strong id="readingLibraryProgress">0 / 24</strong><span>texts passed</span></div></div>
+            <div class="reading-library-toolbar"><div class="level-tabs" id="readingLevelTabs" aria-label="Reading levels"></div><label for="readingGenreFilter">Text type<select id="readingGenreFilter"><option value="all">All text types</option></select></label></div>
+            <div class="reading-library-layout"><aside class="reading-catalog" id="readingCatalog" aria-label="Reading catalog"></aside><article class="reading-workspace" id="readingWorkspace"></article></div>
+            <p class="sr-only" id="readingAnnouncement" aria-live="polite"></p>
+          </section>
+
+          <section class="view" id="view-audio-lab" aria-labelledby="audioLabTitle" hidden>
+            <div class="page-heading compact-heading"><div><span class="eyebrow">BLIND VOICE STUDY</span><h1 id="audioLabTitle">Help choose the German voice</h1><p>Each voice reads the same material. Listen before revealing the model names, then record how clear, natural, and useful each one feels.</p></div><div class="deck-progress"><strong id="audioVoteCount">0</strong><span>voice ratings saved</span></div></div>
+            <div class="audio-study-note"><strong>Use headphones if you can.</strong><p>Listen for vowel length, the sounds in ich and Bach, word stress, names, numbers, and whether the pace would help a new learner.</p></div>
+            <div class="level-tabs audio-test-tabs" id="audioTestTabs" aria-label="Voice test passages"></div>
+            <section class="audio-test-copy" id="audioTestCopy"></section>
+            <div class="audio-candidate-grid" id="audioCandidateGrid"></div>
+            <div class="audio-study-actions"><button class="quiet-button" id="revealAudioModels" type="button">Reveal model names</button><button class="primary-button" id="exportAudioFeedback" type="button">Copy feedback summary</button></div>
+            <div class="task-feedback success" id="audioCopyFeedback" hidden aria-live="polite"></div>
+          </section>
+
           <section class="view" id="view-progress" aria-labelledby="progressTitle" hidden><div class="page-heading compact-heading"><div><span class="eyebrow">EVIDENCE DASHBOARD</span><h1 id="progressTitle">See what you have actually practiced</h1><p>Each skill keeps its own record. Course evidence describes your work here. Official CEFR assessment remains separate.</p></div></div><div class="progress-overview"><article><span>LANGUAGE ENCOUNTERED</span><strong id="progressWords">0</strong><small id="progressWordsDetail">of the full course bank</small></article><article><span>FIRST-PASS RETRIEVAL</span><strong id="progressAccuracy">No data</strong><small>across typed prompts</small></article><article><span>MODULES COMPLETED</span><strong id="progressModules">0</strong><small id="progressModulesDetail">of 162 available</small></article><article><span>DUE FOR REVIEW</span><strong id="progressDue">0</strong><small>scheduled language cards</small></article></div><div class="skill-evidence" id="skillEvidence"></div><section class="curriculum-map"><div class="section-heading"><div><span class="eyebrow">LEVEL PROGRESS</span><h2>Evidence across the pathway</h2></div></div><div id="progressLevels"></div></section><button class="quiet-button danger-soft" id="resetProgress" type="button">Reset course progress</button></section>
 
           <section class="view" id="view-sources" aria-labelledby="sourcesTitle" hidden><div class="page-heading compact-heading"><div><span class="eyebrow">CREDITS AND SOURCES</span><h1 id="sourcesTitle">The references behind the course</h1><p>Course wording and exercises were written for Satzwerk. These sources guide level scope, vocabulary form, grammar checks, assessment shape, learning design, and cultural context.</p></div></div><div class="source-list" id="sourceList"></div><div class="source-disclaimer"><strong>Independent course</strong><p>Satzwerk operates independently from the organizations listed here. Links are provided for verification and further study.</p></div></section>
         </main>
       </div>
     </div>
-    <dialog id="resetDialog"><form method="dialog"><span class="eyebrow">RESET PROGRESS</span><h2>Clear all course evidence from this device?</h2><p>This removes word history, module records, and review dates. The course content stays available.</p><div><button class="quiet-button" value="cancel">Keep progress</button><button class="danger-button" id="confirmReset" value="confirm">Clear progress</button></div></form></dialog>
-    <script src="./curriculum.js"></script><script src="./content-expansion.js"></script><script src="./pedagogy.js"></script><script src="./course-expansion.js"></script><script src="./mastery-expansion.js"></script><script src="./task-models.js"></script><script src="./practical-drills.js"></script><script src="./task-checks.js"></script><script src="./app.js"></script>
+    <dialog id="resetDialog"><form method="dialog"><span class="eyebrow">RESET PROGRESS</span><h2>Clear all course evidence from this device?</h2><p>This removes word history, module records, graded-reading attempts, voice-study ratings, and review dates. The course content stays available.</p><div><button class="quiet-button" value="cancel">Keep progress</button><button class="danger-button" id="confirmReset" value="confirm">Clear progress</button></div></form></dialog>
+    <script src="./curriculum.js"></script><script src="./content-expansion.js"></script><script src="./pedagogy.js"></script><script src="./course-expansion.js"></script><script src="./mastery-expansion.js"></script><script src="./task-models.js"></script><script src="./practical-drills.js"></script><script src="./task-checks.js"></script><script src="./reading-library.js"></script><script src="./audio-study.js"></script><script src="./app.js"></script><script src="./extended-features.js"></script>
   </body>
 </html>
