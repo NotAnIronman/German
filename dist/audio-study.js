@@ -62,8 +62,8 @@
   if (sources && !sources.some(source => source.title === "OHF-Voice: Piper")) {
     sources.push(
       { category: "SPEECH SYNTHESIS", title: "OHF-Voice: Piper", body: "Piper 1.8 and the German Thorsten voice produced one set of blind comparison samples. The maintained engine is GPL-3.0-or-later. The Thorsten source dataset is marked CC0 in its model card.", url: "https://github.com/OHF-Voice/piper1-gpl" },
-      { category: "SPEECH SYNTHESIS", title: "Resemble AI: Chatterbox Multilingual", body: "Chatterbox Multilingual produced one set of blind German comparison samples using the project's published German reference voice and fixed generation settings.", url: "https://github.com/resemble-ai/chatterbox" },
-      { category: "SPEECH SYNTHESIS", title: "Coqui TTS", body: "Coqui TTS 0.27.5 and the German Thorsten VITS model produced one set of blind comparison samples. The maintained runtime uses MPL-2.0 and the model is listed as Apache-2.0.", url: "https://github.com/idiap/coqui-ai-TTS" }
+      { category: "SPEECH SYNTHESIS", title: "Resemble AI: Chatterbox Multilingual", body: "Chatterbox Multilingual produces the prerecorded female speakers in the course listening collection. The audio is generated locally with one consistent German reference voice and fixed settings.", url: "https://github.com/resemble-ai/chatterbox" },
+      { category: "SPEECH SYNTHESIS", title: "Coqui TTS", body: "Coqui TTS 0.27.5 with the German Thorsten VITS model produces the locally generated male speakers in the course listening collection. The maintained runtime uses MPL-2.0 and the model is listed as Apache-2.0.", url: "https://github.com/idiap/coqui-ai-TTS" }
     );
   }
 })();

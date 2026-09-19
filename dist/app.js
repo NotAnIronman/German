@@ -7,6 +7,13 @@ if (!course?.modules?.length) {
 
 const levels = course.levels;
 const modules = course.modules;
+const listeningCourse = window.SATZWERK_MODULE_AUDIO || { items: [], voices: {} };
+const listeningByModule = new Map((listeningCourse.items || []).map(item => [item.moduleId, item]));
+const listeningEvidenceVersion = Number(listeningCourse.version || 1);
+
+function listeningFor(module) {
+  return listeningByModule.get(module.id) || null;
+}
 
 function modelSentenceCue(word) {
   const german = String(word.example || "");
@@ -253,12 +260,17 @@ function moduleRecord(id) {
   record.lessonSteps ||= {};
   record.lessonIndex ||= 0;
   record.activities ||= {};
-  ["reading", "writing", "speaking"].forEach(activity => {
+  ["listening", "reading", "writing", "speaking"].forEach(activity => {
     if (!record.activities[activity]) {
-      const legacyScore = Number(record[activity] || 0);
+      const legacyScore = activity === "listening" ? 0 : Number(record[activity] || 0);
       record.activities[activity] = { bestScore: legacyScore, attempts: legacyScore > 0 ? 1 : 0, completedAt: legacyScore >= 1 ? (record.checkpointAt || today()) : null };
+      if (activity === "listening") record.activities[activity].version = listeningEvidenceVersion;
     }
   });
+  if (record.activities.listening.version !== listeningEvidenceVersion) {
+    record.activities.listening = { version: listeningEvidenceVersion, bestScore: 0, attempts: 0, completedAt: null };
+    record.listening = 0;
+  }
   record.assessment ||= { version: assessmentVersion, firstScore: null, latestScore: null, bestScore: null, attempts: [], passedAt: null, archive: [] };
   if (record.assessment.version !== assessmentVersion) {
     const previous = record.assessment;
@@ -291,19 +303,22 @@ function moduleRecord(id) {
 function recordActivityResult(moduleId, activity, score) {
   const record = moduleRecord(moduleId);
   const activityRecord = record.activities[activity];
+  if (activity === "listening") activityRecord.version = listeningEvidenceVersion;
   activityRecord.attempts += 1;
   activityRecord.bestScore = Math.max(activityRecord.bestScore || 0, score);
   if (score >= 1 && !activityRecord.completedAt) activityRecord.completedAt = today();
   record[activity] = Math.max(Number(record[activity] || 0), score);
   record.started = true;
   state.skills[activity].attempts += 1;
-  if (activity === "reading" && score >= 1) state.skills.reading.correct += 1;
+  if (["listening", "reading"].includes(activity) && score >= 1) state.skills[activity].correct += 1;
   saveState();
   return activityRecord;
 }
 
 function activityIsComplete(module, activity) {
-  return Boolean(moduleRecord(module.id).activities[activity]?.completedAt);
+  const record = moduleRecord(module.id).activities[activity];
+  if (activity === "listening") return Boolean(listeningFor(module) && record?.version === listeningEvidenceVersion && record.completedAt);
+  return Boolean(record?.completedAt);
 }
 
 function addDay(record) {
@@ -482,7 +497,17 @@ function announceModule(module) {
   announceMessage(`Now working on ${module.code}: ${module.title}.`);
 }
 
+function pauseListeningAudio(reset = false) {
+  const audio = $("#listeningAudio");
+  if (!audio) return;
+  audio.pause?.();
+  if (reset) {
+    try { audio.currentTime = 0; } catch {}
+  }
+}
+
 function setActiveModule(id, announce = true) {
+  pauseListeningAudio(true);
   const module = moduleById(id);
   state.activeModule = module.id;
   state.courseLevel = module.level;
@@ -494,6 +519,7 @@ function setActiveModule(id, announce = true) {
 }
 
 function go(view) {
+  if (view !== "practice") pauseListeningAudio(true);
   currentView = view;
   $$(".view").forEach(section => {
     const active = section.id === `view-${view}`;
@@ -525,6 +551,7 @@ function renderHome() {
   $("#homeModuleCount").textContent = modules.length;
   $("#homeWordCount").textContent = allWords.length;
   $("#homePromptCount").textContent = allQuestions.length;
+  $("#homeListeningCount").textContent = listeningCourse.items.length;
   $("#continueUnit").textContent = `${module.code} · ${module.title.toUpperCase()}`;
   const introduced = moduleWordCount(module, true);
   const core = moduleCoreWords(module);
@@ -603,7 +630,7 @@ function renderCourse() {
   $("#courseModuleTotal").textContent = modules.length;
   $("#levelTabs").innerHTML = levels.map(item => `<button type="button" class="${item.id === level.id ? "active" : ""}" data-course-level="${item.id}">${item.id}<small> ${modules.filter(module => module.level === item.id).length}</small></button>`).join("");
   $("#levelSummary").innerHTML = `<strong>${level.id} · ${escapeHtml(level.title)}</strong><p>${escapeHtml(level.summary)} ${escapeHtml(level.outcome)}</p>`;
-  $("#moduleGrid").innerHTML = group.map(module => `<button class="module-card ${module.id === courseSelectedModule ? "active" : ""} ${moduleIsComplete(module) ? "completed" : ""}" type="button" data-course-module="${module.id}"><span>${module.code}${moduleIsComplete(module) ? " · ✓" : ""}</span><strong>${escapeHtml(module.title)}</strong><p>${escapeHtml(module.subtitle)}</p><small>${moduleStatus(module)} · ${moduleProgress(module)}%</small></button>`).join("");
+  $("#moduleGrid").innerHTML = group.map(module => `<button class="module-card ${module.id === courseSelectedModule ? "active" : ""} ${moduleIsComplete(module) ? "completed" : ""}" type="button" data-course-module="${module.id}"><span>${module.code}${listeningFor(module) ? " · AUDIO" : ""}${moduleIsComplete(module) ? " · ✓" : ""}</span><strong>${escapeHtml(module.title)}</strong><p>${escapeHtml(module.subtitle)}</p><small>${moduleStatus(module)} · ${moduleProgress(module)}%</small></button>`).join("");
   renderModuleDetail(moduleById(courseSelectedModule));
   $$('[data-course-level]').forEach(button => button.addEventListener("click", () => {
     state.courseLevel = button.dataset.courseLevel;
@@ -621,7 +648,7 @@ function renderModuleDetail(module) {
   const expansionCount = module.words.filter(word => word.supplemental).length;
   const bundleSummary = expansionCount ? `${moduleCoreWords(module).length} core + ${expansionCount} expansion bundles` : `${module.words.length} bundles`;
   const stages = moduleStageStates(module);
-  $("#moduleDetail").innerHTML = `<span class="eyebrow">${module.code} · ${moduleStatus(module).toUpperCase()}</span><h2>${escapeHtml(module.title)}</h2><p>${escapeHtml(module.subtitle)}</p><h3>You will learn to</h3><ul>${module.canDo.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ul><h3>Completion stages</h3><ul>${stages.map(stage => `<li>${stage.complete ? "✓" : "○"} ${escapeHtml(stage.label)}</li>`).join("")}</ul><h3>Grammar focus</h3><ul>${module.grammar.map(item => `<li>${escapeHtml(item.title)}</li>`).join("")}</ul><div class="module-progress"><div><i style="width:${moduleProgress(module)}%"></i></div><small>${bundleSummary} · ${module.questions.length} typed prompts · ${stages.filter(stage => stage.complete).length} of ${stages.length} stages complete</small></div><div class="module-detail-actions"><button class="primary-button" type="button" data-module-learn="${module.id}">Learn words</button><button class="quiet-button" type="button" data-module-practice="${module.id}">Practice</button></div>`;
+  $("#moduleDetail").innerHTML = `<span class="eyebrow">${module.code} · ${moduleStatus(module).toUpperCase()}</span><h2>${escapeHtml(module.title)}</h2><p>${escapeHtml(module.subtitle)}</p><h3>You will learn to</h3><ul>${module.canDo.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ul>${listeningFor(module) ? `<div class="module-audio-note"><strong>Optional listening</strong><span>${escapeHtml(listeningFor(module).title)} · separate checkoff</span></div>` : ""}<h3>Completion stages</h3><ul>${stages.map(stage => `<li>${stage.complete ? "✓" : "○"} ${escapeHtml(stage.label)}</li>`).join("")}</ul><h3>Grammar focus</h3><ul>${module.grammar.map(item => `<li>${escapeHtml(item.title)}</li>`).join("")}</ul><div class="module-progress"><div><i style="width:${moduleProgress(module)}%"></i></div><small>${bundleSummary} · ${module.questions.length} typed prompts · ${stages.filter(stage => stage.complete).length} of ${stages.length} stages complete</small></div><div class="module-detail-actions"><button class="primary-button" type="button" data-module-learn="${module.id}">Learn words</button><button class="quiet-button" type="button" data-module-practice="${module.id}">Practice</button></div>`;
   $('[data-module-learn]').addEventListener("click", event => { setActiveModule(event.currentTarget.dataset.moduleLearn); go("learn"); });
   $('[data-module-practice]').addEventListener("click", event => { setActiveModule(event.currentTarget.dataset.modulePractice); go("practice"); });
 }
@@ -1025,6 +1052,8 @@ function renderPracticeMenu() {
   const coreVerified = verifiedCoreCount(module);
   const sentenceComplete = resolved === module.questions.length;
   const sentenceReady = lessonReady && coreVerified === coreTotal && available.length > 0;
+  const listening = listeningFor(module);
+  const listeningReady = Boolean(listening && sentenceReady && resolved >= Math.min(2, module.questions.length));
   const readingReady = sentenceReady && resolved >= Math.min(2, module.questions.length);
   const writingReady = sentenceComplete;
   const speakingReady = writingReady && activityIsComplete(module, "writing");
@@ -1035,9 +1064,10 @@ function renderPracticeMenu() {
   modeButton("writing").disabled = !writingReady;
   modeButton("speaking").disabled = !speakingReady;
   modeButton("checkpoint").disabled = !checkpointReady;
-  modeButton("listening").hidden = true;
-  modeButton("listening").disabled = true;
+  modeButton("listening").hidden = !listening;
+  modeButton("listening").disabled = !listeningReady;
   modeButton("sentences").classList.toggle("completed", sentenceComplete);
+  modeButton("listening").classList.toggle("completed", Boolean(listening && activityIsComplete(module, "listening")));
   modeButton("reading").classList.toggle("completed", activityIsComplete(module, "reading"));
   modeButton("writing").classList.toggle("completed", activityIsComplete(module, "writing"));
   modeButton("speaking").classList.toggle("completed", activityIsComplete(module, "speaking"));
@@ -1047,6 +1077,15 @@ function renderPracticeMenu() {
   $("#practiceIntro").textContent = "Each stage has a clear checkoff. The scored assessment opens after every coursework stage is complete.";
   $("#availableQuestionCount").textContent = lessonReady ? available.length : 0;
   $("#sentenceReadiness").textContent = sentenceComplete ? "✓ Sentence Lab complete. Practice again whenever you want." : !lessonReady ? "Complete the guided lesson first." : coreVerified < coreTotal ? `Recall ${coreTotal - coreVerified} more core bundle${coreTotal - coreVerified === 1 ? "" : "s"} first.` : available.length + " ordered prompts use taught language.";
+  if (listening) $("#listeningReadiness").textContent = activityIsComplete(module, "listening")
+    ? "✓ Listening complete. Replay the conversation whenever you want."
+    : !lessonReady
+      ? "Complete the guided lesson first."
+      : coreVerified < coreTotal
+        ? `Recall ${coreTotal - coreVerified} more core bundle${coreTotal - coreVerified === 1 ? "" : "s"} first.`
+        : listeningReady
+          ? "Two-voice audio using familiar language."
+          : "Complete two sentence prompts first.";
   $("#readingReadiness").textContent = activityIsComplete(module, "reading") ? "✓ Reading complete. Open it again whenever you want." : readingReady ? "Short text built from taught language." : "Complete two sentence prompts first.";
   $("#writingReadiness").textContent = activityIsComplete(module, "writing") ? "✓ Writing complete. Revise it whenever you want." : writingReady ? "Every visible requirement will be checked." : "Finish the sentence set first.";
   $("#speakingReadiness").textContent = activityIsComplete(module, "speaking") ? "✓ Speaking rehearsal complete. Pronunciation remains unscored." : speakingReady ? "Transcript phrase check. Pronunciation scoring is unavailable." : "Pass the writing checklist first.";
@@ -1057,13 +1096,19 @@ function renderPracticeMenu() {
   $("#moduleJourneySteps").innerHTML = stages.map(stage => `<li class="${stage.complete ? "complete" : stage.current ? "current" : ""}">${escapeHtml(stage.label)}</li>`).join("");
   $("#practiceAssessmentRecord").hidden = record.assessment.attempts.length === 0;
   $("#practiceAssessmentScores").innerHTML = record.assessment.attempts.map((attempt, index) => `<li>Attempt ${index + 1}: <strong>${Math.round(attempt.score * 100)}%</strong> · ${attempt.passed ? "Passed" : "Retake available"}</li>`).join("");
+  $$('[data-practice-mode]').filter(button => !button.hidden).forEach((button, index) => {
+    const number = button.querySelector?.(":scope > span");
+    if (number) number.textContent = String(index + 1).padStart(2, "0");
+  });
   $("#practiceStart").hidden = false;
   $("#activityShell").hidden = true;
   $("#quizSummary").hidden = true;
   hideActivities();
+  setTimeout(() => $("#practiceTitle").focus(), 40);
 }
 
 function hideActivities() {
+  pauseListeningAudio(true);
   ["#assessmentIntro", "#quizShell", "#listeningTask", "#readingTask", "#writingTask", "#speakingTask"].forEach(selector => { $(selector).hidden = true; });
 }
 
@@ -1077,13 +1122,14 @@ function openPracticeMode(mode) {
   const coreReady = verifiedCoreCount(module) === moduleCoreWords(module).length;
   const readiness = {
     sentences: lessonReady && coreReady && available.length > 0,
+    listening: Boolean(listeningFor(module) && lessonReady && coreReady && resolved >= Math.min(2, module.questions.length)),
     reading: lessonReady && coreReady && resolved >= Math.min(2, module.questions.length),
     writing: lessonReady && coreReady && resolved >= module.questions.length,
     speaking: lessonReady && coreReady && resolved >= module.questions.length && activityIsComplete(module, "writing"),
     checkpoint: courseworkIsComplete(module)
   };
-  if (mode === "listening") {
-    announceModule({ code: module.code, title: "Listening is being rebuilt with reviewed German audio" });
+  if (mode === "listening" && !listeningFor(module)) {
+    announceModule({ code: module.code, title: "Curated audio is coming to this module" });
     return renderPracticeMenu();
   }
   if (!readiness[mode]) {
@@ -1378,6 +1424,8 @@ function readingAnswerResult(value, answers, level, prompt = "", requirements = 
     return {
       correct: score === 1,
       score: score === 1 ? 1 : score >= .5 ? .5 : 0,
+      requirementsMet: met,
+      requirementsTotal: checks.length,
       answer: answers[0],
       note: score === 1 ? "Your wording gives every requested detail." : `${met} of ${checks.length} requested details are present. Review: ${missing.join(", ")}.`
     };
@@ -1825,29 +1873,72 @@ function retryMissedQuestions() {
 
 function renderListening() {
   const module = activeModule();
+  const item = listeningFor(module);
+  if (!item) return renderPracticeMenu();
+  const audio = $("#listeningAudio");
+  pauseListeningAudio(true);
   $("#listeningTask").hidden = false;
-  $("#listeningTitle").textContent = `${module.code}: Listen for the useful detail`;
-  $("#listeningContext").textContent = "Play the German message, then answer the question. The transcript appears after you submit.";
-  $("#listeningPrompt").textContent = module.input.listenPrompt;
+  $("#listeningTitle").textContent = `${module.code}: ${item.title}`;
+  $("#listeningContext").textContent = `${item.context} ${item.goal}`;
+  const speakerNames = [...new Set(item.turns.map(turn => turn.speaker))];
+  const speakerCount = speakerNames.length;
+  $("#listeningCast").innerHTML = `<strong>${speakerCount} speaker${speakerCount === 1 ? "" : "s"}</strong><span>${speakerNames.map(escapeHtml).join(" · ")}</span>`;
+  audio.src = item.src;
+  audio.load?.();
+  const speed = Number($("#listeningSpeed").value || 1);
+  audio.playbackRate = speed;
+  $("#listeningPrompt").textContent = item.prompt;
   $("#listeningInput").value = "";
+  $("#listeningInput").disabled = false;
+  $("#listeningCheck").disabled = false;
   $("#listeningFeedback").hidden = true;
+  $("#listeningActions").hidden = true;
+  $("#listeningRetry").hidden = true;
+  $("#listeningContinue").hidden = true;
+  setTimeout(() => $("#listeningTitle").focus(), 40);
 }
 
 function submitListening(event) {
   event.preventDefault();
   const module = activeModule();
+  const item = listeningFor(module);
+  if (!item) return;
   const value = $("#listeningInput").value;
-  if (!value.trim()) return;
-  const result = classifyAnswer(value, module.input.listenAnswers, module.level);
-  const record = moduleRecord(module.id);
-  record.listening = Math.max(record.listening || 0, result.correct ? 1 : .4);
-  state.skills.listening.attempts += 1;
-  if (result.correct) state.skills.listening.correct += 1;
-  saveState();
+  if (!value.trim() || $("#listeningInput").disabled) return;
+  const result = readingAnswerResult(value, item.answers, module.level, item.prompt, item.requirements || []);
+  const score = result.correct ? 1 : result.score >= .5 ? .5 : 0;
+  recordActivityResult(module.id, "listening", score);
+  $("#listeningInput").disabled = true;
+  $("#listeningCheck").disabled = true;
   const feedback = $("#listeningFeedback");
   feedback.hidden = false;
   feedback.className = `task-feedback ${result.correct ? "success" : "repair"}`;
-  feedback.innerHTML = `<h3>${result.correct ? "Meaning secured." : "Review the detail."}</h3><p>${result.correct ? "Your answer matches the message." : diagnoseDifference(value, result.answer)}</p><p><strong>Answer:</strong> ${escapeHtml(result.answer)}</p><p class="model"><strong>Transcript:</strong> ${escapeHtml(module.input.script)}</p>`;
+  const message = result.correct
+    ? "Your answer gives the requested detail."
+    : score >= .5
+      ? "You caught part of it. Replay the conversation and add the missing information."
+      : "Replay the conversation and listen for the requested detail.";
+  const requirementProgress = result.requirementsTotal ? result.requirementsMet / result.requirementsTotal : null;
+  const revealSupport = result.correct || (requirementProgress == null ? score >= .5 : requirementProgress >= .67);
+  const learnerAnswer = `<div class="listening-answer-review ${revealSupport ? "" : "single"}"><p><strong>Your answer</strong><span>${escapeHtml(value)}</span></p>${revealSupport ? `<p><strong>Accepted answer</strong><span>${escapeHtml(result.answer)}</span></p><p><strong>Evidence</strong><span lang="de-DE">${escapeHtml(item.evidence)}</span></p>` : ""}</div>`;
+  const contextNote = item.culture ? `<div class="listening-culture"><strong>In context</strong><p>${escapeHtml(item.culture)}</p>${item.source ? `<a href="${escapeHtml(item.source.url)}" target="_blank" rel="noreferrer">${escapeHtml(item.source.title)} source ↗</a>` : ""}</div>` : "";
+  const strategyTip = item.tip ? `<div class="listening-strategy"><strong>Strategy</strong><p>${escapeHtml(item.tip)}</p></div>` : "";
+  const support = revealSupport ? `<div class="listening-transcript"><strong>Transcript</strong>${item.turns.map(turn => `<p><span>${escapeHtml(turn.speaker)}</span><q lang="de-DE">${escapeHtml(turn.text)}</q></p>`).join("")}</div>${contextNote}${strategyTip}` : "";
+  feedback.innerHTML = `<div class="listening-status" role="status" aria-live="polite" aria-atomic="true"><h3>${result.correct ? "Correct." : score >= .5 ? "You caught part of it." : "Listen once more."}</h3><p>${escapeHtml(revealSupport ? (result.note || message) : message)}</p></div>${learnerAnswer}<div aria-live="off">${support}<p class="listening-credit">Female voice: Chatterbox Multilingual. Male voice: Coqui Thorsten VITS.</p></div>`;
+  $("#listeningActions").hidden = false;
+  $("#listeningRetry").hidden = result.correct;
+  $("#listeningContinue").hidden = !result.correct;
+}
+
+function retryListening() {
+  $("#listeningFeedback").hidden = true;
+  $("#listeningActions").hidden = true;
+  $("#listeningInput").disabled = false;
+  $("#listeningCheck").disabled = false;
+  $("#listeningInput").focus();
+  const audio = $("#listeningAudio");
+  audio.currentTime = 0;
+  audio.play?.()?.catch?.(() => {});
 }
 
 function renderReading() {
@@ -2233,6 +2324,12 @@ function renderCulture() {
 }
 
 function skillModuleCount(skill) {
+  if (skill === "listening") {
+    return listeningCourse.items.filter(item => {
+      const module = moduleById(item.moduleId);
+      return module && activityIsComplete(module, "listening");
+    }).length;
+  }
   return modules.filter(module => state.modules[module.id] && activityIsComplete(module, skill)).length;
 }
 
@@ -2254,6 +2351,7 @@ function renderProgress() {
   const skills = [
     { key: "vocabulary", label: "Typed core-word recall", value: Math.round(verifiedCore / coreTotal * 100), detail: `${verifiedCore} of ${coreTotal} core bundles recalled` },
     { key: "sentences", label: "Typed sentence production", value: Math.round(Object.values(state.modules).reduce((sum, item) => sum + Object.keys(item.completedPrompts || {}).length, 0) / allQuestions.length * 100), detail: `${state.quiz.attempts} first-pass attempts` },
+    { key: "listening", label: "Voiced listening", value: Math.round(skillModuleCount("listening") / Math.max(1, listeningCourse.items.length) * 100), detail: `${skillModuleCount("listening")} of ${listeningCourse.items.length} dialogues completed` },
     { key: "reading", label: "Reading", value: Math.round(skillModuleCount("reading") / modules.length * 100), detail: `${skillModuleCount("reading")} modules practiced` },
     { key: "reading-library", label: "Graded reading track", value: Math.round(passedLibraryReadings / Math.max(1, readingLibrary.length) * 100), detail: `${passedLibraryReadings} of ${readingLibrary.length} complete texts passed` },
     { key: "writing", label: "Guided writing", value: Math.round(skillModuleCount("writing") / modules.length * 100), detail: `${skillModuleCount("writing")} modules practiced` },
@@ -2331,6 +2429,11 @@ function bindEvents() {
   $("#nextModule").addEventListener("click", continueToNextModule);
   $("#finishQuiz").addEventListener("click", renderPracticeMenu);
   $("#listeningForm").addEventListener("submit", submitListening);
+  $("#listeningRetry").addEventListener("click", retryListening);
+  $("#listeningContinue").addEventListener("click", renderPracticeMenu);
+  $("#listeningSpeed").addEventListener("change", event => {
+    $("#listeningAudio").playbackRate = Number(event.target.value || 1);
+  });
   $("#readingForm").addEventListener("submit", submitReading);
   $("#readingRetry").addEventListener("click", retryReading);
   $("#readingContinue").addEventListener("click", renderPracticeMenu);
