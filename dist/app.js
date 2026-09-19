@@ -110,7 +110,7 @@ const $$ = selector => [...document.querySelectorAll(selector)];
 const now = () => Date.now();
 const today = () => new Date().toISOString().slice(0, 10);
 const dayMs = 86400000;
-const assessmentVersion = 3;
+const assessmentVersion = 5;
 const assessmentPassScore = .8;
 
 const defaultState = {
@@ -184,6 +184,7 @@ let deckIndex = 0;
 let cardRevealed = false;
 let targetedWordId = null;
 let vocabFilter = "all";
+let vocabVisibleLimit = 200;
 let quiz = null;
 let bannerTimer = null;
 let learnMode = "deck";
@@ -408,6 +409,8 @@ function moduleSequenceComplete(module) {
 }
 
 function unmetPrerequisite(module) {
+  const existing = state.modules[module.id];
+  if (existing?.started || existing?.assessment?.attempts?.length) return null;
   if (!module.prerequisite) return null;
   const prerequisite = moduleById(module.prerequisite);
   const earlierBlock = unmetPrerequisite(prerequisite);
@@ -1617,7 +1620,7 @@ function writingAssessmentScore(module, text) {
   const words = countWords(text);
   if (task.checks?.length) {
     const required = evaluateWritingChecks(task, text).filter(check => check.required !== false);
-    return required.length ? required.filter(check => check.met).length / required.length : 1;
+    return scoredChecklistRatio(required);
   }
   const requirements = (task.required || []).map(item => requirementMet(text, item));
   const lengthMet = words >= task.minWords && (!task.maxWords || words <= task.maxWords);
@@ -1913,6 +1916,14 @@ function speakingMinimumWords(module) {
 
 function speakingChecks(module, text) {
   const task = module.task;
+  if (task.speakingChecks?.length) {
+    const words = countWords(text);
+    return task.speakingChecks.map(check => ({
+      ...check,
+      item: check.label,
+      ...evaluateWritingCheck(check, text, words)
+    }));
+  }
   const words = countWords(text);
   const targets = task.speakingRequired.map(item => ({
     item: Array.isArray(item) ? item.join(" or ") : item,
@@ -1924,7 +1935,14 @@ function speakingChecks(module, text) {
 
 function speakingAssessmentScore(module, text) {
   const checks = speakingChecks(module, text);
-  return checks.filter(check => check.met).length / Math.max(1, checks.length);
+  return scoredChecklistRatio(checks);
+}
+
+function scoredChecklistRatio(checks) {
+  const required = checks.filter(check => check.required !== false);
+  const raw = required.filter(check => check.met).length / Math.max(1, required.length);
+  const essentialMiss = required.some(check => check.essential && !check.met);
+  return essentialMiss ? Math.min(raw, .49) : raw;
 }
 
 function writingLines(text) {
@@ -1978,6 +1996,13 @@ function evaluateWritingCheck(check, text, words) {
     const flags = (check.flags || "iu").includes("g") ? check.flags || "giu" : (check.flags || "iu") + "g";
     const actual = Math.max(...[String(text), foldKeyboardCase(text)].map(candidate => [...candidate.matchAll(new RegExp(check.pattern, flags))].length));
     return { met: actual >= check.min, detail: actual + " matching part" + (actual === 1 ? "" : "s") };
+  }
+  if (check.type === "lexicalDiversity") {
+    const tokens = foldSpelling(text).match(/[\p{L}\p{M}]+/gu) || [];
+    const distinct = new Set(tokens).size;
+    const ratio = distinct / Math.max(1, tokens.length);
+    const met = distinct >= (check.minDistinct || 0) && ratio >= (check.minRatio || 0);
+    return { met, detail: `${distinct} different words across ${tokens.length} total` };
   }
   if (check.type === "minWords") return { met: words >= check.value, detail: words + " words" };
   if (check.type === "maxWords") return { met: words <= check.value, detail: words + " words" };
@@ -2048,7 +2073,7 @@ function checkWriting() {
     const requiredChecks = checks.filter(check => check.required !== false);
     const requiredPassed = requiredChecks.filter(check => check.met).length;
     const optionalMisses = checks.filter(check => check.required === false && !check.met).length;
-    const ratioValue = requiredChecks.length ? requiredPassed / requiredChecks.length : 1;
+    const ratioValue = scoredChecklistRatio(requiredChecks);
     recordActivityResult(module.id, "writing", ratioValue);
     const writingFeedback = $("#writingFeedback");
     writingFeedback.hidden = false;
@@ -2128,7 +2153,7 @@ function checkSpeaking() {
   const text = $("#speakingTranscript").value;
   if (!text.trim()) return;
   const requirements = speakingChecks(module, text);
-  const ratio = requirements.filter(item => item.met).length / Math.max(1, requirements.length);
+  const ratio = scoredChecklistRatio(requirements);
   recordActivityResult(module.id, "speaking", ratio);
   const feedback = $("#speakingFeedback");
   feedback.hidden = false;
@@ -2168,7 +2193,11 @@ function renderVocabulary() {
     return a.de.localeCompare(b.de, "de");
   });
   $("#emptyVocab").hidden = words.length > 0;
-  $("#vocabRows").innerHTML = words.map(word => {
+  const totalMatches = words.length;
+  const visibleWords = words.slice(0, vocabVisibleLimit);
+  $("#vocabMore").hidden = visibleWords.length >= totalMatches;
+  $("#vocabMoreStatus").textContent = `Showing ${visibleWords.length} of ${totalMatches} matching cards`;
+  $("#vocabRows").innerHTML = visibleWords.map(word => {
     const record = state.words[word.globalId];
     const tier = tierFor(record);
     const due = record?.nextReview && record.nextReview <= now();
@@ -2182,6 +2211,11 @@ function renderVocabulary() {
     targetedWordId = word.globalId;
     go("learn");
   }));
+}
+
+function resetVocabularyWindow() {
+  vocabVisibleLimit = 200;
+  renderVocabulary();
 }
 
 function renderCulture() {
@@ -2303,12 +2337,13 @@ function bindEvents() {
   $("#checkSpeaking").addEventListener("click", checkSpeaking);
   $("#speakingRetry").addEventListener("click", retrySpeaking);
   $("#speakingContinue").addEventListener("click", renderPracticeMenu);
-  ["#vocabScope", "#vocabLevel"].forEach(selector => $(selector).addEventListener("change", renderVocabulary));
-  $("#vocabSearch").addEventListener("input", renderVocabulary);
+  ["#vocabScope", "#vocabLevel"].forEach(selector => $(selector).addEventListener("change", resetVocabularyWindow));
+  $("#vocabSearch").addEventListener("input", resetVocabularyWindow);
+  $("#vocabMoreButton").addEventListener("click", () => { vocabVisibleLimit += 200; renderVocabulary(); });
   $$('[data-tier]').forEach(button => button.addEventListener("click", () => {
     vocabFilter = button.dataset.tier;
     $$('[data-tier]').forEach(item => item.classList.toggle("active", item === button));
-    renderVocabulary();
+    resetVocabularyWindow();
   }));
   $("#resetProgress").addEventListener("click", () => $("#resetDialog").showModal());
   $("#confirmReset").addEventListener("click", () => {

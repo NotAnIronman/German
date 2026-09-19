@@ -106,6 +106,11 @@
           type: "capitalization",
           words: nounWords,
           required: rank[module.level] < rank.A2 ? false : true
+        }] : rank[module.level] < rank.A2 ? [{
+          label: "Use the taught capitalization",
+          type: "capitalization",
+          words: [],
+          required: false
         }] : [])
       ];
     } else if (module.task.maxWords && !module.task.checks.some(check => check.type === "maxWords")) {

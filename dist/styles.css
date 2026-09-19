@@ -377,11 +377,12 @@ mark.answer-token, mark.case-character { color: inherit; }
 .vocab-filters button { border: 1px solid #bdc4d1; background: transparent; padding: 8px 11px; font-size: .78rem; font-weight: 760; }
 .vocab-filters button.active { background: var(--ink); border-color: var(--ink); color: white; }
 .vocab-table-wrap { border: 1px solid var(--line); background: white; overflow-x: auto; }
+.vocab-more { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 0 4px; color: var(--muted); }
 .vocab-table { width: 100%; border-collapse: collapse; min-width: 820px; }
 .vocab-table th, .vocab-table td { padding: 15px 17px; text-align: left; border-bottom: 1px solid var(--line); }
 .vocab-table th { background: #eef1f7; color: var(--muted); font-size: .69rem; letter-spacing: .08em; text-transform: uppercase; }
 .vocab-table td { font-size: .85rem; vertical-align: top; }
-.vocab-table td:first-child strong, .vocab-table td:first-child small, .vocab-table td:nth-child(2) span, .vocab-table td:nth-child(2) small { display: block; }
+.vocab-table td:first-child strong, .vocab-table td:first-child small, .vocab-table td:nth-child(2) span, .vocab-table td:nth-child(2) small, .vocab-table td:nth-child(3) small { display: block; }
 .vocab-table td small { margin-top: 4px; color: var(--muted); line-height: 1.4; }
 .tier-pill { display: inline-flex; align-items: center; gap: 6px; font-size: .75rem; font-weight: 800; }
 .evidence-mini { width: 100px; height: 6px; margin-top: 7px; background: #e0e4ec; }
