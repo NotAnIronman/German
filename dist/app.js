@@ -121,7 +121,7 @@ const localDayKey = (value = new Date()) => {
 };
 const today = () => localDayKey();
 const dayMs = 86400000;
-const assessmentVersion = 5;
+const assessmentVersion = 6;
 const assessmentPassScore = .8;
 
 const defaultState = {
@@ -1061,7 +1061,10 @@ function setActiveModule(id, announce = true) {
 }
 
 function go(view) {
-  if (view !== "practice") pauseListeningAudio(true);
+  if (view !== "practice") {
+    pauseListeningAudio(true);
+    cancelActiveSpeechRecognition();
+  }
   currentView = view;
   $$(".view").forEach(section => {
     const active = section.id === `view-${view}`;
@@ -1750,6 +1753,7 @@ function renderPracticeMenu() {
 
 function hideActivities() {
   pauseListeningAudio(true);
+  cancelActiveSpeechRecognition();
   ["#assessmentIntro", "#quizShell", "#listeningTask", "#readingTask", "#writingTask", "#speakingTask"].forEach(selector => { $(selector).hidden = true; });
 }
 
@@ -1804,7 +1808,10 @@ function renderAssessmentIntro() {
     "Answers are saved without correctness feedback during the attempt.",
     "Pass with 80% overall, plus 70% in vocabulary and sentences, 50% in reading, and 60% in structured writing and speaking.",
     "Your latest 10 completed attempts stay in your score history. A lower retake keeps your best score.",
-    "Keyboard spellings such as ae, oe, ue, and ss receive full credit."
+    "Keyboard spellings such as ae, oe, ue, and ss receive full credit.",
+    levelRank[module.level] >= levelRank.B1
+      ? "From B1 onward, standard capitalization and sentence punctuation are part of the score."
+      : "At A0 through A2, capitalization and sentence punctuation receive coaching without lowering the score."
   ].map(rule => `<li>${escapeHtml(rule)}</li>`).join("");
   const archived = record.assessment.archive?.[record.assessment.archive.length - 1];
   const currentHistory = record.assessment.attempts.length
@@ -1821,6 +1828,239 @@ function beginModuleAssessment() {
   $("#assessmentIntro").hidden = true;
   startQuiz(true);
 }
+
+/* ASSESSMENT_CONTRACTS_START */
+function assessmentCleanText(value) {
+  return String(value ?? "").trim().replace(/\s+/gu, " ");
+}
+
+function assessmentContentPrompt(prompt) {
+  let value = assessmentCleanText(prompt);
+  const wrappers = [
+    /^Respond in German\.\s*/iu,
+    /^Write the complete German response\.\s*/iu,
+    /^Use the lesson language to answer\.\s*/iu
+  ];
+  let changed = true;
+  while (changed) {
+    changed = false;
+    wrappers.forEach(pattern => {
+      const next = value.replace(pattern, "");
+      if (next !== value) {
+        value = next;
+        changed = true;
+      }
+    });
+  }
+  return value;
+}
+
+function assessmentDemandsExactSurface(prompt) {
+  const value = assessmentContentPrompt(prompt);
+  return /\b(?:restore the missing|put these parts|arrange (?:these|the)|rewrite (?:the )?(?:whole|complete)|correct (?:the|this) (?:whole |complete )?sentence|write (?:the )?(?:whole|complete) german sentence|write both parts|write two useful lines|in this order|spell .+ (?:with|using) the taught sentence frame|recall the model sentence|rebuild the model sentence|taught sentence|taught bundle|complete taught form)\b/iu.test(value);
+}
+
+function assessmentPromptRequestsGreeting(prompt) {
+  return /\b(?:hello|hi|greet|greeting|good morning|good day|good evening|hallo|guten morgen|guten tag|guten abend|open with a greeting)\b/iu.test(assessmentContentPrompt(prompt));
+}
+
+function assessmentUppercaseOpening(value) {
+  return assessmentCleanText(value).replace(/^([\p{L}])/u, letter => letter.toLocaleUpperCase("de-DE"));
+}
+
+function assessmentWithoutGreeting(answer) {
+  const match = assessmentCleanText(answer).match(/^(?:Hallo|Hi|Guten Morgen(?:\s+zusammen)?|Guten Tag|Guten Abend|Grüß Gott|Gruess Gott|Servus|Moin)[!,.?:;]?\s+(.+)$/iu);
+  return match ? assessmentUppercaseOpening(match[1]) : "";
+}
+
+function assessmentWithoutAttentionWord(answer) {
+  const match = assessmentCleanText(answer).match(/^Entschuldigung[!,.?:;]?\s+(.+)$/iu);
+  return match ? assessmentUppercaseOpening(match[1]) : "";
+}
+
+function assessmentWithoutCourtesyWord(answer) {
+  const value = assessmentCleanText(answer);
+  const leading = value.match(/^Bitte[!,.?:;]?\s+(.+)$/iu);
+  if (leading) return assessmentUppercaseOpening(leading[1]);
+  const trailing = value.match(/^(.+?)[,!;:]?\s+bitte([.!?])?$/iu);
+  return trailing ? `${assessmentCleanText(trailing[1])}${trailing[2] || "."}` : "";
+}
+
+function assessmentWithoutOptionalStance(answer) {
+  const match = assessmentCleanText(answer).match(/^Leider[!,.?:;]?\s+([\p{L}]+)\s+(ich|du|er|sie|es|wir|ihr)\s+(.+)$/iu);
+  if (!match) return "";
+  const subject = assessmentUppercaseOpening(match[2]);
+  return `${subject} ${match[1].toLocaleLowerCase("de-DE")} ${match[3]}`;
+}
+
+function assessmentNameTarget(prompt) {
+  const value = assessmentContentPrompt(prompt);
+  const match = value.match(/\b(?:introduce yourself as|my name is)\s+([\p{L}][\p{L}'’\-]*)\b/iu);
+  return match?.[1] || "";
+}
+
+function uniqueAssessmentAnswers(values) {
+  const seen = new Set();
+  return values.reduce((answers, value) => {
+    const clean = assessmentCleanText(value);
+    const key = clean.normalize("NFC");
+    if (!clean || seen.has(key)) return answers;
+    seen.add(key);
+    answers.push(clean);
+    return answers;
+  }, []);
+}
+
+function assessmentRegisterForAnswer(question, prompt, answer) {
+  const value = assessmentCleanText(answer);
+  const promptCue = assessmentContentPrompt(prompt);
+  const contextCue = assessmentCleanText(question.context);
+  const informalSingular = /\b(?:du|dich|dir|dein(?:e|en|er|es|em)?)\b/iu.test(value);
+  const informalPlural = /\bIhr\s+(?:seid|habt|kommt|geht|macht|könnt|koennt|müsst|muesst|dürft|duerft|wollt|sollt|nehmt|gebt|sagt|sprecht|schreibt|lest|seht|wisst|bleibt|stellt|legt|bringt|holt|zeigt|helft)\b/u.test(value)
+    || /\b(?:Seid|Habt|Kommt|Geht|Macht|Könnt|Koennt|Müsst|Muesst|Dürft|Duerft|Wollt|Sollt|Nehmt|Gebt|Sagt|Sprecht|Schreibt|Lest|Seht|Wisst|Bleibt|Stellt|Legt|Bringt|Holt|Zeigt|Helft)\s+ihr\b/u.test(value);
+  const addresseeCue = /\b(?:you|your|formal|polite)\b/iu.test(promptCue)
+    || /\b(?:formal(?:ly)?|use\s+Sie|using\s+Sie)\b/u.test(contextCue);
+  const capitalSie = /\bSie\b/u.test(value);
+  const formalSie = capitalSie && (!/^Sie\b/u.test(value) || addresseeCue);
+  const formalPossessive = !informalPlural
+    && !/\b(?:her|their)\b/iu.test(promptCue)
+    && /\bIhr(?:e|en|er|es|em)?\b/u.test(value);
+  const formal = /\bIhnen\b/u.test(value) || formalSie || formalPossessive;
+  const matches = [
+    informalSingular ? "du" : "",
+    informalPlural ? "ihr" : "",
+    formal ? "Sie" : ""
+  ].filter(Boolean);
+  return matches.length === 1 ? matches[0] : "";
+}
+
+function assessmentRegisterRequirement(question, prompt, answers) {
+  const value = assessmentContentPrompt(prompt);
+  if (/\b(?:formal(?:ly)?|informal(?:ly)?)\b/iu.test(value)
+    || /\b(?:du|dich|dir|dein(?:e|en|er|es|em)?)\b/iu.test(value)
+    || /\b(?:Sie|Ihnen|Ihr(?:e|en|er|es|em)?)\b/u.test(value)) return "";
+  const registers = answers.map(answer => assessmentRegisterForAnswer(question, prompt, answer));
+  if (!registers.length || !registers[0] || registers.some(register => register !== registers[0])) return "";
+  return registers[0] === "Sie" ? "Use formal Sie." : `Use informal ${registers[0]}.`;
+}
+
+function assessmentNameAnswers(prompt) {
+  const name = assessmentNameTarget(prompt);
+  if (!name) return [];
+  return [
+    `Ich bin ${name}.`,
+    `Ich heiße ${name}.`,
+    `Mein Name ist ${name}.`
+  ];
+}
+
+function assessmentNaturalNameQuestions(answers) {
+  const joined = answers.join(" ");
+  if (/\bWie\s+hei(?:ß|ss)t\s+du\b/iu.test(joined)) return ["Wie ist dein Name?"];
+  if (/\bWie\s+hei(?:ß|ss)en\s+Sie\b/u.test(joined)) return ["Wie ist Ihr Name?", "Wie lautet Ihr Name?"];
+  return [];
+}
+
+function taskSpecificNaturalAnswers(question, prompt) {
+  const id = question.sourceId || question.id;
+  if (id === "bread-price" && /shop employee/iu.test(prompt)) return ["Wie viel kostet das Brot?"];
+  if (id === "station" && /how to get there/iu.test(prompt)) {
+    return [
+      "Wie komme ich bitte zum Bahnhof?",
+      "Könnten Sie mir bitte sagen, wie ich zum Bahnhof komme?"
+    ];
+  }
+  if (id === "a1hc-q2" && /ask the question/iu.test(prompt)) return ["Ist das Frühstück im Preis inbegriffen?"];
+  if (id === "b29-q1" && /open the meeting/iu.test(prompt)) {
+    return ["Willkommen. Zuerst besprechen wir den Zeitplan. Gibt es dazu kurze Fragen?"];
+  }
+  return [];
+}
+
+function assessmentContractFor(question) {
+  const prompt = assessmentContentPrompt(question.prompt);
+  const authored = uniqueAssessmentAnswers(question.answers || []);
+  const generated = [];
+  const notes = [];
+  const strict = assessmentDemandsExactSurface(prompt);
+
+  if (!strict) {
+    generated.push(...assessmentNameAnswers(prompt));
+    generated.push(...taskSpecificNaturalAnswers(question, prompt));
+    if (/\bask (?:for )?(?:his|her|their|someone(?:'s)?|the other person's) name\b/iu.test(prompt)) {
+      generated.push(...assessmentNaturalNameQuestions(authored));
+    }
+    if (!assessmentPromptRequestsGreeting(prompt)) {
+      const concise = authored.map(assessmentWithoutGreeting).filter(Boolean);
+      if (concise.length) {
+        generated.push(...concise);
+        notes.push("A greeting is optional.");
+      }
+    }
+    if (!/\b(?:apologize|apology|excuse|entschuldigung|polite|politely)\b/iu.test(prompt)) {
+      const direct = authored.map(assessmentWithoutAttentionWord).filter(Boolean);
+      if (direct.length) {
+        generated.push(...direct);
+        notes.push("You may begin with Entschuldigung.");
+      }
+    }
+    if (!/\b(?:polite|politely|please|bitte)\b/iu.test(prompt)) {
+      const direct = authored.map(assessmentWithoutCourtesyWord).filter(Boolean);
+      if (direct.length) {
+        generated.push(...direct);
+        notes.push("Bitte is optional here.");
+      }
+    }
+    if (!/\b(?:unfortunately|regret|sorry|leider)\b/iu.test(prompt)) {
+      const neutral = authored.map(assessmentWithoutOptionalStance).filter(Boolean);
+      if (neutral.length) {
+        generated.push(...neutral);
+        notes.push("Leider is optional here.");
+      }
+    }
+  }
+
+  const answers = uniqueAssessmentAnswers([...authored, ...generated]);
+  const register = assessmentRegisterRequirement(question, prompt, answers);
+  if (register) notes.push(register);
+  const requirementNote = [...new Set(notes)].join(" ");
+  return {
+    answers,
+    authoredCount: authored.length,
+    generatedCount: Math.max(0, answers.length - authored.length),
+    strict,
+    requirementNote
+  };
+}
+
+function prepareAssessmentSentence(question) {
+  const contract = assessmentContractFor(question);
+  return {
+    ...question,
+    answers: contract.answers,
+    prompt: contract.requirementNote ? `${question.prompt} ${contract.requirementNote}` : question.prompt,
+    assessmentContract: contract
+  };
+}
+
+function preparePracticeSentence(question) {
+  const contract = assessmentContractFor(question);
+  return {
+    ...question,
+    answers: contract.answers,
+    assessmentContract: contract
+  };
+}
+
+if (typeof window !== "undefined") {
+  window.SatzwerkAssessmentContracts = Object.freeze({
+    forQuestion: assessmentContractFor,
+    contentPrompt: assessmentContentPrompt,
+    prepare: prepareAssessmentSentence,
+    preparePractice: preparePracticeSentence
+  });
+}
+/* ASSESSMENT_CONTRACTS_END */
 
 function assessmentItemsFor(module, run) {
   const vocabularyItems = moduleCoreWords(module).map(word => ({
@@ -1848,7 +2088,7 @@ function assessmentItemsFor(module, run) {
     kind: "sentences"
   }));
   const sentences = variedOrder(
-    sentenceItems.map(question => materializeQuestion(question, module.id, run, { assessment: true })),
+    sentenceItems.map(question => prepareAssessmentSentence(materializeQuestion(question, module.id, run, { assessment: true }))),
     `assessment-order:${module.id}:sentences`,
     run.random
   );
@@ -1906,7 +2146,7 @@ function startQuiz(checkpoint) {
   const questions = checkpoint
     ? assessmentItemsFor(module, run)
     : variedOrder(
-      source.map(question => materializeQuestion(question, module.id, run, { preserveSurface: !hasPriorSentencePractice })),
+      source.map(question => preparePracticeSentence(materializeQuestion(question, module.id, run, { preserveSurface: !hasPriorSentencePractice }))),
       `sentence-order:${module.id}`,
       run.random,
       { preserveFirst: !hasPriorSentencePractice }
@@ -2392,7 +2632,8 @@ function gradeAssessmentResponse(question, value, module) {
     return { score, correct: score >= 1, answer: module.task.speakingModel };
   }
   if (question.kind === "reading") return readingAnswerResult(value, question.answers, module.level, question.prompt, module.input.readRequired || []);
-  const result = classifyAnswer(value, question.answers, module.level);
+  const answers = question.kind === "sentences" ? assessmentContractFor(question).answers : question.answers;
+  const result = classifyAnswer(value, answers, module.level);
   return { score: result.correct ? 1 : 0, correct: result.correct, answer: result.answer };
 }
 
@@ -2964,7 +3205,68 @@ function retryWriting() {
   $("#writingInput").focus();
 }
 
+const speakingStatusDefault = "This activity checks included phrases through a transcript. Pronunciation quality is outside this check.";
+let activeSpeechRecognition = null;
+let speechRecognitionAttempt = 0;
+let microphoneRequestPending = false;
+
+function setSpeakingMicrophoneStatus(message = speakingStatusDefault) {
+  const status = $("#speakingMicStatus");
+  if (status) status.textContent = message;
+}
+
+function stopMediaStreamTracks(stream) {
+  if (!stream?.getTracks) return;
+  stream.getTracks().forEach(track => {
+    try { track.stop(); } catch {}
+  });
+}
+
+function resetSpeakingMicrophoneControls(label = "Record again", message = "Microphone stopped. Record again, or type your transcript below.") {
+  const button = $("#startRecognition");
+  const transcript = $("#speakingTranscript");
+  if (!button || !transcript) return;
+  const supported = Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
+  button.disabled = !supported;
+  button.textContent = supported ? label : "Type a transcript here";
+  transcript.placeholder = supported ? "Speak with the microphone, or type your transcript here." : "Type your transcript here.";
+  setSpeakingMicrophoneStatus(supported ? message : "Speech recognition is unavailable in this browser. Type your transcript below to complete the rehearsal.");
+}
+
+function cancelActiveSpeechRecognition(options = {}) {
+  speechRecognitionAttempt += 1;
+  const requestWasPending = microphoneRequestPending;
+  microphoneRequestPending = false;
+  const recognition = activeSpeechRecognition;
+  activeSpeechRecognition = null;
+  if (recognition) {
+    recognition.onstart = null;
+    recognition.onresult = null;
+    recognition.onerror = null;
+    recognition.onend = null;
+    try { recognition.abort(); } catch {}
+  }
+  if (options.resetControls !== false && (recognition || requestWasPending || options.forceReset)) {
+    resetSpeakingMicrophoneControls(options.label || "Record again", options.message);
+  }
+}
+
+function microphoneErrorMessage(error) {
+  const code = String(error?.error || error?.name || "").toLowerCase();
+  if (["not-allowed", "service-not-allowed", "notallowederror", "securityerror"].includes(code)) {
+    return "Microphone access is blocked. Allow access in your browser, then try again. You can type your transcript at any time.";
+  }
+  if (["audio-capture", "notfounderror", "notreadableerror"].includes(code)) {
+    return "The browser could not open a microphone. Check the selected input device, then try again. You can also type your transcript.";
+  }
+  if (code === "no-speech") return "No speech was detected. Try again, or type your transcript below.";
+  if (code === "network") return "Speech recognition could not connect. Try again, or type your transcript below.";
+  if (code === "aborted" || code === "aborterror") return "The microphone stopped. Try again, or type your transcript below.";
+  return "The microphone stopped before a transcript was captured. Try again, or type your transcript below.";
+}
+
 function renderSpeaking() {
+  cancelActiveSpeechRecognition();
   const module = activeModule();
   const task = module.task;
   $("#speakingTask").hidden = false;
@@ -2978,26 +3280,134 @@ function renderSpeaking() {
   const supported = Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
   $("#startRecognition").disabled = !supported;
   $("#startRecognition").textContent = supported ? "Start microphone" : "Type a transcript here";
+  $("#speakingTranscript").placeholder = supported ? "Speak with the microphone, or type your transcript here." : "Type your transcript here.";
+  setSpeakingMicrophoneStatus();
 }
 
-function startRecognition() {
+async function startRecognition() {
   const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!Recognition) return;
-  const recognition = new Recognition();
+  const button = $("#startRecognition");
+  const transcript = $("#speakingTranscript");
+  if (!Recognition) {
+    button.disabled = true;
+    button.textContent = "Type a transcript here";
+    transcript.placeholder = "Type your transcript here.";
+    setSpeakingMicrophoneStatus("Speech recognition is unavailable in this browser. Type your transcript below to complete the rehearsal.");
+    return;
+  }
+
+  if (activeSpeechRecognition || microphoneRequestPending) {
+    cancelActiveSpeechRecognition({ forceReset: true });
+    return;
+  }
+
+  cancelActiveSpeechRecognition({ resetControls: false });
+  const attempt = speechRecognitionAttempt;
+  microphoneRequestPending = true;
+  button.disabled = false;
+  button.textContent = "Cancel microphone request";
+  transcript.placeholder = "You can type your transcript while the microphone opens.";
+  setSpeakingMicrophoneStatus("Waiting for microphone access. Your browser may ask for permission.");
+
+  let permissionStream = null;
+  try {
+    if (navigator.mediaDevices?.getUserMedia) {
+      permissionStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    }
+  } catch (error) {
+    if (attempt !== speechRecognitionAttempt) return;
+    microphoneRequestPending = false;
+    const message = microphoneErrorMessage(error);
+    button.disabled = false;
+    button.textContent = "Try microphone again";
+    transcript.placeholder = message;
+    setSpeakingMicrophoneStatus(message);
+    return;
+  } finally {
+    stopMediaStreamTracks(permissionStream);
+  }
+
+  if (attempt !== speechRecognitionAttempt) return;
+  microphoneRequestPending = false;
+  let recognition;
+  try {
+    recognition = new Recognition();
+  } catch (error) {
+    const message = microphoneErrorMessage(error);
+    button.disabled = false;
+    button.textContent = "Try microphone again";
+    transcript.placeholder = message;
+    setSpeakingMicrophoneStatus(message);
+    return;
+  }
+
+  activeSpeechRecognition = recognition;
   recognition.lang = "de-DE";
   recognition.interimResults = false;
   recognition.maxAlternatives = 1;
-  $("#startRecognition").textContent = "Listening...";
-  recognition.onresult = event => {
-    $("#speakingTranscript").value = event.results[0][0].transcript;
-    $("#startRecognition").textContent = "Record again";
+  let transcriptCaptured = false;
+  let recognitionError = "";
+  recognition.onstart = () => {
+    if (attempt !== speechRecognitionAttempt) return;
+    button.disabled = false;
+    button.textContent = "Stop microphone";
+    setSpeakingMicrophoneStatus("Listening for German. The transcript will appear below.");
   };
-  recognition.onerror = () => { $("#startRecognition").textContent = "Try microphone again"; };
-  recognition.onend = () => { if ($("#startRecognition").textContent === "Listening...") $("#startRecognition").textContent = "Record again"; };
-  recognition.start();
+  recognition.onresult = event => {
+    if (attempt !== speechRecognitionAttempt) return;
+    const value = event.results?.[0]?.[0]?.transcript || "";
+    if (value) {
+      transcriptCaptured = true;
+      transcript.value = value;
+      transcript.placeholder = "Speak with the microphone, or type your transcript here.";
+      setSpeakingMicrophoneStatus("Transcript captured. Read it below and make any needed edits.");
+    }
+    try { recognition.stop(); } catch {}
+  };
+  recognition.onerror = event => {
+    if (attempt !== speechRecognitionAttempt) return;
+    recognitionError = event.error || "unknown";
+    const message = microphoneErrorMessage(event);
+    if (activeSpeechRecognition === recognition) activeSpeechRecognition = null;
+    recognition.onerror = null;
+    try { recognition.abort(); } catch {}
+    button.disabled = false;
+    button.textContent = "Try microphone again";
+    transcript.placeholder = message;
+    setSpeakingMicrophoneStatus(message);
+  };
+  recognition.onend = () => {
+    if (attempt !== speechRecognitionAttempt) return;
+    if (activeSpeechRecognition === recognition) activeSpeechRecognition = null;
+    button.disabled = false;
+    if (transcriptCaptured) button.textContent = "Record again";
+    else if (recognitionError) button.textContent = "Try microphone again";
+    else {
+      button.textContent = "Record again";
+      setSpeakingMicrophoneStatus("The microphone stopped before a transcript was captured. Record again, or type your transcript below.");
+    }
+  };
+  button.disabled = false;
+  button.textContent = "Stop microphone";
+  setSpeakingMicrophoneStatus("Listening for German. The transcript will appear below.");
+  try {
+    recognition.start();
+  } catch (error) {
+    if (activeSpeechRecognition === recognition) activeSpeechRecognition = null;
+    recognition.onstart = null;
+    recognition.onresult = null;
+    recognition.onerror = null;
+    recognition.onend = null;
+    const message = microphoneErrorMessage(error);
+    button.disabled = false;
+    button.textContent = "Try microphone again";
+    transcript.placeholder = message;
+    setSpeakingMicrophoneStatus(message);
+  }
 }
 
 function checkSpeaking() {
+  cancelActiveSpeechRecognition();
   const module = activeModule();
   const task = module.task;
   const text = $("#speakingTranscript").value;
@@ -3235,6 +3645,10 @@ function bindEvents() {
   $("#writingRetry").addEventListener("click", retryWriting);
   $("#writingContinue").addEventListener("click", renderPracticeMenu);
   $("#startRecognition").addEventListener("click", startRecognition);
+  window.addEventListener("pagehide", cancelActiveSpeechRecognition);
+  window.addEventListener("pageshow", event => {
+    if (event.persisted) cancelActiveSpeechRecognition({ forceReset: true, label: "Start microphone", message: speakingStatusDefault });
+  });
   $("#checkSpeaking").addEventListener("click", checkSpeaking);
   $("#speakingRetry").addEventListener("click", retrySpeaking);
   $("#speakingContinue").addEventListener("click", renderPracticeMenu);

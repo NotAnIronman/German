@@ -789,10 +789,151 @@
     }
   };
 
-  for (const [moduleId, addition] of Object.entries(practicalExpansion)) {
-    const target = expansion[moduleId] || (expansion[moduleId] = { words: [], grammar: [] });
-    target.words = [...(target.words || []), ...(addition.words || [])];
-    target.grammar = [...(target.grammar || []), ...(addition.grammar || [])];
+  const transferExpansion = {
+    "a0-first-contact": { words: [
+      ["a0fc-bis-gleich", "Bis gleich!", "See you shortly!", "Bis gleich! · Bis später!", "Bis gleich, Anna!", "See you shortly, Anna!", ["Bis gleich, Emma!"]],
+      ["a0fc-gute-nacht", "Gute Nacht!", "Good night!", "Gute Nacht! · Schlaf gut!", "Gute Nacht, Paul!", "Good night, Paul!", ["Gute Nacht, Ben!"]]
+    ] },
+    "a0-personal-details": { words: [
+      ["a0pd-vorname", "der Vorname, die Vornamen", "first name", "Mein Vorname ist ...", "Mein Vorname ist Lina.", "My first name is Lina.", []],
+      ["a0pd-nachname", "der Nachname, die Nachnamen", "last name", "Mein Nachname ist ...", "Mein Nachname ist Weber.", "My last name is Weber.", []]
+    ] },
+    "a0-everyday-things": { words: [
+      ["a0et-regenschirm", "der Regenschirm, die Regenschirme", "umbrella", "der Regenschirm · die Regenschirme", "Der Regenschirm ist neben der Tür.", "The umbrella is next to the door.", ["Der Regenschirm ist neben der Tuer."]],
+      ["a0et-jacke", "die Jacke, die Jacken", "jacket", "die Jacke · die Jacken", "Die Jacke ist auf dem Stuhl.", "The jacket is on the chair.", []]
+    ] },
+    "a1-people-family-work": { words: [
+      ["a1pf-allein-leben", "allein leben", "to live alone", "allein leben · zusammen leben", "Mein Bruder lebt allein in Bonn.", "My brother lives alone in Bonn.", []],
+      ["a1pf-zusammen-wohnen", "zusammen wohnen", "to live together", "mit jemandem zusammen wohnen", "Lena und Sara wohnen zusammen.", "Lena and Sara live together.", []]
+    ] },
+    "a1-daily-routine": { words: [
+      ["a1dr-anziehen", "sich anziehen", "to get dressed", "sich anziehen · ich ziehe mich an", "Nach dem Duschen ziehe ich mich an.", "I get dressed after showering.", []],
+      ["a1dr-mittagessen", "das Mittagessen, die Mittagessen", "lunch", "Mittag essen · das Mittagessen", "Um zwölf Uhr esse ich zu Mittag.", "I eat lunch at twelve.", ["Um zwoelf Uhr esse ich zu Mittag."]]
+    ] },
+    "a1-food-shopping": { words: [
+      ["a1fs-ohne", "ohne", "without", "ohne plus accusative", "Ich nehme den Kaffee ohne Milch.", "I will take the coffee without milk.", []],
+      ["a1fs-noch-etwas", "noch etwas", "anything else / something more", "Möchten Sie noch etwas?", "Nein, danke. Ich brauche nichts mehr.", "No, thank you. I do not need anything else.", ["Moechten Sie noch etwas?"]]
+    ] },
+    "a1-home-and-town": { words: [
+      ["a1ht-kreuzung", "die Kreuzung, die Kreuzungen", "intersection", "an der Kreuzung", "An der Kreuzung gehen Sie nach links.", "At the intersection, go left.", []],
+      ["a1ht-zu-fuss", "zu Fuß", "on foot", "zu Fuß gehen", "Vom Bahnhof gehe ich zu Fuß.", "I walk from the station.", ["zu Fuss", "Vom Bahnhof gehe ich zu Fuss."]]
+    ] },
+    "a1-plans-and-leisure": { words: [
+      ["a1pl-keine-zeit", "keine Zeit haben", "to have no time", "heute keine Zeit haben", "Heute habe ich leider keine Zeit.", "Unfortunately, I have no time today.", []],
+      ["a1pl-vorhaben", "etwas vorhaben", "to have plans", "am Wochenende etwas vorhaben", "Was hast du am Samstag vor?", "What are your plans on Saturday?", []]
+    ] },
+    "a1-travel-and-services": { words: [
+      ["a1ts-rueckfahrt", "die Rückfahrt, die Rückfahrten", "return journey", "Hin- und Rückfahrt", "Ich brauche eine Fahrkarte für die Hin- und Rückfahrt.", "I need a return ticket.", ["die Rueckfahrt, die Rueckfahrten", "Ich brauche eine Fahrkarte fuer die Hin- und Rueckfahrt."]],
+      ["a1ts-gepaeck", "das Gepäck", "luggage", "mit Gepäck reisen", "Mein Gepäck ist schon im Hotel.", "My luggage is already at the hotel.", ["das Gepaeck", "Mein Gepaeck ist schon im Hotel."]]
+    ] },
+    "a1-health-past-checkpoint": { words: [
+      ["a1hp-sprechstunde", "die Sprechstunde, die Sprechstunden", "consultation hours", "in die Sprechstunde kommen", "Die Sprechstunde beginnt um acht Uhr.", "Consultation hours begin at eight.", []],
+      ["a1hp-gute-besserung", "Gute Besserung!", "Get well soon!", "Gute Besserung wünschen", "Du bist krank? Gute Besserung!", "You are ill? Get well soon!", []]
+    ] },
+    "a2-erlebnisse": { words: [
+      ["a2e-beeindruckend", "beeindruckend", "impressive", "sehr beeindruckend sein", "Die Aussicht vom Turm war beeindruckend.", "The view from the tower was impressive.", []],
+      ["a2e-sich-lohnen", "sich lohnen, hat sich gelohnt", "to be worth it", "eine Reise lohnt sich", "Der lange Weg hat sich gelohnt.", "The long journey was worth it.", []]
+    ] },
+    "a2-wohnung-raum": { words: [
+      ["a2w-nebenkosten", "die Nebenkosten, nur Plural", "service charges", "Miete plus Nebenkosten", "Die Nebenkosten kommen jeden Monat zur Miete dazu.", "The service charges are added to the rent each month.", []],
+      ["a2w-renovieren", "renovieren, hat renoviert", "to renovate", "eine Wohnung renovieren", "Wir haben die Küche vor dem Einzug renoviert.", "We renovated the kitchen before moving in.", ["Wir haben die Kueche vor dem Einzug renoviert."]]
+    ] },
+    "a2-termine-plaene": { words: [
+      ["a2t-dazwischenkommen", "dazwischenkommen, ist dazwischengekommen", "to come up unexpectedly", "etwas ist dazwischengekommen", "Leider ist mir kurzfristig etwas dazwischengekommen.", "Unfortunately, something came up at short notice.", []],
+      ["a2t-verlegen", "einen Termin auf einen anderen Tag verlegen", "to move an appointment to another day", "den Termin auf Dienstag verlegen", "Können wir den Termin auf Dienstag verlegen?", "Can we move the appointment to Tuesday?", ["Koennen wir den Termin auf Dienstag verlegen?"]]
+    ] },
+    "a2-gesundheit": { words: [
+      ["a2g-dosierung", "die Dosierung, die Dosierungen", "dosage", "die richtige Dosierung", "Welche Dosierung soll ich nehmen?", "Which dosage should I take?", []],
+      ["a2g-krankmelden", "sich krankmelden, hat sich krankgemeldet", "to call in sick", "sich bei der Arbeit krankmelden", "Ich habe mich heute Morgen bei der Arbeit krankgemeldet.", "I called in sick at work this morning.", []]
+    ] },
+    "a2-arbeit-lernen": { words: [
+      ["a2a-zustaendig", "für etwas zuständig sein", "to be responsible for something", "für eine Aufgabe zuständig sein", "Wer ist für diese Aufgabe zuständig?", "Who is responsible for this task?", ["fuer etwas zustaendig sein", "Wer ist fuer diese Aufgabe zustaendig?"]],
+      ["a2a-rueckfrage", "die Rückfrage, die Rückfragen", "follow-up question", "eine Rückfrage haben", "Ich habe noch eine Rückfrage zum Bericht.", "I still have a follow-up question about the report.", ["die Rueckfrage, die Rueckfragen"]]
+    ] },
+    "a2-unterwegs": { words: [
+      ["a2u-sich-erkundigen", "sich erkundigen, hat sich erkundigt", "to inquire", "sich nach einer Verbindung erkundigen", "Ich habe mich am Schalter nach der Verbindung erkundigt.", "I asked at the counter about the connection.", []],
+      ["a2u-voraussichtlich", "voraussichtlich", "probably / expected to", "voraussichtlich um ... ankommen", "Der Zug kommt voraussichtlich um zehn Uhr an.", "The train is expected to arrive at ten.", []]
+    ] },
+    "a2-einkaufen-service": { words: [
+      ["a2s-lieferung", "die Lieferung, die Lieferungen", "delivery", "auf eine Lieferung warten", "Die Lieferung soll am Freitag ankommen.", "The delivery is due to arrive on Friday.", []],
+      ["a2s-quittung", "die Quittung, die Quittungen", "receipt", "eine Quittung bekommen", "Könnte ich bitte eine Quittung bekommen?", "Could I have a receipt, please?", ["Koennte ich bitte eine Quittung bekommen?"]]
+    ] },
+    "a2-einladen-meinen": { words: [
+      ["a2m-sich-einigen", "sich einigen, hat sich geeinigt", "to reach an agreement", "sich auf einen Termin einigen", "Wir haben uns auf Samstag geeinigt.", "We agreed on Saturday.", []],
+      ["a2m-vorschlagen", "etwas vorschlagen, hat vorgeschlagen", "to suggest something", "einen anderen Termin vorschlagen", "Ich schlage Sonntagmittag vor.", "I suggest Sunday at noon.", []]
+    ] },
+    "b1-erzaehlen": { words: [
+      ["b1e-im-nachhinein", "im Nachhinein", "in hindsight", "im Nachhinein erkennen", "Im Nachhinein hätte ich früher reagieren sollen.", "In hindsight, I should have reacted sooner.", ["Im Nachhinein haette ich frueher reagieren sollen."]],
+      ["b1e-daraufhin", "daraufhin", "as a result / after that", "Daraufhin plus Verb", "Daraufhin rief eine Passantin die Polizei.", "After that, a passerby called the police.", []]
+    ] },
+    "b1-wohnen-nachbarschaft": { words: [
+      ["b1w-mietminderung", "die Mietminderung, die Mietminderungen", "rent reduction", "eine Mietminderung prüfen", "Wegen des Mangels prüfen die Mieter eine Mietminderung.", "The tenants are considering a rent reduction because of the defect.", []],
+      ["b1w-schriftlich-melden", "einen Mangel schriftlich melden", "to report a defect in writing", "den Schaden schriftlich dokumentieren", "Wir haben den Mangel schriftlich gemeldet und Fotos beigefügt.", "We reported the defect in writing and attached photos.", []]
+    ] },
+    "b1-beruf-bildung": { words: [
+      ["b1b-einarbeitung", "die Einarbeitung", "onboarding / familiarization", "eine gründliche Einarbeitung", "Die Einarbeitung dauert ungefähr zwei Wochen.", "The onboarding takes about two weeks.", ["eine gruendliche Einarbeitung"]],
+      ["b1b-probezeit", "die Probezeit, die Probezeiten", "probationary period", "während der Probezeit", "Während der Probezeit gelten kürzere Kündigungsfristen.", "Shorter notice periods apply during probation.", ["Waehrend der Probezeit gelten kuerzere Kuendigungsfristen."]]
+    ] },
+    "b1-medien-information": { words: [
+      ["b1m-gegenpruefen", "gegenprüfen, hat gegengeprüft", "to cross-check", "eine Angabe mit einer zweiten Quelle gegenprüfen", "Die Zahl wurde mit zwei unabhängigen Quellen gegengeprüft.", "The figure was cross-checked against two independent sources.", ["gegenpruefen, hat gegengeprueft", "Die Zahl wurde mit zwei unabhaengigen Quellen gegengeprueft."]],
+      ["b1m-falschmeldung", "die Falschmeldung, die Falschmeldungen", "false report", "eine Falschmeldung erkennen", "Die Redaktion hat die Falschmeldung schnell korrigiert.", "The editorial team corrected the false report quickly.", []]
+    ] },
+    "b1-umwelt-mobilitaet": { words: [
+      ["b1u-ressourcenschonend", "ressourcenschonend", "resource-efficient", "ressourcenschonend produzieren", "Mehrwegverpackungen können ressourcenschonender sein.", "Reusable packaging can use resources more efficiently.", ["Mehrwegverpackungen koennen ressourcenschonender sein."]],
+      ["b1u-verkehrswende", "die Verkehrswende", "transport transition", "die Verkehrswende voranbringen", "Ein dichterer Nahverkehr kann die Verkehrswende unterstützen.", "More frequent public transport can support the transport transition.", ["Ein dichterer Nahverkehr kann die Verkehrswende unterstuetzen."]]
+    ] },
+    "b1-gesund-leben": { words: [
+      ["b1g-ueberlastung", "die Überlastung, die Überlastungen", "overload", "Anzeichen von Überlastung", "Dauerhafte Müdigkeit kann auf Überlastung hinweisen.", "Persistent tiredness can indicate overload.", ["die Ueberlastung, die Ueberlastungen", "Dauerhafte Muedigkeit kann auf Ueberlastung hinweisen."]],
+      ["b1g-ausgleich", "der Ausgleich", "balance / counterbalance", "einen Ausgleich zur Arbeit finden", "Bewegung ist für mich ein guter Ausgleich zur Arbeit.", "Exercise gives me a good balance to work.", ["Bewegung ist fuer mich ein guter Ausgleich zur Arbeit."]]
+    ] },
+    "b1-engagement": { words: [
+      ["b1n-aufgaben-verteilen", "Aufgaben verteilen", "to distribute tasks", "Aufgaben fair verteilen", "Vor der Veranstaltung verteilen wir die Aufgaben.", "We distribute the tasks before the event.", []],
+      ["b1n-zuverlaessig", "zuverlässig", "reliable", "zuverlässig mitarbeiten", "Für diese Aufgabe brauchen wir zwei zuverlässige Helfer.", "We need two reliable helpers for this task.", ["zuverlaessig", "Fuer diese Aufgabe brauchen wir zwei zuverlaessige Helfer."]]
+    ] },
+    "b1-argumentieren": { words: [
+      ["b1a-abwaegen", "abwägen, hat abgewogen", "to weigh up", "Vor- und Nachteile abwägen", "Vor einer Entscheidung sollten wir beide Möglichkeiten abwägen.", "Before deciding, we should weigh up both options.", ["abwaegen, hat abgewogen", "Vor einer Entscheidung sollten wir beide Moeglichkeiten abwaegen."]],
+      ["b1a-einwand", "der Einwand, die Einwände", "objection", "einen Einwand berücksichtigen", "Dieser Einwand sollte in der Entscheidung berücksichtigt werden.", "This objection should be considered in the decision.", ["der Einwand, die Einwaende", "Dieser Einwand sollte in der Entscheidung beruecksichtigt werden."]]
+    ] },
+    "b2-positionen": { words: [
+      ["b2pos-abwaegung", "die Abwägung, die Abwägungen", "weighing of considerations", "eine sorgfältige Abwägung vornehmen", "Die Entscheidung erfordert eine sorgfältige Abwägung aller Folgen.", "The decision requires careful consideration of all consequences.", ["die Abwaegung, die Abwaegungen", "eine sorgfaeltige Abwaegung vornehmen"]],
+      ["b2pos-spielraum", "der Spielraum, die Spielräume", "room for maneuver", "finanziellen Spielraum schaffen", "Der neue Entwurf lässt den Kommunen mehr Spielraum.", "The new draft gives municipalities more room for maneuver.", ["der Spielraum, die Spielraeume", "Der neue Entwurf laesst den Kommunen mehr Spielraum."]]
+    ] },
+    "b2-quellen": { words: [
+      ["b2src-interessenkonflikt", "der Interessenkonflikt, die Interessenkonflikte", "conflict of interest", "einen Interessenkonflikt offenlegen", "Die Autorin legt einen möglichen Interessenkonflikt offen.", "The author discloses a possible conflict of interest.", ["Die Autorin legt einen moeglichen Interessenkonflikt offen."]],
+      ["b2src-nachvollziehbarkeit", "die Nachvollziehbarkeit", "traceability / transparency", "die Nachvollziehbarkeit einer Auswertung", "Offene Daten erhöhen die Nachvollziehbarkeit der Auswertung.", "Open data improve the transparency of the analysis.", ["Offene Daten erhoehen die Nachvollziehbarkeit der Auswertung."]]
+    ] },
+    "b2-prozesse": { words: [
+      ["b2proc-rueckfrage", "die Rückfrage, die Rückfragen", "follow-up inquiry", "eine Rückfrage zum Verfahren stellen", "Bei Rückfragen zum Verfahren wenden Sie sich an die zuständige Stelle.", "For questions about the procedure, contact the responsible office.", ["die Rueckfrage, die Rueckfragen", "Bei Rueckfragen zum Verfahren wenden Sie sich an die zustaendige Stelle."]],
+      ["b2proc-nach-massgabe", "nach Maßgabe", "in accordance with", "nach Maßgabe der Vorschriften", "Der Antrag wird nach Maßgabe der geltenden Vorschriften geprüft.", "The application is reviewed in accordance with the applicable regulations.", ["nach Massgabe", "Der Antrag wird nach Massgabe der geltenden Vorschriften geprueft."]]
+    ] },
+    "b2-register": { words: [
+      ["b2reg-vorbehaltlich", "vorbehaltlich", "subject to", "vorbehaltlich einer Prüfung", "Die Zusage gilt vorbehaltlich der abschließenden Prüfung.", "The approval is subject to final review.", ["vorbehaltlich einer Pruefung", "Die Zusage gilt vorbehaltlich der abschliessenden Pruefung."]],
+      ["b2reg-in-abstimmung", "in Abstimmung mit", "in coordination with", "in Abstimmung mit der Projektleitung", "Der Zeitplan wurde in Abstimmung mit allen Beteiligten angepasst.", "The schedule was adjusted in coordination with everyone involved.", []]
+    ] },
+    "b2-relativ-partizip": { words: [
+      ["b2dense-massgeblich", "maßgeblich", "decisive / authoritative", "die maßgeblichen Kriterien", "Die maßgeblichen Kriterien sind im Anhang aufgeführt.", "The decisive criteria are listed in the appendix.", ["massgeblich", "Die massgeblichen Kriterien sind im Anhang aufgefuehrt."]],
+      ["b2dense-ausstehend", "ausstehend", "outstanding / pending", "die noch ausstehende Entscheidung", "Die noch ausstehende Entscheidung wird für Juni erwartet.", "The pending decision is expected in June.", ["Die noch ausstehende Entscheidung wird fuer Juni erwartet."]]
+    ] },
+    "b2-haltung": { words: [
+      ["b2stance-unter-vorbehalt", "unter Vorbehalt", "with reservations / provisionally", "einer Einschätzung unter Vorbehalt zustimmen", "Der Einschätzung kann ich derzeit nur unter Vorbehalt zustimmen.", "At present, I can agree with the assessment only provisionally.", []],
+      ["b2stance-evident", "evident", "evident", "aus den Daten evident sein", "Ein direkter Zusammenhang ist aus den Daten bislang nicht evident.", "A direct connection is not yet evident from the data.", []]
+    ] },
+    "b2-kohaesion": { words: [
+      ["b2coh-ungeachtet", "ungeachtet dessen", "despite this", "Ungeachtet dessen plus Verb", "Ungeachtet dessen sollte die Testphase fortgesetzt werden.", "Despite this, the trial phase should continue.", []],
+      ["b2coh-hieraus", "hieraus", "from this", "Hieraus plus Verb", "Hieraus ergibt sich weiterer Forschungsbedarf.", "This indicates a need for further research.", []]
+    ] },
+    "b2-integration": { words: [
+      ["b2int-meilenstein", "der Meilenstein, die Meilensteine", "milestone", "einen Meilenstein erreichen", "Mit der Pilotphase erreicht das Projekt einen wichtigen Meilenstein.", "The project reaches an important milestone with the pilot phase.", []],
+      ["b2int-erfolgskriterium", "das Erfolgskriterium, die Erfolgskriterien", "success criterion", "messbare Erfolgskriterien festlegen", "Vor dem Start müssen messbare Erfolgskriterien festgelegt werden.", "Measurable success criteria must be defined before launch.", ["Vor dem Start muessen messbare Erfolgskriterien festgelegt werden."]]
+    ] }
+  };
+
+  for (const pack of [practicalExpansion, transferExpansion]) {
+    for (const [moduleId, addition] of Object.entries(pack)) {
+      const target = expansion[moduleId] || (expansion[moduleId] = { words: [], grammar: [] });
+      target.words = [...(target.words || []), ...(addition.words || [])];
+      target.grammar = [...(target.grammar || []), ...(addition.grammar || [])];
+    }
   }
 
   const wordFromRow = row => ({

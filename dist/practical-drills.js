@@ -3,7 +3,7 @@
   if (!course?.modules) throw new Error("Satzwerk curriculum must load before practical drills");
 
   const rank = { A0: 0, A1: 1, A2: 2, B1: 3, B2: 4 };
-  const targetPromptCount = { A0: 12, A1: 12, A2: 13, B1: 14, B2: 14 };
+  const targetPromptCount = { A0: 13, A1: 14, A2: 15, B1: 16, B2: 16 };
   const contexts = {
     A0: "Use a short sentence from this lesson in a familiar exchange.",
     A1: "You need a complete sentence during an everyday exchange.",
@@ -58,6 +58,312 @@
       `Use the lesson language to answer. ${clean}`
     ];
   };
+
+  const asciiGerman = value => String(value || "")
+    .replace(/ä/gu, "ae").replace(/ö/gu, "oe").replace(/ü/gu, "ue").replace(/ß/gu, "ss")
+    .replace(/Ä/gu, "Ae").replace(/Ö/gu, "Oe").replace(/Ü/gu, "Ue");
+
+  const list = value => Array.isArray(value) ? value.filter(Boolean) : value ? [value] : [];
+
+  const typedChoice = (german, english, options = {}) => {
+    const standardGerman = list(german);
+    const asciiForms = unique([...standardGerman.map(asciiGerman), ...list(options.germanAscii)])
+      .filter(form => !standardGerman.includes(form));
+    const bankGerman = list(options.bankGerman || german);
+    return {
+      german: {
+        standard: unique([...standardGerman, ...list(options.germanAliases)]),
+        ascii: asciiForms,
+        numeric: list(options.germanNumeric)
+      },
+      english: {
+        standard: unique([...list(english), ...list(options.englishAliases)]),
+        numeric: list(options.englishNumeric)
+      },
+      neutral: { numeric: list(options.neutralNumeric) },
+      bank: {
+        standard: bankGerman,
+        ascii: unique([...bankGerman.map(asciiGerman), ...list(options.bankAscii)]).filter(form => !bankGerman.includes(form)),
+        numeric: list(options.bankNumeric)
+      }
+    };
+  };
+
+  const slotFamilies = [
+    {
+      id: "city",
+      choices: ["Berlin", "Hamburg", "Bonn", "Leipzig", "Bremen", "Dresden", "Frankfurt", "Stuttgart"]
+        .map(value => typedChoice(value, value))
+    },
+    {
+      id: "weekday",
+      choices: [
+        ["Montag", "Monday"], ["Dienstag", "Tuesday"], ["Mittwoch", "Wednesday"], ["Donnerstag", "Thursday"],
+        ["Freitag", "Friday"], ["Samstag", "Saturday"], ["Sonntag", "Sunday"]
+      ].map(([de, en]) => typedChoice(de, en))
+    },
+    {
+      id: "month",
+      choices: [
+        ["Januar", "January"], ["Februar", "February"], ["März", "March"], ["April", "April"], ["Mai", "May"],
+        ["Juni", "June"], ["Juli", "July"], ["August", "August"], ["September", "September"],
+        ["Oktober", "October"], ["November", "November"], ["Dezember", "December"]
+      ].map(([de, en]) => typedChoice(de, en))
+    },
+    {
+      id: "clock-time",
+      choices: [
+        ["sieben", "seven", "7"], ["acht", "eight", "8"], ["neun", "nine", "9"], ["zehn", "ten", "10"], ["elf", "eleven", "11"]
+      ].map(([de, en, number]) => typedChoice(`um ${de} Uhr`, `at ${en}`, {
+        germanNumeric: `um ${number} Uhr`, englishNumeric: [`at ${number}:00`, `at ${number}`],
+        bankGerman: de, bankNumeric: number
+      }))
+    },
+    {
+      id: "quantity",
+      collisionSensitive: true,
+      choices: [["zwei", "two", "2"], ["drei", "three", "3"], ["vier", "four", "4"], ["fünf", "five", "5"], ["sechs", "six", "6"]]
+        .map(([de, en, number]) => typedChoice(de, en, { neutralNumeric: number }))
+    },
+    {
+      id: "color",
+      choices: [["rot", "red"], ["blau", "blue"], ["grün", "green"], ["gelb", "yellow"], ["schwarz", "black"], ["weiß", "white"]]
+        .map(([de, en]) => typedChoice(de, en))
+    },
+    {
+      id: "near-future-day",
+      maxRank: rank.A1,
+      reject: /\b(?:habe|hast|hat|haben|seid|sind|war|waren|wurde|wurden|ging|kam|fuhr|blieb|fand|nahm|gab|ließ|stand|lag|schrieb|sprach|sagte|machte)\b/iu,
+      choices: [["heute", "today"], ["morgen", "tomorrow"]].map(([de, en]) => typedChoice(de, en))
+    },
+    {
+      id: "frequency",
+      choices: [["oft", "often"], ["manchmal", "sometimes"], ["selten", "rarely"], ["normalerweise", "normally"]]
+        .map(([de, en]) => typedChoice(de, en))
+    },
+    {
+      id: "direction",
+      choices: [["rechts", "right"], ["links", "left"]].map(([de, en]) => typedChoice(de, en))
+    },
+    {
+      id: "part-of-day",
+      choices: [["am Morgen", "in the morning"], ["am Nachmittag", "in the afternoon"], ["am Abend", "in the evening"]]
+        .map(([de, en]) => typedChoice(de, en))
+    },
+    {
+      id: "cafe-drink",
+      choices: [["einen Kaffee", "a coffee"], ["einen Tee", "a tea"], ["einen Saft", "a juice"]]
+        .map(([de, en]) => typedChoice(de, en))
+    },
+    {
+      id: "study-item",
+      choices: [["das Buch", "the book"], ["das Handy", "the phone"], ["das Papier", "the paper"], ["das Heft", "the notebook"]]
+        .map(([de, en]) => typedChoice(de, en))
+    },
+    {
+      id: "local-place",
+      choices: [
+        typedChoice("im Park", "in the park"), typedChoice("im Kino", "at the cinema", { englishAliases: "in the cinema" }),
+        typedChoice("im Café", "at the café", { englishAliases: "in the café" }),
+        typedChoice("im Zentrum", "in the center", { englishAliases: "in the centre" }),
+        typedChoice("am Bahnhof", "at the station", { englishAliases: "at the train station" })
+      ]
+    },
+    {
+      id: "transport",
+      choices: [
+        typedChoice("mit dem Bus", "by bus"), typedChoice("mit dem Zug", "by train"),
+        typedChoice("mit dem Fahrrad", "by bicycle", { englishAliases: "by bike" }), typedChoice("zu Fuß", "on foot")
+      ]
+    }
+  ];
+
+  const unsafeSurfaceQuestions = new Set([
+    "b2-praesentieren:b211-q1",
+    "b2-hybrid-teams:b2-hybrid-teams-q6",
+    "b2-academic-argument:b2-academic-argument-q1",
+    "b2-mediation-konflikt:b212-q7"
+  ]);
+
+  const surfaceInvariantFailures = [];
+
+  const escapePattern = value => String(value).replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+  const tokenPattern = values => new RegExp(`(^|[^\\p{L}\\p{N}])(${values.map(escapePattern).sort((a, b) => b.length - a.length).join("|")})(?=$|[^\\p{L}\\p{N}])`, "giu");
+  const allForms = group => Object.values(group || {}).flat().filter(Boolean);
+  const formsFor = (choice, mode) => mode === "german"
+    ? [...allForms(choice.german), ...allForms(choice.neutral)]
+    : mode === "english"
+      ? [...allForms(choice.english), ...allForms(choice.neutral)]
+      : [...allForms(choice.german), ...allForms(choice.english), ...allForms(choice.neutral)];
+  const hasChoice = (text, choice, mode = "mixed") => formsFor(choice, mode).some(form => tokenPattern([form]).test(String(text || "")));
+  const hasNeutral = (text, choice) => allForms(choice.neutral).some(form => tokenPattern([form]).test(String(text || "")));
+  const countChoice = (text, choice, mode = "mixed") => formsFor(choice, mode)
+    .reduce((count, form) => count + [...String(text || "").matchAll(tokenPattern([form]))].length, 0);
+  const hasCompoundChoice = (text, choice) => formsFor(choice, "mixed").some(form => new RegExp(`(?:${escapePattern(form)}\\p{Pd}|\\p{Pd}${escapePattern(form)})`, "iu").test(String(text || "")));
+
+  const replacementMap = (source, target, mode) => {
+    const map = new Map();
+    const groups = mode === "german" ? ["german", "neutral"]
+      : mode === "english" ? ["english", "neutral"]
+        : ["german", "english", "neutral"];
+    for (const groupName of groups) {
+      const sourceGroup = source[groupName] || {};
+      const targetGroup = target[groupName] || {};
+      for (const [style, sources] of Object.entries(sourceGroup)) {
+        const targets = targetGroup[style]?.length ? targetGroup[style] : targetGroup.standard;
+        if (!targets?.length) continue;
+        for (const form of sources) {
+          const key = form.toLocaleLowerCase("de-DE");
+          const replacement = targets[0];
+          if (map.has(key) && map.get(key) !== replacement) return null;
+          map.set(key, replacement);
+        }
+      }
+    }
+    return map;
+  };
+
+  const replaceWithMap = (text, map) => {
+    const value = String(text || "");
+    if (!map?.size) return value;
+    return value.replace(tokenPattern([...map.keys()]), (match, prefix, token) => {
+      const replacement = map.get(token.toLocaleLowerCase("de-DE"));
+      const adjusted = /^\p{Lu}/u.test(token) ? `${replacement.charAt(0).toLocaleUpperCase("de-DE")}${replacement.slice(1)}` : replacement;
+      return `${prefix}${adjusted}`;
+    });
+  };
+
+  const replaceField = (text, source, target, mode) => replaceWithMap(text, replacementMap(source, target, mode));
+  const replaceCue = (text, source, target) => {
+    let germanQuote = false;
+    return String(text || "").split(/([“”])/u).map(part => {
+      if (part === "“") { germanQuote = true; return part; }
+      if (part === "”") { germanQuote = false; return part; }
+      if (germanQuote) return replaceField(part, source, target, "german");
+      const english = replaceField(part, source, target, "english");
+      const germanOnlySource = {
+        ...source,
+        english: { standard: [], numeric: [] },
+        neutral: { numeric: [] }
+      };
+      const germanOnlyTarget = {
+        ...target,
+        english: { standard: [], numeric: [] },
+        neutral: { numeric: [] }
+      };
+      return replaceField(english, germanOnlySource, germanOnlyTarget, "german");
+    }).join("");
+  };
+
+  const replaceWordBank = (bank, source, target) => {
+    const bankSource = { ...source, german: source.bank };
+    const bankTarget = { ...target, german: target.bank };
+    return (bank || []).map(word => replaceField(word, bankSource, bankTarget, "german"));
+  };
+
+  const supportMode = key => key === "model" ? "german" : key === "translation" ? "english" : "mixed";
+
+  const replaceSupportValue = (value, source, target, key = "") => {
+    if (Array.isArray(value)) return value.map(item => replaceSupportValue(item, source, target, key));
+    if (value && typeof value === "object") {
+      return Object.fromEntries(Object.entries(value).map(([childKey, child]) => [childKey, replaceSupportValue(child, source, target, childKey)]));
+    }
+    if (typeof value !== "string") return value;
+    const mode = supportMode(key);
+    return mode === "mixed" ? replaceCue(value, source, target) : replaceField(value, source, target, mode);
+  };
+
+  const replaceSupport = (support, source, target) => replaceSupportValue(support, source, target);
+
+  const supportHasCollision = (value, source, target, key = "") => {
+    if (Array.isArray(value)) return value.some(item => supportHasCollision(item, source, target, key));
+    if (value && typeof value === "object") return Object.entries(value).some(([childKey, child]) => supportHasCollision(child, source, target, childKey));
+    if (typeof value !== "string") return false;
+    const mode = supportMode(key);
+    return hasChoice(value, source, mode) && hasChoice(value, target, mode);
+  };
+
+  const supportStaysSynchronized = (before, after, source, target, key = "") => {
+    if (Array.isArray(before)) return Array.isArray(after) && before.every((item, index) => supportStaysSynchronized(item, after[index], source, target, key));
+    if (before && typeof before === "object") {
+      return after && typeof after === "object"
+        && Object.entries(before).every(([childKey, child]) => supportStaysSynchronized(child, after[childKey], source, target, childKey));
+    }
+    if (typeof before !== "string") return true;
+    const mode = supportMode(key);
+    return !hasChoice(before, source, mode) || (!hasChoice(after, source, mode) && hasChoice(after, target, mode));
+  };
+
+  const choiceKnown = (choice, safeCorpus) => formsFor(choice, "mixed").some(form => tokenPattern([form]).test(safeCorpus));
+
+  const surfaceFieldsStaySynchronized = (module, question, variant, source, target) => {
+    const synchronized = (before, after, mode = "mixed") => !hasChoice(before, source, mode)
+      || (!hasChoice(after, source, mode) && hasChoice(after, target, mode));
+    const bankSource = { ...source, german: source.bank };
+    const bankTarget = { ...target, german: target.bank };
+    const checks = [
+      synchronized(question.prompt, variant.prompt),
+      synchronized(question.context, variant.context),
+      synchronized(question.explanation, variant.explanation),
+      variant.answers.every(answer => !hasChoice(answer, source, "german") && hasChoice(answer, target, "german")),
+      (question.wordBank || []).every((word, index) => synchronized(word, variant.wordBank[index], "german")
+        || (!hasChoice(word, bankSource, "german") || (!hasChoice(variant.wordBank[index], bankSource, "german") && hasChoice(variant.wordBank[index], bankTarget, "german")))),
+      synchronized(question.support?.title, variant.support?.title),
+      supportStaysSynchronized(question.support, variant.support, source, target)
+    ];
+    if (checks.every(Boolean)) return true;
+    surfaceInvariantFailures.push(`${module.id}:${question.id}:${variant.slotFamily}`);
+    return false;
+  };
+
+  const slotSurfaceVariants = (module, question, safeCorpus) => {
+    if (unsafeSurfaceQuestions.has(`${module.id}:${question.id}`)) return [];
+    const questionCorpus = [question.prompt, question.context, ...(question.answers || [])].join(" ");
+    const fullCorpus = [questionCorpus, ...(question.wordBank || []), question.explanation, JSON.stringify(question.support || {})].join(" ");
+    const variants = [];
+    slotFamilies.forEach(family => {
+      if (family.maxRank !== undefined && rank[module.level] > family.maxRank) return;
+      if (family.reject?.test((question.answers || []).join(" "))) return;
+      const presentChoices = family.choices.filter(choice => hasChoice(questionCorpus, choice));
+      if (presentChoices.length !== 1) return;
+      const [source] = presentChoices;
+      if (family.id === "clock-time" && /\b(?:von|bis|zwischen|from|until|between)\b/iu.test(questionCorpus)) return;
+      if (family.id === "quantity" && (countChoice(question.prompt, source) + countChoice(question.context, source) !== 1 || hasCompoundChoice(`${question.prompt} ${question.context}`, source))) return;
+      if (family.id === "quantity" && (/\bUhr\b/u.test(questionCorpus) || /\bat\s+(?:two|three|four|five|six)\b/iu.test(questionCorpus))) return;
+      if ((question.answers || []).some(answer => !hasChoice(answer, source, "german") || countChoice(answer, source, "german") !== 1)) return;
+      if (family.collisionSensitive && hasChoice(question.prompt, source) && hasChoice(question.context, source)
+        && !hasNeutral(question.prompt, source) && !hasNeutral(question.context, source)) return;
+      family.choices
+        .filter(choice => choice !== source && !hasChoice(fullCorpus, choice) && choiceKnown(choice, safeCorpus) && !supportHasCollision(question.support, source, choice))
+        .slice(0, 4)
+        .forEach(target => {
+          const transformedAnswers = (question.answers || []).map(answer => replaceField(answer, source, target, "german"));
+          if (transformedAnswers.some((answer, index) => answer === question.answers[index]
+            || hasChoice(answer, source, "german") || !hasChoice(answer, target, "german"))) return;
+          const variant = {
+            prompt: replaceCue(question.prompt, source, target),
+            context: replaceCue(question.context, source, target),
+            answers: unique(transformedAnswers.flatMap(answer => [answer, asciiGerman(answer)])),
+            wordBank: replaceWordBank(question.wordBank, source, target),
+            explanation: replaceCue(question.explanation, source, target),
+            support: replaceSupport(question.support, source, target),
+            slotFamily: family.id
+          };
+          const cueChanged = variant.prompt !== question.prompt || variant.context !== question.context;
+          const staleBank = (question.wordBank || []).some(word => hasChoice(word, { ...source, german: source.bank }, "german"))
+            && variant.wordBank.some(word => hasChoice(word, { ...source, german: source.bank }, "german"));
+          if (cueChanged && !staleBank && surfaceFieldsStaySynchronized(module, question, variant, source, target)) variants.push(variant);
+        });
+    });
+    return variants;
+  };
+
+  const uniqueSurfaces = variants => [...new Map(variants.map(variant => [JSON.stringify({
+    prompt: variant.prompt,
+    context: variant.context,
+    answers: variant.answers,
+    wordBank: variant.wordBank
+  }), variant])).values()];
 
   const answerKey = value => String(value || "")
     .toLocaleLowerCase("de-DE")
@@ -127,7 +433,6 @@
         id,
         type: "ACTIVE RECALL",
         context: `${contexts[module.level]} Keep the people and level of formality shown in the bundle.`,
-        contextVariants: contextAlternatives[module.level],
         prompt: `Use “${word.bundle}” to recall the model sentence for: ${cue}`,
         promptVariants: recallPromptAlternatives(word, cue),
         answers: [word.example, ...(word.practiceAnswers || [])],
@@ -173,9 +478,13 @@
     }
 
     module.questions.forEach(question => {
+      const generatedContexts = contextAlternatives[module.level].map(lead => `${lead} ${question.context}`);
+      if (generatedContexts.some(context => !context.endsWith(question.context))) {
+        throw new Error(`Context variation lost its cue in ${module.id}:${question.id}`);
+      }
       question.contextVariants = unique([
         ...(question.contextVariants || []),
-        ...contextAlternatives[module.level]
+        ...generatedContexts
       ]).filter(context => context !== question.context);
       question.promptVariants = unique([
         ...(question.promptVariants || []),
@@ -223,4 +532,24 @@
     if (index === 0) delete module.prerequisite;
     else module.prerequisite = course.modules[index - 1].id;
   });
+
+  const previouslyIntroduced = [];
+  course.modules.forEach(module => {
+    const currentCore = module.words
+      .filter(word => !word.supplemental)
+      .flatMap(word => [word.de, word.en, word.bundle, word.example, word.exampleEn, ...(word.variants || []), ...(word.practiceAnswers || [])])
+      .filter(Boolean);
+    const safeCorpus = [...previouslyIntroduced, ...currentCore].join(" ");
+    module.questions.forEach(question => {
+      question.surfaceVariants = uniqueSurfaces([
+        ...(question.surfaceVariants || []),
+        ...slotSurfaceVariants(module, question, safeCorpus)
+      ]);
+    });
+    previouslyIntroduced.push(...currentCore);
+  });
+
+  if (surfaceInvariantFailures.length) {
+    throw new Error(`Surface variation failed synchronization: ${surfaceInvariantFailures.slice(0, 6).join(", ")}`);
+  }
 })();
