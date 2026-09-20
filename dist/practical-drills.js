@@ -3,13 +3,60 @@
   if (!course?.modules) throw new Error("Satzwerk curriculum must load before practical drills");
 
   const rank = { A0: 0, A1: 1, A2: 2, B1: 3, B2: 4 };
-  const targetPromptCount = 10;
+  const targetPromptCount = { A0: 12, A1: 12, A2: 13, B1: 14, B2: 14 };
   const contexts = {
     A0: "Use a short sentence from this lesson in a familiar exchange.",
     A1: "You need a complete sentence during an everyday exchange.",
     A2: "A familiar situation changes and you respond with a complete sentence.",
     B1: "You explain a practical detail clearly in conversation.",
     B2: "You choose precise wording for a detailed exchange."
+  };
+
+  const contextAlternatives = {
+    A0: [
+      "Use the lesson words in this short exchange.",
+      "Imagine this everyday moment. Write the full German answer.",
+      "Answer with the German pattern from this lesson."
+    ],
+    A1: [
+      "Write one natural German sentence for this everyday exchange.",
+      "The situation is familiar. Give the full German response.",
+      "Write what you would say here in German."
+    ],
+    A2: [
+      "The situation has changed. Respond with a complete German sentence.",
+      "Use the lesson pattern in this practical situation.",
+      "Choose a natural German response for this situation."
+    ],
+    B1: [
+      "Explain the key detail clearly in German.",
+      "Write what you would say in this practical conversation.",
+      "Use one complete response to explain the situation."
+    ],
+    B2: [
+      "Write a precise response in the right register.",
+      "Choose clear, natural wording for this exchange.",
+      "Formulate a professional response with the lesson pattern."
+    ]
+  };
+
+  const unique = values => [...new Set(values.filter(Boolean))];
+
+  const recallPromptAlternatives = (word, cue) => [
+    `Write the complete German lesson sentence for: ${cue}`,
+    `Build the German response from “${word.bundle}”: ${cue}`,
+    `Use the lesson pattern in a full sentence: ${cue}`,
+    `From memory, give the German sentence for: ${cue}`
+  ];
+
+  const generalPromptAlternatives = prompt => {
+    const clean = String(prompt || "").trim();
+    if (!clean) return [];
+    return [
+      `Respond in German. ${clean}`,
+      `Write the complete German response. ${clean}`,
+      `Use the lesson language to answer. ${clean}`
+    ];
   };
 
   const answerKey = value => String(value || "")
@@ -42,6 +89,7 @@
   };
 
   course.modules.forEach(module => {
+    const promptTarget = targetPromptCount[module.level] || 12;
     const rangeMatch = module.task.writingPrompt.match(/\b(\d+)\s+to\s+(\d+)\s+words?\b/iu)
       || module.task.writingPrompt.match(/\bbetween\s+(\d+)\s+and\s+(\d+)\s+words?\b/iu);
     if (rangeMatch) {
@@ -55,26 +103,33 @@
     const existingAnswers = new Set(module.questions.flatMap(question => question.answers || []).map(answerKey));
     const usedWords = new Set(module.questions.flatMap(question => question.requires || []));
     const coreWords = module.words.filter(word => !word.supplemental && word.example && word.exampleEn);
+    const expansionWords = module.words.filter(word => word.supplemental && word.example && word.exampleEn);
     const candidates = [
       ...coreWords.filter(word => !usedWords.has(word.id)),
-      ...coreWords.filter(word => usedWords.has(word.id))
+      ...expansionWords.filter(word => !usedWords.has(word.id)),
+      ...coreWords.filter(word => usedWords.has(word.id)),
+      ...expansionWords.filter(word => usedWords.has(word.id))
     ].filter(word => !existingAnswers.has(answerKey(word.example))
       && answerKey(word.example) !== answerKey(word.bundle)
       && answerKey(word.example) !== answerKey(word.de));
 
     let candidateIndex = 0;
-    while (module.questions.length < targetPromptCount && candidateIndex < candidates.length) {
+    while (module.questions.length < promptTarget && candidateIndex < candidates.length) {
       const word = candidates[candidateIndex++];
+      word.supplemental = false;
       const baseId = `field-recall-${word.id}`;
       let id = baseId;
       let suffix = 2;
       while (module.questions.some(question => question.id === id)) id = `${baseId}-${suffix++}`;
       const supportModel = [word.bundle, word.de].find(candidate => candidate && ![word.example, ...(word.variants || [])].some(answer => answerKey(answer) === answerKey(candidate))) || "Review the taught bundle in the guided lesson.";
+      const cue = modelSentenceCue(word);
       module.questions.push({
         id,
         type: "ACTIVE RECALL",
-        context: `${contexts[module.level]} Rebuild the model sentence with the same people, register, and gender shown in the bundle.`,
-        prompt: `Use “${word.bundle}” to recall the model sentence for: ${modelSentenceCue(word)}`,
+        context: `${contexts[module.level]} Keep the people and level of formality shown in the bundle.`,
+        contextVariants: contextAlternatives[module.level],
+        prompt: `Use “${word.bundle}” to recall the model sentence for: ${cue}`,
+        promptVariants: recallPromptAlternatives(word, cue),
         answers: [word.example, ...(word.practiceAnswers || [])],
         explanation: `The useful bundle is ${word.bundle}.`,
         requires: [word.id],
@@ -82,7 +137,7 @@
         support: {
           title: "Use the taught bundle",
           model: supportModel,
-          tip: modelSentenceCue(word)
+          tip: cue
         }
       });
       existingAnswers.add(answerKey(word.example));
@@ -116,6 +171,17 @@
     } else if (module.task.maxWords && !module.task.checks.some(check => check.type === "maxWords")) {
       module.task.checks.push({ label: `Write no more than ${module.task.maxWords} words`, type: "maxWords", value: module.task.maxWords });
     }
+
+    module.questions.forEach(question => {
+      question.contextVariants = unique([
+        ...(question.contextVariants || []),
+        ...contextAlternatives[module.level]
+      ]).filter(context => context !== question.context);
+      question.promptVariants = unique([
+        ...(question.promptVariants || []),
+        ...generalPromptAlternatives(question.prompt)
+      ]).filter(prompt => prompt !== question.prompt);
+    });
   });
 
   const a0Modules = course.modules

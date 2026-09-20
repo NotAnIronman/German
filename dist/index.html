@@ -6,15 +6,29 @@
     <meta name="theme-color" content="#f6f2ea" />
     <meta name="description" content="Satzwerk is an A0 to B2 German course built around guided lessons, retrieval, sentence control, audio dialogues, reading, writing, speaking, and useful cultural context." />
     <title>Satzwerk: German from A0 to B2</title>
+    <script>
+      (() => {
+        let savedTheme = null;
+        try { savedTheme = localStorage.getItem("satzwerk-theme"); } catch {}
+        const theme = savedTheme === "light" || savedTheme === "dark"
+          ? savedTheme
+          : matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.style.colorScheme = theme;
+        document.querySelector('meta[name="theme-color"]').content = theme === "dark" ? "#171c1a" : "#f6f2ea";
+      })();
+    </script>
     <link rel="stylesheet" href="./styles.css?v=studio-1" />
-    <link rel="stylesheet" href="./studio-theme.css?v=studio-1" />
+    <link rel="stylesheet" href="./studio-theme.css?v=dark-1" />
+    <link rel="stylesheet" href="./reward-theme.css?v=growth-1" />
+    <script src="./theme-mode.js?v=dark-1" defer></script>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23d8875b'/%3E%3Cpath d='M15 18h34v8H26v8h18v8H26v8h23v8H15z' fill='%23fffaf4'/%3E%3C/svg%3E" />
   </head>
   <body>
     <div class="app-shell">
       <header class="topbar">
         <button class="brand" type="button" data-go="home" aria-label="Open Satzwerk home"><span class="brand-mark">S</span><span>Satzwerk</span></button>
-        <div class="top-status"><span class="level-label" id="topLevel">A0 · START HERE</span><span class="device-label">Progress stays on this device</span><span class="momentum-mini" id="topMomentum" aria-label="0 learning wins today"><strong id="topWinCount">0</strong><span>wins today</span></span><button class="avatar" type="button" data-go="progress" aria-label="Open progress" id="avatarLevel">A0</button></div>
+        <div class="top-status"><span class="level-label" id="topLevel">A0 · START HERE</span><span class="device-label">Progress stays on this device</span><span class="momentum-mini" id="topMomentum" aria-label="0 learning wins today"><strong id="topWinCount">0</strong><span>wins today</span></span><button class="theme-toggle" type="button" data-theme-toggle aria-label="Dark theme" aria-pressed="false"><span class="theme-toggle-icon" aria-hidden="true">☾</span><span class="theme-toggle-label">Dark</span></button><button class="avatar" type="button" data-go="progress" aria-label="Open progress" id="avatarLevel">A0</button></div>
       </header>
       <div class="product-layout">
         <aside class="sidebar">
@@ -56,6 +70,16 @@
               <div class="momentum-stat"><strong id="moduleStageCount">0 / 7</strong><span>module stages complete</span></div>
             </section>
             <section class="home-metrics" aria-label="Your learning evidence"><article><strong id="homeModulesPassed">0</strong><span>modules passed</span></article><article><strong id="homeRetrievable">0</strong><span>retrievable bundles</span></article><article><strong id="homeDurable">0</strong><span>durable bundles</span></article><article><strong id="homeWeekDays">0</strong><span>practice days this week</span></article></section>
+            <section class="reward-hub" id="rewardHub" aria-labelledby="rewardHubTitle">
+              <div class="reward-hub-head"><div><span class="eyebrow">STUDY RHYTHM</span><h2 id="rewardHubTitle">Your work is building momentum</h2></div><span class="reward-points"><strong id="rewardPoints">0</strong> evidence points</span></div>
+              <div class="reward-hub-grid">
+                <article class="reward-metric" id="rewardDaily"><span>Today's goal</span><strong>0 / 3</strong><p>Three useful wins complete the daily goal.</p><div class="reward-meter" aria-hidden="true"><i></i></div></article>
+                <article class="reward-metric" id="rewardStreak"><span>Current rhythm</span><strong>0 days</strong><p>Complete one useful activity to begin.</p><div class="reward-meter" aria-hidden="true"><i></i></div></article>
+                <article class="reward-metric" id="rewardVariety"><span>Skill mix</span><strong>0 / 3</strong><p>Use three kinds of language skill today.</p><div class="reward-meter" aria-hidden="true"><i></i></div></article>
+                <article class="reward-metric" id="rewardWeek"><span>This week</span><strong>0 / 3</strong><p>Practice on three days this week.</p><div class="reward-meter" aria-hidden="true"><i></i></div></article>
+              </div>
+              <div class="reward-recent"><strong>Latest win</strong><span id="rewardRecentText">Your first completed learning step will appear here.</span></div>
+            </section>
             <section class="path-section" aria-labelledby="pathTitle"><div class="section-heading"><div><span class="eyebrow">A0 TO B2</span><h2 id="pathTitle">Every level is ready to explore</h2></div><span class="section-note">Preview every level here. Lessons open in sequence from left to right.</span></div><div class="level-path" id="homeLevelPath"></div></section>
             <section class="loop-section" aria-labelledby="loopTitle"><div class="section-heading"><div><span class="eyebrow">HOW A MODULE WORKS</span><h2 id="loopTitle">One idea, several kinds of use</h2></div><span class="section-note">Each return asks for a little more independence.</span></div><div class="loop-grid"><article><span class="loop-number">1</span><strong>Meet the bundle</strong><p>Learn meaning, article, plural, and a natural example together.</p></article><article><span class="loop-number">2</span><strong>Build the sentence</strong><p>Type the form from context and receive a precise repair when something shifts.</p></article><article><span class="loop-number">3</span><strong>Use familiar patterns</strong><p>Listen, read, write, and speak with the same grammar serving a clear purpose.</p></article><article><span class="loop-number">4</span><strong>Return after time</strong><p>Delayed retrieval moves a word toward dependable access.</p></article></div></section>
           </section>
@@ -162,6 +186,6 @@
       </div>
     </div>
     <dialog id="resetDialog"><form method="dialog"><span class="eyebrow">RESET PROGRESS</span><h2>Clear all course evidence from this device?</h2><p>This removes word history, module records, graded-reading attempts, voice-study ratings, and review dates. The course content stays available.</p><div><button class="quiet-button" value="cancel">Keep progress</button><button class="danger-button" id="confirmReset" value="confirm">Clear progress</button></div></form></dialog>
-    <script src="./curriculum.js?v=motivation-1"></script><script src="./content-expansion.js?v=motivation-1"></script><script src="./pedagogy.js?v=motivation-1"></script><script src="./course-expansion.js?v=motivation-1"></script><script src="./mastery-expansion.js?v=motivation-1"></script><script src="./task-models.js?v=motivation-1"></script><script src="./practical-drills.js?v=motivation-1"></script><script src="./task-checks.js?v=motivation-1"></script><script src="./reading-library.js?v=motivation-1"></script><script src="./audio-study.js?v=motivation-1"></script><script src="./listening-content.js?v=motivation-1"></script><script src="./app.js?v=motivation-1"></script><script src="./extended-features.js?v=motivation-1"></script>
+    <script src="./curriculum.js?v=growth-1"></script><script src="./content-expansion.js?v=growth-1"></script><script src="./pedagogy.js?v=growth-1"></script><script src="./course-expansion.js?v=growth-1"></script><script src="./mastery-expansion.js?v=growth-1"></script><script src="./task-models.js?v=growth-1"></script><script src="./practical-drills.js?v=growth-1"></script><script src="./task-checks.js?v=growth-1"></script><script src="./reading-library.js?v=growth-1"></script><script src="./audio-study.js?v=growth-1"></script><script src="./listening-content.js?v=growth-1"></script><script src="./reward-system.js?v=growth-1"></script><script src="./app.js?v=growth-1"></script><script src="./extended-features.js?v=growth-1"></script>
   </body>
 </html>

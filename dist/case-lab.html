@@ -6,7 +6,20 @@
     <meta name="theme-color" content="#f6f2ea" />
     <meta name="description" content="Satzwerk turns German grammar into flexible, reactive language practice." />
     <title>Satzwerk Case Lab</title>
-    <link rel="stylesheet" href="./case-lab.css?v=studio-1" />
+    <script>
+      (() => {
+        let savedTheme = null;
+        try { savedTheme = localStorage.getItem("satzwerk-theme"); } catch {}
+        const theme = savedTheme === "light" || savedTheme === "dark"
+          ? savedTheme
+          : matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.style.colorScheme = theme;
+        document.querySelector('meta[name="theme-color"]').content = theme === "dark" ? "#171c1a" : "#f6f2ea";
+      })();
+    </script>
+    <link rel="stylesheet" href="./case-lab.css?v=dark-1" />
+    <script src="./theme-mode.js?v=dark-1" defer></script>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23d8875b'/%3E%3Cpath d='M15 18h34v8H26v8h18v8H26v8h23v8H15z' fill='%23fffaf4'/%3E%3C/svg%3E" />
   </head>
   <body>
@@ -19,6 +32,7 @@
         <div class="session-meta" aria-label="Session status">
           <span class="level-chip">A2 · BUILDING CONTROL</span>
           <span class="session-count"><strong id="sessionScore">0</strong> forms secured</span>
+        <button class="theme-toggle" type="button" data-theme-toggle aria-label="Dark theme" aria-pressed="false"><span class="theme-toggle-icon" aria-hidden="true">☾</span><span class="theme-toggle-label">Dark</span></button>
           <button class="restart-button" id="restartButton" type="button">Restart</button>
         </div>
       </header>

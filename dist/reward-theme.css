@@ -1,0 +1,177 @@
+/* Evidence-based motivation surfaces. */
+
+.reward-hub {
+  margin-top: 22px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-large);
+  background: var(--white);
+  box-shadow: var(--shadow-small);
+  overflow: hidden;
+}
+
+.reward-hub-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 22px;
+  padding: 24px 26px 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.reward-hub-head h2 {
+  margin: 7px 0 0;
+  color: var(--ink);
+  font-family: var(--display-font);
+  font-size: clamp(1.45rem, 2.4vw, 2rem);
+  line-height: 1.08;
+  letter-spacing: -.025em;
+}
+
+.reward-points {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 9px 13px;
+  border: 1px solid rgba(216, 135, 91, .26);
+  border-radius: 999px;
+  background: var(--orange-soft);
+  color: var(--ink-2);
+  font-size: .72rem;
+  font-weight: 700;
+}
+
+.reward-points strong {
+  color: var(--ink);
+  font-family: var(--display-font);
+  font-size: 1.2rem;
+}
+
+.reward-hub-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--line);
+}
+
+.reward-metric {
+  min-width: 0;
+  padding: 20px 21px;
+  background: var(--white);
+}
+
+.reward-metric.complete {
+  background: var(--green-soft);
+}
+
+.reward-metric.complete > span,
+.reward-metric.complete p {
+  color: var(--ink-2);
+}
+
+.reward-metric > span {
+  display: block;
+  color: var(--muted);
+  font-size: .67rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.reward-metric strong {
+  display: block;
+  margin-top: 8px;
+  color: var(--ink);
+  font-family: var(--display-font);
+  font-size: 1.65rem;
+  line-height: 1;
+}
+
+.reward-metric p {
+  min-height: 2.55em;
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: .76rem;
+  line-height: 1.45;
+}
+
+.reward-meter {
+  height: 7px;
+  margin-top: 14px;
+  border-radius: 999px;
+  background: var(--surface-muted);
+  overflow: hidden;
+}
+
+.reward-meter i {
+  display: block;
+  width: var(--reward-progress, 0%);
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--orange), var(--green));
+  transition: width .35s ease;
+}
+
+.reward-recent {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 11px 26px;
+  background: var(--surface-green);
+  color: var(--ink-2);
+  font-size: .78rem;
+  line-height: 1.4;
+}
+
+.reward-recent strong {
+  flex: 0 0 auto;
+  color: var(--blue-dark);
+}
+
+.reward-recent span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reward-toast.goal { border-color: rgba(216, 135, 91, .42); }
+.reward-toast.goal .reward-seal { background: var(--orange); color: #fffaf4; box-shadow: 0 0 0 6px var(--orange-soft); }
+.reward-toast.goal small { color: #8b532f; }
+
+html[data-theme="dark"] .reward-points { border-color: rgba(227, 160, 120, .34); }
+html[data-theme="dark"] .reward-toast.goal { border-color: rgba(227, 160, 120, .52); }
+html[data-theme="dark"] .reward-toast.goal small { color: #efb28c; }
+
+.landmark-card.freshly-earned {
+  animation: landmark-arrive .46s ease both;
+}
+
+@keyframes landmark-arrive {
+  from { opacity: .55; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 1080px) {
+  .reward-hub-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 720px) {
+  .reward-hub-head { align-items: flex-start; padding: 22px 20px 18px; }
+  .reward-points { padding: 7px 10px; }
+  .reward-hub-grid { grid-template-columns: 1fr; }
+  .reward-metric { padding: 18px 20px; }
+  .reward-metric p { min-height: 0; }
+  .reward-recent { align-items: flex-start; padding: 12px 20px; }
+  .reward-recent span { overflow: visible; white-space: normal; }
+}
+
+@media (max-width: 480px) {
+  .reward-hub-head { flex-direction: column; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reward-meter i,
+  .landmark-card.freshly-earned { transition: none !important; animation: none !important; }
+}

@@ -140,7 +140,8 @@ const defaultState = {
   },
   deckPositions: {},
   cardDirection: "german",
-  motivation: { activityDays: [], days: {}, claims: {}, recentWins: [] }
+  motivation: { activityDays: [], days: {}, claims: {}, recentWins: [], points: 0 },
+  variation: { recentChoices: {}, recentOrders: {}, counters: {} }
 };
 
 function loadState() {
@@ -164,9 +165,22 @@ function loadState() {
         activityDays: parsed.motivation?.activityDays || [],
         days: parsed.motivation?.days || {},
         claims: parsed.motivation?.claims || {},
-        recentWins: parsed.motivation?.recentWins || []
+        recentWins: parsed.motivation?.recentWins || [],
+        points: Number(parsed.motivation?.points || 0)
+      },
+      variation: {
+        recentChoices: parsed.variation?.recentChoices || {},
+        recentOrders: parsed.variation?.recentOrders || {},
+        counters: parsed.variation?.counters || {}
       }
     };
+    const rewardCategories = ["lesson", "vocabulary", "sentences", "listening", "reading", "graded-reading", "writing", "speaking", "assessment"];
+    Object.values(next.motivation.days).forEach(day => {
+      if (!day.categories) {
+        day.categories = Object.fromEntries(rewardCategories.filter(category => Number(day[category] || 0) > 0).map(category => [category, Number(day[category])]));
+      }
+      day.points = Number(day.points || 0);
+    });
     if (storedVersion < 3) {
       const rebuiltIds = new Set(modules.filter(module => module.level === "A0").map(module => module.id));
       rebuiltIds.forEach(id => { delete next.modules[id]; });
@@ -186,6 +200,21 @@ function loadState() {
       next.deckPositions = {};
     }
     if (storedVersion < 5) next.version = 5;
+    if (parsed.motivation?.points == null) {
+      const activityPoints = { listening: 12, reading: 14, writing: 18, speaking: 16 };
+      const modulePoints = Object.values(next.modules).reduce((total, record) => {
+        const lessonPoints = Object.keys(record.lessonSteps || {}).length * 6;
+        const sentencePoints = Object.keys(record.completedPrompts || {}).length * 10;
+        const completedActivityPoints = Object.keys(activityPoints).reduce((sum, key) => {
+          const completed = record.activities?.[key]?.completedAt || Number(record[key] || 0) >= 1;
+          return sum + (completed ? activityPoints[key] : 0);
+        }, 0);
+        return total + lessonPoints + sentencePoints + completedActivityPoints + (record.completedAt ? 25 : 0);
+      }, 0);
+      const vocabularyPoints = Object.values(next.words).filter(record => Number(record.typedCorrect || 0) > 0).length * 8;
+      const gradedReadingPoints = Object.values(next.readings || {}).filter(record => record?.passedAt).length * 18;
+      next.motivation.points = modulePoints + vocabularyPoints + gradedReadingPoints;
+    }
     localStorage.setItem(storageKey, JSON.stringify(next));
     if (!modules.some(module => module.id === next.activeModule)) next.activeModule = modules[0].id;
     return next;
@@ -207,12 +236,15 @@ let vocabVisibleLimit = 200;
 let quiz = null;
 let bannerTimer = null;
 let rewardTimer = null;
+let rewardQueue = [];
+let rewardShowing = false;
 let learnMode = "deck";
 let lessonStepIndex = 0;
 let lessonSelection = "";
 let lessonBuilt = [];
 let lessonStepPassed = false;
 let readingAttemptRecorded = false;
+let lessonOptionOrders = new Map();
 
 function migrateLegacyWords() {
   let changed = false;
@@ -231,18 +263,293 @@ function saveState() {
   localStorage.setItem(storageKey, JSON.stringify(state));
 }
 
+const variationChoiceLimit = 4;
+const variationOrderLimit = 3;
+const variationRecordLimit = 320;
+
+function variationState() {
+  state.variation ||= { recentChoices: {}, recentOrders: {}, counters: {} };
+  state.variation.recentChoices ||= {};
+  state.variation.recentOrders ||= {};
+  state.variation.counters ||= {};
+  return state.variation;
+}
+
+function trimVariationRecord(record, limit = variationRecordLimit) {
+  const keys = Object.keys(record);
+  if (keys.length <= limit) return;
+  keys.slice(0, keys.length - limit).forEach(key => { delete record[key]; });
+}
+
+function touchVariationEntry(record, key, value) {
+  delete record[key];
+  record[key] = value;
+  trimVariationRecord(record);
+}
+
+function hashVariationSeed(value) {
+  let hash = 2166136261;
+  for (const character of String(value)) {
+    hash ^= character.codePointAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function seededVariationRandom(seed) {
+  let value = hashVariationSeed(seed) || 1;
+  return () => {
+    value += 0x6D2B79F5;
+    let result = value;
+    result = Math.imul(result ^ result >>> 15, result | 1);
+    result ^= result + Math.imul(result ^ result >>> 7, result | 61);
+    return ((result ^ result >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+function beginVariationRun(scope) {
+  const variation = variationState();
+  const count = Number(variation.counters[scope] || 0) + 1;
+  touchVariationEntry(variation.counters, scope, count);
+  const entropy = typeof crypto !== "undefined" && crypto.getRandomValues
+    ? crypto.getRandomValues(new Uint32Array(1))[0]
+    : Math.floor(Math.random() * 4294967296);
+  return {
+    scope,
+    count,
+    random: seededVariationRandom(`${scope}:${count}:${Date.now()}:${entropy}`)
+  };
+}
+
+function shuffledCopy(items, random) {
+  const result = [...items];
+  for (let index = result.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(random() * (index + 1));
+    [result[index], result[swapIndex]] = [result[swapIndex], result[index]];
+  }
+  return result;
+}
+
+function itemVariationId(item) {
+  return String(item?.sourceId || item?.id || item?.globalId || item?.de || item);
+}
+
+function orderRepeatScore(order, recentOrders) {
+  if (!recentOrders.length) return 0;
+  const ids = order.map(itemVariationId);
+  return recentOrders.reduce((score, previous, historyIndex) => {
+    const weight = historyIndex + 1;
+    const samePositions = ids.reduce((total, id, index) => total + (previous[index] === id ? 1 : 0), 0);
+    const exact = ids.length === previous.length && ids.every((id, index) => id === previous[index]);
+    return score + samePositions * weight + (previous[0] === ids[0] ? 3 * weight : 0) + (exact ? ids.length * 5 * weight : 0);
+  }, 0);
+}
+
+function variedOrder(items, key, random, options = {}) {
+  if (items.length < 2) return [...items];
+  const variation = variationState();
+  const recent = Array.isArray(variation.recentOrders[key]) ? variation.recentOrders[key] : [];
+  let result;
+  if (options.preserveFirst && recent.length === 0) {
+    result = [...items];
+  } else {
+    const candidates = Array.from({ length: Math.min(18, Math.max(8, items.length * 2)) }, () => shuffledCopy(items, random));
+    result = candidates.reduce((best, candidate) => orderRepeatScore(candidate, recent) < orderRepeatScore(best, recent) ? candidate : best, candidates[0]);
+    if (recent[recent.length - 1]?.[0] === itemVariationId(result[0])) {
+      const alternativeIndex = result.findIndex((item, index) => index > 0 && itemVariationId(item) !== recent[recent.length - 1][0]);
+      if (alternativeIndex > 0) [result[0], result[alternativeIndex]] = [result[alternativeIndex], result[0]];
+    }
+  }
+  const ids = result.map(itemVariationId);
+  touchVariationEntry(variation.recentOrders, key, [...recent, ids].slice(-variationOrderLimit));
+  return result;
+}
+
+function candidateSignature(candidate) {
+  return hashVariationSeed(JSON.stringify(candidate)).toString(36);
+}
+
+function chooseRecentSafe(candidates, key, random, options = {}) {
+  const unique = [...new Map(candidates.map(candidate => [candidateSignature(candidate), candidate])).entries()];
+  if (!unique.length) return null;
+  const variation = variationState();
+  const recent = Array.isArray(variation.recentChoices[key]) ? variation.recentChoices[key] : [];
+  const unseen = unique.filter(([signature]) => !recent.includes(signature));
+  const pool = unseen.length ? unseen : unique.filter(([signature]) => signature !== recent[recent.length - 1]);
+  const choices = pool.length ? pool : unique;
+  const [signature, candidate] = options.preserveFirst && recent.length === 0
+    ? unique[0]
+    : choices[Math.floor(random() * choices.length)];
+  touchVariationEntry(variation.recentChoices, key, [...recent, signature].slice(-variationChoiceLimit));
+  return candidate;
+}
+
+function answerStrings(...sources) {
+  return [...new Set(sources.flat(Infinity).filter(value => typeof value === "string" && value.trim()).map(value => value.trim()))];
+}
+
+function generatedPromptVariants(prompt) {
+  const value = String(prompt || "").trim();
+  const patterns = [
+    [/^Write:\s*(.+)$/iu, target => [`Put this into German: ${target}`, `Give the German sentence for: ${target}`]],
+    [/^Say:\s*(.+)$/iu, target => [`Say this in German: ${target}`, `Give the German for: ${target}`]],
+    [/^Ask:\s*(.+)$/iu, target => [`Ask this in German: ${target}`, `How would you ask this in German: ${target}`]],
+    [/^Translate:\s*(.+)$/iu, target => [`Put this into German: ${target}`, `Write the German version: ${target}`]],
+    [/^Use “(.+?)” to recall the model sentence for:\s*(.+)$/iu, (bundle, target) => [`Rebuild the model sentence with “${bundle}”: ${target}`, `Using “${bundle}”, write the taught sentence for: ${target}`]]
+  ];
+  for (const [pattern, build] of patterns) {
+    const match = value.match(pattern);
+    if (match) return build(...match.slice(1));
+  }
+  return [];
+}
+
+function generatedContextVariants(context) {
+  const value = String(context || "").trim();
+  const replacements = [
+    ["Use a short sentence from this lesson in a familiar exchange.", "A familiar exchange calls for a short sentence from this lesson."],
+    ["You need a complete sentence during an everyday exchange.", "An everyday exchange calls for one complete sentence."],
+    ["A familiar situation changes and you respond with a complete sentence.", "Respond to a change in a familiar situation with one complete sentence."],
+    ["You explain a practical detail clearly in conversation.", "A conversation calls for a clear practical detail."],
+    ["You choose precise wording for a detailed exchange.", "A detailed exchange calls for precise wording."],
+    ["Write the taught German form. Include the article when the bundle shows one.", "Recall the complete taught form, including an article when one belongs to the bundle."]
+  ];
+  return replacements
+    .filter(([source]) => value.startsWith(source))
+    .map(([source, replacement]) => replacement + value.slice(source.length));
+}
+
+const safeNamePools = [
+  ["Nina", "Mina", "Lina", "Mia", "Lea", "Lara", "Anna", "Emma", "Julia"],
+  ["Daniel", "Jonas", "Paul", "David", "Leon", "Ben", "Lukas", "Max", "Felix"],
+  ["Sam", "Alex", "Kim"]
+];
+const safeSurnamePool = ["Roth", "Kaya", "Yilmaz", "Weber", "Neumann", "Schneider", "Becker", "Hoffmann"];
+
+function replaceName(value, source, replacement) {
+  if (typeof value !== "string") return value;
+  return value.replace(new RegExp(`\\b${source}\\b`, "gu"), replacement);
+}
+
+function nameSurfaceVariants(question, base) {
+  const combined = [base.prompt, base.context, ...base.answers].filter(Boolean).join(" ");
+  const promptAndContext = [base.prompt, base.context].filter(Boolean).join(" ");
+  const answerText = base.answers.join(" ");
+  const replacements = [];
+  safeNamePools.forEach(pool => {
+    const source = pool.find(name => new RegExp(`\\b${name}\\b`, "u").test(promptAndContext)
+      && new RegExp(`\\b${name}\\b`, "u").test(answerText));
+    if (source) pool.filter(name => name !== source).slice(0, 4).forEach(target => replacements.push([source, target]));
+  });
+  const titledSurname = safeSurnamePool.find(name => new RegExp(`\\b(?:Frau|Herr|Ms\\.|Mr\\.)\\s+${name}\\b`, "u").test(combined));
+  if (titledSurname && new RegExp(`\\b${titledSurname}\\b`, "u").test(answerText)) {
+    safeSurnamePool.filter(name => name !== titledSurname).slice(0, 4).forEach(target => replacements.push([titledSurname, target]));
+  }
+  return replacements.map(([source, target]) => ({
+    ...base,
+    prompt: replaceName(base.prompt, source, target),
+    context: replaceName(base.context, source, target),
+    answers: base.answers.map(answer => replaceName(answer, source, target)),
+    wordBank: base.wordBank.map(word => replaceName(word, source, target)),
+    explanation: replaceName(base.explanation, source, target),
+    support: base.support ? Object.fromEntries(Object.entries(base.support).map(([key, value]) => [key, replaceName(value, source, target)])) : base.support
+  }));
+}
+
+function questionSurfaceCandidates(question) {
+  const baseAnswers = answerStrings(question.answers || [], question.acceptable || [], question.acceptableAnswers || [], question.answerVariants || []);
+  const base = {
+    prompt: question.prompt,
+    context: question.context,
+    answers: baseAnswers.length ? baseAnswers : [...(question.answers || [])],
+    wordBank: [...(question.wordBank || [])],
+    support: question.support,
+    explanation: question.explanation
+  };
+  const candidates = [base];
+  const promptVariants = Array.isArray(question.promptVariants) ? question.promptVariants : [];
+  const contextVariants = Array.isArray(question.contextVariants) ? question.contextVariants : [];
+  const pairedCount = Math.max(promptVariants.length, contextVariants.length);
+  for (let index = 0; index < pairedCount; index += 1) {
+    const promptEntry = promptVariants[index];
+    const contextEntry = contextVariants[index];
+    const promptObject = promptEntry && typeof promptEntry === "object" ? promptEntry : {};
+    const contextObject = contextEntry && typeof contextEntry === "object" ? contextEntry : {};
+    const variant = { ...promptObject, ...contextObject };
+    const variantAnswers = answerStrings(variant.answers || [], variant.acceptable || [], variant.acceptableAnswers || []);
+    candidates.push({
+      prompt: typeof promptEntry === "string" ? promptEntry : variant.prompt || base.prompt,
+      context: typeof contextEntry === "string" ? contextEntry : variant.context || base.context,
+      answers: variantAnswers.length ? variantAnswers : base.answers,
+      wordBank: Array.isArray(variant.wordBank) ? [...variant.wordBank] : base.wordBank,
+      support: variant.support || base.support,
+      explanation: variant.explanation || base.explanation
+    });
+  }
+  const objectVariants = [
+    ...(Array.isArray(question.surfaceVariants) ? question.surfaceVariants : []),
+    ...(Array.isArray(question.variants) ? question.variants.filter(variant => variant && typeof variant === "object") : [])
+  ];
+  objectVariants.forEach(variant => {
+    const variantAnswers = answerStrings(variant.answers || [], variant.acceptable || [], variant.acceptableAnswers || []);
+    candidates.push({
+      prompt: variant.prompt || base.prompt,
+      context: variant.context || base.context,
+      answers: variantAnswers.length ? variantAnswers : base.answers,
+      wordBank: Array.isArray(variant.wordBank) ? [...variant.wordBank] : base.wordBank,
+      support: variant.support || base.support,
+      explanation: variant.explanation || base.explanation
+    });
+  });
+  generatedPromptVariants(base.prompt).forEach(prompt => candidates.push({ ...base, prompt }));
+  generatedContextVariants(base.context).forEach(context => candidates.push({ ...base, context }));
+  candidates.push(...nameSurfaceVariants(question, base));
+  return candidates;
+}
+
+function materializeQuestion(question, moduleId, run, options = {}) {
+  const identity = question.sourceId || question.id;
+  const selected = chooseRecentSafe(questionSurfaceCandidates(question), `surface:${moduleId}:${identity}`, run.random, { preserveFirst: options.preserveSurface }) || {};
+  let wordBank = Array.isArray(selected.wordBank) ? [...selected.wordBank] : [...(question.wordBank || [])];
+  if (wordBank.length > 1 && !options.assessment) {
+    wordBank = variedOrder(wordBank, `word-bank:${moduleId}:${identity}`, run.random, { preserveFirst: false });
+  }
+  return {
+    ...question,
+    prompt: selected.prompt || question.prompt,
+    context: selected.context || question.context,
+    answers: selected.answers?.length ? selected.answers : answerStrings(question.answers || [], question.acceptable || [], question.acceptableAnswers || []),
+    wordBank,
+    support: selected.support || question.support,
+    explanation: selected.explanation || question.explanation
+  };
+}
+
+function lessonOptionOrder(module, step, field, values) {
+  const runtimeKey = `${module.id}:${step.id}:${field}`;
+  if (lessonOptionOrders.has(runtimeKey)) return lessonOptionOrders.get(runtimeKey);
+  const run = beginVariationRun(`lesson:${runtimeKey}`);
+  const result = variedOrder(values, `lesson-order:${runtimeKey}`, run.random, { preserveFirst: true });
+  lessonOptionOrders.set(runtimeKey, result);
+  saveState();
+  return result;
+}
+
 function motivationState() {
-  state.motivation ||= { activityDays: [], days: {}, claims: {}, recentWins: [] };
+  state.motivation ||= { activityDays: [], days: {}, claims: {}, recentWins: [], points: 0 };
   state.motivation.activityDays ||= [];
   state.motivation.days ||= {};
   state.motivation.claims ||= {};
   state.motivation.recentWins ||= [];
+  state.motivation.points = Number(state.motivation.points || 0);
   return state.motivation;
 }
 
 function motivationDay(key = today()) {
   const motivation = motivationState();
-  motivation.days[key] ||= { wins: 0, actions: 0, lastAt: null };
+  motivation.days[key] ||= { wins: 0, actions: 0, lastAt: null, points: 0, categories: {} };
+  motivation.days[key].points = Number(motivation.days[key].points || 0);
+  motivation.days[key].categories ||= {};
   return motivation.days[key];
 }
 
@@ -258,32 +565,71 @@ function markPracticeDay(category = "practice") {
   return day;
 }
 
-function addLearningWin(title, detail, category = "practice", includeRecent = false) {
+function recordUsefulPractice(category = "practice") {
   const day = markPracticeDay(category);
+  const motivation = motivationState();
+  day.categories[category] = Number(day.categories[category] || 0) + 1;
+  const creditId = `practice-credit:${today()}:${category}`;
+  if (!motivation.claims[creditId]) {
+    motivation.claims[creditId] = new Date().toISOString();
+    motivation.points += 2;
+    day.points += 2;
+  }
+  awardMomentumMilestones();
+  renderRewardHub();
+  saveState();
+  return day;
+}
+
+function addLearningWin(title, detail, category = "practice", includeRecent = true) {
+  const day = markPracticeDay(category);
+  const motivation = motivationState();
+  const points = window.SatzwerkRewards?.pointsFor(category) || 6;
   day.wins = Number(day.wins || 0) + 1;
+  day.points += points;
+  day.categories[category] = Number(day.categories[category] || 0) + 1;
+  motivation.points += points;
   if ($("#topWinCount")) $("#topWinCount").textContent = day.wins;
   if ($("#topMomentum")) $("#topMomentum").setAttribute("aria-label", `${day.wins} learning win${day.wins === 1 ? "" : "s"} today`);
   if (includeRecent) {
-    const motivation = motivationState();
-    motivation.recentWins.unshift({ title, detail, category, date: new Date().toISOString() });
+    motivation.recentWins.unshift({ title, detail, category, points, date: new Date().toISOString() });
     motivation.recentWins = motivation.recentWins.slice(0, 16);
   }
+  awardMomentumMilestones();
+  renderRewardHub();
+  saveState();
   return day.wins;
 }
 
 function showReward(title, detail, kind = "stage", label = "LEARNING WIN") {
+  rewardQueue.push({ title, detail, kind, label });
+  showNextReward();
+}
+
+function showNextReward() {
+  if (rewardShowing || !rewardQueue.length) return;
   const toast = $("#rewardToast");
-  if (!toast) return;
+  if (!toast) {
+    rewardQueue = [];
+    return;
+  }
+  const { title, detail, kind, label } = rewardQueue.shift();
+  rewardShowing = true;
   clearTimeout(rewardTimer);
   toast.hidden = false;
   toast.className = `reward-toast ${kind}`;
-  $("#rewardSeal").textContent = kind === "level" ? "★" : kind === "personal" ? "+" : "✓";
+  $("#rewardSeal").textContent = kind === "level" ? "★" : kind === "personal" ? "+" : kind === "goal" ? "◆" : "✓";
   $("#rewardLabel").textContent = label;
   $("#rewardTitle").textContent = title;
   $("#rewardText").textContent = detail;
   void toast.offsetWidth;
   toast.classList.add("reveal");
-  rewardTimer = setTimeout(() => { toast.hidden = true; }, 4800);
+  rewardTimer = setTimeout(() => {
+    toast.hidden = true;
+    toast.classList.remove("reveal");
+    rewardShowing = false;
+    showNextReward();
+  }, 4200);
 }
 
 function claimReward(id, title, detail, options = {}) {
@@ -296,13 +642,77 @@ function claimReward(id, title, detail, options = {}) {
   const category = options.category || "stage";
   if (options.track !== false) {
     if (options.count === false) markPracticeDay(category);
-    else addLearningWin(title, detail, category);
+    else addLearningWin(title, detail, category, false);
   }
   motivation.recentWins.unshift({ id, title, detail, category, date: new Date().toISOString() });
   motivation.recentWins = motivation.recentWins.slice(0, 16);
   saveState();
+  renderRewardHub();
   if (options.announce !== false) showReward(title, detail, options.kind || "stage", options.label || "LEARNING WIN");
   return true;
+}
+
+function currentPracticeStreak() {
+  const practiced = knownPracticeDays();
+  const cursor = new Date();
+  cursor.setHours(12, 0, 0, 0);
+  if (!practiced.has(localDayKey(cursor))) cursor.setDate(cursor.getDate() - 1);
+  let streak = 0;
+  while (practiced.has(localDayKey(cursor))) {
+    streak += 1;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
+}
+
+function awardGoal(id, title, detail, bonus) {
+  const motivation = motivationState();
+  if (motivation.claims[id]) return false;
+  motivation.points += bonus;
+  motivationDay().points += bonus;
+  return claimReward(id, title, `${detail} +${bonus} evidence points.`, {
+    track: false,
+    count: false,
+    category: "goal",
+    kind: "goal",
+    label: "MOMENTUM GOAL"
+  });
+}
+
+function awardMomentumMilestones() {
+  const day = motivationDay();
+  const dayKey = today();
+  const categoryCount = Object.values(day.categories || {}).filter(Boolean).length;
+  if (day.wins >= 3) awardGoal(`daily-goal:${dayKey}`, "Daily goal complete.", "Three useful learning wins recorded today.", 12);
+  if (categoryCount >= 3) awardGoal(`skill-mix:${dayKey}`, "Three skills in one day.", "You used a broader mix of German today.", 15);
+
+  const week = currentWeek();
+  const weekDays = week.filter(item => item.active).length;
+  if (weekDays >= 3) awardGoal(`weekly-rhythm:${week[0].key}`, "Weekly rhythm complete.", "German practice is recorded on three days this week.", 20);
+
+  const streak = currentPracticeStreak();
+  const thresholds = [30, 14, 7, 3];
+  const reached = thresholds.find(value => streak >= value);
+  if (reached && !motivationState().claims[`streak:${reached}`]) {
+    thresholds.filter(value => value < reached).forEach(value => {
+      motivationState().claims[`streak:${value}`] ||= new Date().toISOString();
+    });
+    awardGoal(`streak:${reached}`, `${reached}-day rhythm.`, `You returned to German for ${reached} consecutive days.`, Math.min(60, reached * 3));
+  }
+}
+
+function renderRewardHub() {
+  if (!window.SatzwerkRewards?.render) return;
+  const motivation = motivationState();
+  const day = motivationDay();
+  window.SatzwerkRewards.render({
+    points: motivation.points,
+    todayWins: day.wins,
+    streak: currentPracticeStreak(),
+    todayCategories: Object.values(day.categories || {}).filter(Boolean).length,
+    weekDays: currentWeek().filter(item => item.active).length,
+    recentWins: motivation.recentWins
+  });
 }
 
 function knownPracticeDays() {
@@ -440,7 +850,8 @@ function recordActivityResult(moduleId, activity, score) {
     const detail = activity === "listening" ? "The audio detail is checked off." : `${completed} of ${total} module stages are complete.`;
     claimReward(`stage:${moduleId}:${activity}`, `${labels[activity]} complete.`, detail, { category: activity });
   } else {
-    markPracticeDay(activity);
+    if (score >= 1) recordUsefulPractice(activity);
+    else markPracticeDay(activity);
     saveState();
   }
   return activityRecord;
@@ -701,6 +1112,7 @@ function renderHome() {
   $("#homeRetrievable").textContent = retrievable;
   $("#homeDurable").textContent = durable;
   $("#homeWeekDays").textContent = weekDays;
+  renderRewardHub();
   $("#weekRhythm").innerHTML = week.map(day => `<span class="rhythm-day ${day.active ? "active" : ""} ${day.current ? "today" : ""}" aria-label="${day.longName}, ${day.active ? "practiced" : "no activity recorded"}" title="${day.longName}: ${day.active ? "practiced" : "no activity recorded"}"><i aria-hidden="true"></i>${day.name}</span>`).join("");
   $("#momentumTitle").textContent = todayWins ? `${todayWins} learning win${todayWins === 1 ? "" : "s"} today` : "One useful win starts the session";
   $("#momentumText").textContent = nextStage ? `${completedStages} of ${stages.length} ${module.code} stages are complete. Next: ${nextStage.label}.` : `${module.code} is complete. Choose the next module when you are ready.`;
@@ -882,14 +1294,17 @@ function renderLessonInteraction(step) {
   target.innerHTML = "";
   target.hidden = step.kind === "teach";
   if (step.kind === "choice") {
-    target.innerHTML = '<p class="lesson-prompt">' + escapeHtml(step.prompt) + '</p><div class="lesson-choices">' + step.options.map((option, index) => '<button type="button" data-lesson-choice="' + index + '">' + escapeHtml(option) + '</button>').join("") + '</div>';
+    const options = lessonOptionOrder(activeModule(), step, "choices", step.options);
+    target.innerHTML = '<p class="lesson-prompt">' + escapeHtml(step.prompt) + '</p><div class="lesson-choices">' + options.map((option, index) => '<button type="button" data-lesson-choice="' + index + '">' + escapeHtml(option) + '</button>').join("") + '</div>';
     $$("[data-lesson-choice]").forEach(button => button.addEventListener("click", () => {
-      lessonSelection = step.options[Number(button.dataset.lessonChoice)];
+      lessonSelection = options[Number(button.dataset.lessonChoice)];
       $$("[data-lesson-choice]").forEach(item => item.classList.toggle("selected", item === button));
     }));
   }
   if (step.kind === "arrange") {
-    target.innerHTML = '<p class="lesson-prompt">' + escapeHtml(step.prompt) + '</p><div class="lesson-builder" id="lessonBuilder"><span>Choose the words below.</span></div><div class="lesson-tiles">' + step.tokens.map((token, index) => '<button type="button" data-lesson-token="' + index + '">' + escapeHtml(token) + '</button>').join("") + '</div><button class="lesson-clear" id="lessonClear" type="button">Clear</button>';
+    const tokens = step.tokens.map((value, sourceIndex) => ({ id: `${sourceIndex}:${value}`, value, sourceIndex }));
+    const orderedTokens = lessonOptionOrder(activeModule(), step, "tokens", tokens);
+    target.innerHTML = '<p class="lesson-prompt">' + escapeHtml(step.prompt) + '</p><div class="lesson-builder" id="lessonBuilder"><span>Choose the words below.</span></div><div class="lesson-tiles">' + orderedTokens.map(token => '<button type="button" data-lesson-token="' + token.sourceIndex + '">' + escapeHtml(token.value) + '</button>').join("") + '</div><button class="lesson-clear" id="lessonClear" type="button">Clear</button>';
     $$("[data-lesson-token]").forEach(button => button.addEventListener("click", () => {
       const index = Number(button.dataset.lessonToken);
       if (lessonBuilt.includes(index)) return;
@@ -1002,8 +1417,14 @@ function prepareDeck() {
   syncModuleControls();
   deck = targetedWordId ? [wordByGlobalId(targetedWordId)] : module.words.map(word => ({ ...word, moduleId: module.id, level: module.level, globalId: globalWordId(module.id, word.id) }));
   deck = deck.filter(Boolean);
+  const reviewDeck = !targetedWordId && verifiedCoreCount(module) === moduleCoreWords(module).length;
+  if (reviewDeck && deck.length > 1) {
+    const run = beginVariationRun(`word-deck:${module.id}`);
+    deck = variedOrder(deck, `word-deck-order:${module.id}`, run.random);
+    saveState();
+  }
   const firstUnrecalledCore = deck.findIndex(word => !word.supplemental && wordRecord(word.globalId).typedCorrect === 0);
-  deckIndex = targetedWordId ? 0 : firstUnrecalledCore >= 0 ? firstUnrecalledCore : Math.min(state.deckPositions[module.id] || 0, Math.max(0, deck.length - 1));
+  deckIndex = targetedWordId || reviewDeck ? 0 : firstUnrecalledCore >= 0 ? firstUnrecalledCore : Math.min(state.deckPositions[module.id] || 0, Math.max(0, deck.length - 1));
   const hasLesson = Boolean(module.lesson?.steps?.length) && !targetedWordId;
   $("#learnModeSwitch").hidden = !hasLesson;
   lessonStepIndex = hasLesson ? Math.min(moduleRecord(module.id).lessonIndex || 0, module.lesson.steps.length - 1) : 0;
@@ -1155,6 +1576,7 @@ function submitVocabularyRecall(event) {
   moduleRecord(word.moduleId).started = true;
   addDay(record);
   if (firstSuccessfulRecall) addLearningWin(word.de, "First successful typed recall", "vocabulary");
+  else if (result.correct) recordUsefulPractice("vocabulary");
   else markPracticeDay("vocabulary");
   cardRevealed = true;
   saveState();
@@ -1295,7 +1717,7 @@ function renderPracticeMenu() {
   $("#practiceTitle").textContent = module.title;
   $("#practiceIntro").textContent = "Each stage has a clear checkoff. The scored assessment opens after every coursework stage is complete.";
   $("#availableQuestionCount").textContent = lessonReady ? available.length : 0;
-  $("#sentenceReadiness").textContent = sentenceComplete ? "✓ Sentence Lab complete. Practice again whenever you want." : !lessonReady ? "Complete the guided lesson first." : coreVerified < coreTotal ? `Recall ${coreTotal - coreVerified} more core bundle${coreTotal - coreVerified === 1 ? "" : "s"} first.` : available.length + " ordered prompts use taught language.";
+  $("#sentenceReadiness").textContent = sentenceComplete ? "✓ Sentence Lab complete. Practice again whenever you want." : !lessonReady ? "Complete the guided lesson first." : coreVerified < coreTotal ? `Recall ${coreTotal - coreVerified} more core bundle${coreTotal - coreVerified === 1 ? "" : "s"} first.` : available.length + " varied prompts use taught language.";
   if (listening) $("#listeningReadiness").textContent = activityIsComplete(module, "listening")
     ? "✓ Listening complete. Replay the conversation whenever you want."
     : !lessonReady
@@ -1400,29 +1822,46 @@ function beginModuleAssessment() {
   startQuiz(true);
 }
 
-function assessmentItemsFor(module) {
-  const vocabulary = moduleCoreWords(module).map(word => ({
+function assessmentItemsFor(module, run) {
+  const vocabularyItems = moduleCoreWords(module).map(word => ({
     id: `vocabulary:${word.id}`,
     kind: "vocabulary",
     type: "CORE VOCABULARY",
     context: "Write the taught German form. Include the article when the bundle shows one.",
     prompt: `Write the German for “${word.en}”.`,
+    promptVariants: [
+      `Recall “${word.en}” in German.`,
+      `Give the complete taught German form for “${word.en}”.`
+    ],
     answers: germanRecallAnswers(word),
     explanation: word.bundle
-  })).sort(() => Math.random() - .5);
-  const sentences = module.questions.map(question => ({
+  }));
+  const vocabulary = variedOrder(
+    vocabularyItems.map(question => materializeQuestion(question, module.id, run, { assessment: true })),
+    `assessment-order:${module.id}:vocabulary`,
+    run.random
+  );
+  const sentenceItems = module.questions.map(question => ({
     ...question,
     id: `sentence:${question.id}`,
     sourceId: question.id,
     kind: "sentences"
-  })).sort(() => Math.random() - .5);
+  }));
+  const sentences = variedOrder(
+    sentenceItems.map(question => materializeQuestion(question, module.id, run, { assessment: true })),
+    `assessment-order:${module.id}:sentences`,
+    run.random
+  );
   const reading = [{
     id: "reading:module-text",
     kind: "reading",
     type: "READING",
     context: module.input.passage,
     prompt: module.input.readPrompt,
+    promptVariants: module.input.readPromptVariants || [],
+    contextVariants: module.input.passageVariants || [],
     answers: module.input.readAnswers,
+    acceptableAnswers: module.input.acceptableAnswers || [],
     explanation: "Return to the passage and locate the requested detail."
   }];
   const writing = [{
@@ -1431,6 +1870,7 @@ function assessmentItemsFor(module) {
     type: "STRUCTURED WRITING",
     context: module.task.guide.join(" • "),
     prompt: module.task.writingPrompt,
+    promptVariants: module.task.writingPromptVariants || [],
     longResponse: true,
     answers: [module.task.model],
     explanation: "The score checks the listed requirements and length target."
@@ -1441,20 +1881,38 @@ function assessmentItemsFor(module) {
     type: "SPEAKING TRANSCRIPT",
     context: [...module.task.speakingGuide, `Use at least ${speakingMinimumWords(module)} words.`].join(" • "),
     prompt: `${module.task.speakingPrompt} Type the words you would say.`,
+    promptVariants: (module.task.speakingPromptVariants || []).map(prompt => `${prompt} Type the words you would say.`),
     longResponse: true,
     answers: [module.task.speakingModel],
     explanation: "The score checks the target phrases and a useful minimum length. Pronunciation remains unscored."
   }];
-  return [...vocabulary, ...sentences, ...reading, ...writing, ...speaking];
+  return [
+    ...vocabulary,
+    ...sentences,
+    ...reading.map(question => materializeQuestion(question, module.id, run, { assessment: true })),
+    ...writing.map(question => materializeQuestion(question, module.id, run, { assessment: true })),
+    ...speaking.map(question => materializeQuestion(question, module.id, run, { assessment: true }))
+  ];
 }
 
 function startQuiz(checkpoint) {
   const module = activeModule();
+  const record = moduleRecord(module.id);
   const available = availableQuestionsFor(module);
-  const unfinished = module.lesson && !checkpoint ? available.filter(question => !moduleRecord(module.id).completedPrompts[question.id]) : [];
+  const unfinished = module.lesson && !checkpoint ? available.filter(question => !record.completedPrompts[question.id]) : [];
   const source = checkpoint ? module.questions : unfinished.length ? unfinished : available;
-  const questions = checkpoint ? assessmentItemsFor(module) : module.lesson ? [...source] : [...source].sort(() => Math.random() - .5);
+  const run = beginVariationRun(`${checkpoint ? "assessment" : "sentences"}:${module.id}`);
+  const hasPriorSentencePractice = Object.keys(record.attemptedPrompts || {}).length > 0;
+  const questions = checkpoint
+    ? assessmentItemsFor(module, run)
+    : variedOrder(
+      source.map(question => materializeQuestion(question, module.id, run, { preserveSurface: !hasPriorSentencePractice })),
+      `sentence-order:${module.id}`,
+      run.random,
+      { preserveFirst: !hasPriorSentencePractice }
+    );
   quiz = { moduleId: module.id, checkpoint, assessment: checkpoint, questions, index: 0, firstCorrect: 0, recovered: 0, missed: [], responses: [], originalTotal: questions.length, retry: false, inlineRetry: false, flow: 0, maxFlow: 0, flowRewarded: false, stageCompletedNow: false };
+  saveState();
   $("#quizShell").hidden = false;
   renderQuestion();
 }
@@ -1484,7 +1942,7 @@ function renderQuestion() {
   $("#quizSupport").hidden = !support;
   $("#quizSupport").innerHTML = support ? '<span>' + escapeHtml(support.title) + '</span><strong lang="de">' + escapeHtml(support.model) + '</strong><small>' + escapeHtml(support.translation) + '</small><p>' + escapeHtml(support.tip) + '</p>' : "";
   const sourceBank = quiz.assessment ? [] : (question.wordBank || []);
-  const bank = sourceBank.filter((_, index) => index % 2 === 1).concat(sourceBank.filter((_, index) => index % 2 === 0));
+  const bank = sourceBank;
   $("#quizWordBank").hidden = bank.length === 0;
   $("#quizWordBank").innerHTML = bank.map(word => `<span>${escapeHtml(word)}</span>`).join("");
   $("#quizInput").value = "";
@@ -1861,7 +2319,7 @@ function updateQuestionEvidence(question, result, retry) {
   if (result.correct) {
     record.completedPrompts[question.id] = true;
     if (!promptWasComplete) addLearningWin(question.prompt, `${module.code} sentence pattern completed`, "sentences");
-    else markPracticeDay("sentences");
+    else recordUsefulPractice("sentences");
     if (retry) {
       if (quiz.missed.some(item => item.id === question.id)) {
         quiz.recovered += 1;
@@ -2091,7 +2549,8 @@ function finishAssessment() {
   } else if (personalBest) {
     claimReward(`personal-best:${module.id}:${scorePoints}`, `New personal best: ${scorePoints}%.`, `Up ${improvement} point${improvement === 1 ? "" : "s"} from your previous best.`, { category: "assessment", announce: false, kind: "personal" });
   } else {
-    markPracticeDay("assessment");
+    if (passed) recordUsefulPractice("assessment");
+    else markPracticeDay("assessment");
     saveState();
   }
   $("#quizShell").hidden = true;
@@ -2646,6 +3105,9 @@ function renderProgress() {
   const durable = allWords.filter(word => tierFor(state.words[word.globalId]) === "durable").length;
   const completedLevels = levels.filter(level => modules.filter(module => module.level === level.id).every(moduleIsComplete));
   const readingPasses = passedLibraryReadings + modules.filter(module => activityIsComplete(module, "reading")).length;
+  const motivation = motivationState();
+  const practiceStreak = currentPracticeStreak();
+  const balancedDay = Object.values(motivation.days).some(day => Object.values(day.categories || {}).filter(Boolean).length >= 3);
   $("#progressWords").textContent = words.length;
   $("#progressWordsDetail").textContent = `of ${allWords.length} course bundles`;
   $("#progressAccuracy").textContent = accuracy == null ? "No data" : `${accuracy}%`;
@@ -2677,6 +3139,9 @@ function renderProgress() {
     { earned: readingPasses > 0, stamp: "R", title: "Text reader", earnedText: "You completed a German reading activity.", lockedText: "Complete one reading activity or graded text." },
     { earned: completed > 0, stamp: "✓", title: "Module passed", earnedText: `${completed} module${completed === 1 ? " is" : "s are"} now checked off.`, lockedText: "Pass your first closed module assessment." },
     { earned: retrievable >= 10, stamp: "10", title: "Ten retrievable", earnedText: `${retrievable} word bundles are retrievable or durable.`, lockedText: `${Math.min(retrievable, 10)} of 10 word bundles are retrievable.` },
+    { earned: practiceStreak >= 3, stamp: "3D", title: "Study rhythm", earnedText: `${practiceStreak} consecutive practice days are recorded.`, lockedText: "Return to useful German practice for three consecutive days." },
+    { earned: balancedDay, stamp: "3×", title: "Balanced day", earnedText: "You used three kinds of language skill in one day.", lockedText: "Use three skill areas in one day." },
+    { earned: motivation.points >= 100, stamp: "100", title: "Evidence builder", earnedText: `${motivation.points.toLocaleString()} evidence points come from completed learning work.`, lockedText: `${Math.min(motivation.points, 100)} of 100 evidence points earned.` },
     { earned: completedLevels.length > 0, stamp: completedLevels.at(-1)?.id || "A0", title: "Level complete", earnedText: `${completedLevels.map(level => level.id).join(", ")} ${completedLevels.length === 1 ? "is" : "are"} complete.`, lockedText: "Pass every module in one CEFR level." },
     { earned: durable > 0, stamp: "◆", title: "Built to last", earnedText: `${durable} word bundle${durable === 1 ? " has" : "s have"} durable evidence.`, lockedText: "Recall a word across several study days." },
     { earned: completed === modules.length, stamp: "B2", title: "Full pathway", earnedText: "Every module from A0 through B2 is passed.", lockedText: `${completed} of ${modules.length} modules are passed.` }
@@ -2736,7 +3201,14 @@ function bindEvents() {
   });
   $("#lessonAction").addEventListener("click", checkLessonStep);
   $("#cardDirection").addEventListener("change", event => { state.cardDirection = event.target.value; saveState(); renderCard(); });
-  $("#shuffleDeck").addEventListener("click", () => { deck = [...deck].sort(() => Math.random() - .5); deckIndex = 0; renderCard(); renderDeckStrip(); });
+  $("#shuffleDeck").addEventListener("click", () => {
+    const run = beginVariationRun(`manual-deck:${activeModule().id}`);
+    deck = variedOrder(deck, `word-deck-order:${activeModule().id}`, run.random);
+    deckIndex = 0;
+    saveState();
+    renderCard();
+    renderDeckStrip();
+  });
   $("#learnToPractice").addEventListener("click", () => go("practice"));
   $("#practiceLearnFirst").addEventListener("click", () => go("learn"));
   $$('[data-practice-mode]').forEach(button => button.addEventListener("click", () => openPracticeMode(button.dataset.practiceMode)));

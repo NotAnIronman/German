@@ -220,7 +220,8 @@
     } else if (personalBest) {
       claimReward(`reading-best:${item.id}:${scorePoints}`, `New reading best: ${scorePoints}%.`, `Up ${improvement} point${improvement === 1 ? "" : "s"} on ${item.title}.`, { category: "graded-reading", kind: "personal", label: "PERSONAL BEST" });
     } else {
-      markPracticeDay("graded-reading");
+      if (score >= item.passScore) recordUsefulPractice("graded-reading");
+      else markPracticeDay("graded-reading");
     }
     saveState();
     renderReadingLibrary();
