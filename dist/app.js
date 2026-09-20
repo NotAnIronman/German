@@ -115,13 +115,17 @@ const levelRank = { A0: 0, A1: 1, A2: 2, B1: 3, B2: 4 };
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
 const now = () => Date.now();
-const today = () => new Date().toISOString().slice(0, 10);
+const localDayKey = (value = new Date()) => {
+  const date = value instanceof Date ? value : new Date(value);
+  return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, "0"), String(date.getDate()).padStart(2, "0")].join("-");
+};
+const today = () => localDayKey();
 const dayMs = 86400000;
 const assessmentVersion = 5;
 const assessmentPassScore = .8;
 
 const defaultState = {
-  version: 4,
+  version: 5,
   activeModule: modules[0].id,
   courseLevel: "A0",
   cultureLevel: "A0",
@@ -135,7 +139,8 @@ const defaultState = {
     speaking: { attempts: 0 }
   },
   deckPositions: {},
-  cardDirection: "german"
+  cardDirection: "german",
+  motivation: { activityDays: [], days: {}, claims: {}, recentWins: [] }
 };
 
 function loadState() {
@@ -154,7 +159,13 @@ function loadState() {
         writing: { ...defaultState.skills.writing, ...(parsed.skills?.writing || {}) },
         speaking: { ...defaultState.skills.speaking, ...(parsed.skills?.speaking || {}) }
       },
-      deckPositions: parsed.deckPositions || {}
+      deckPositions: parsed.deckPositions || {},
+      motivation: {
+        activityDays: parsed.motivation?.activityDays || [],
+        days: parsed.motivation?.days || {},
+        claims: parsed.motivation?.claims || {},
+        recentWins: parsed.motivation?.recentWins || []
+      }
     };
     if (storedVersion < 3) {
       const rebuiltIds = new Set(modules.filter(module => module.level === "A0").map(module => module.id));
@@ -174,6 +185,7 @@ function loadState() {
       next.version = 4;
       next.deckPositions = {};
     }
+    if (storedVersion < 5) next.version = 5;
     localStorage.setItem(storageKey, JSON.stringify(next));
     if (!modules.some(module => module.id === next.activeModule)) next.activeModule = modules[0].id;
     return next;
@@ -194,6 +206,7 @@ let vocabFilter = "all";
 let vocabVisibleLimit = 200;
 let quiz = null;
 let bannerTimer = null;
+let rewardTimer = null;
 let learnMode = "deck";
 let lessonStepIndex = 0;
 let lessonSelection = "";
@@ -216,6 +229,112 @@ function migrateLegacyWords() {
 
 function saveState() {
   localStorage.setItem(storageKey, JSON.stringify(state));
+}
+
+function motivationState() {
+  state.motivation ||= { activityDays: [], days: {}, claims: {}, recentWins: [] };
+  state.motivation.activityDays ||= [];
+  state.motivation.days ||= {};
+  state.motivation.claims ||= {};
+  state.motivation.recentWins ||= [];
+  return state.motivation;
+}
+
+function motivationDay(key = today()) {
+  const motivation = motivationState();
+  motivation.days[key] ||= { wins: 0, actions: 0, lastAt: null };
+  return motivation.days[key];
+}
+
+function markPracticeDay(category = "practice") {
+  const motivation = motivationState();
+  const key = today();
+  if (!motivation.activityDays.includes(key)) motivation.activityDays.push(key);
+  motivation.activityDays = motivation.activityDays.slice(-180);
+  const day = motivationDay(key);
+  day.actions = Number(day.actions || 0) + 1;
+  day[category] = Number(day[category] || 0) + 1;
+  day.lastAt = new Date().toISOString();
+  return day;
+}
+
+function addLearningWin(title, detail, category = "practice", includeRecent = false) {
+  const day = markPracticeDay(category);
+  day.wins = Number(day.wins || 0) + 1;
+  if ($("#topWinCount")) $("#topWinCount").textContent = day.wins;
+  if ($("#topMomentum")) $("#topMomentum").setAttribute("aria-label", `${day.wins} learning win${day.wins === 1 ? "" : "s"} today`);
+  if (includeRecent) {
+    const motivation = motivationState();
+    motivation.recentWins.unshift({ title, detail, category, date: new Date().toISOString() });
+    motivation.recentWins = motivation.recentWins.slice(0, 16);
+  }
+  return day.wins;
+}
+
+function showReward(title, detail, kind = "stage", label = "LEARNING WIN") {
+  const toast = $("#rewardToast");
+  if (!toast) return;
+  clearTimeout(rewardTimer);
+  toast.hidden = false;
+  toast.className = `reward-toast ${kind}`;
+  $("#rewardSeal").textContent = kind === "level" ? "★" : kind === "personal" ? "+" : "✓";
+  $("#rewardLabel").textContent = label;
+  $("#rewardTitle").textContent = title;
+  $("#rewardText").textContent = detail;
+  void toast.offsetWidth;
+  toast.classList.add("reveal");
+  rewardTimer = setTimeout(() => { toast.hidden = true; }, 4800);
+}
+
+function claimReward(id, title, detail, options = {}) {
+  const motivation = motivationState();
+  if (motivation.claims[id]) {
+    saveState();
+    return false;
+  }
+  motivation.claims[id] = new Date().toISOString();
+  const category = options.category || "stage";
+  if (options.track !== false) {
+    if (options.count === false) markPracticeDay(category);
+    else addLearningWin(title, detail, category);
+  }
+  motivation.recentWins.unshift({ id, title, detail, category, date: new Date().toISOString() });
+  motivation.recentWins = motivation.recentWins.slice(0, 16);
+  saveState();
+  if (options.announce !== false) showReward(title, detail, options.kind || "stage", options.label || "LEARNING WIN");
+  return true;
+}
+
+function knownPracticeDays() {
+  const days = new Set(motivationState().activityDays);
+  Object.values(state.words || {}).forEach(record => (record.days || []).forEach(day => days.add(day)));
+  Object.values(state.modules || {}).forEach(record => {
+    if (record.completedAt) days.add(record.completedAt);
+    if (record.checkpointAt) days.add(record.checkpointAt);
+    Object.values(record.activities || {}).forEach(activity => { if (activity.completedAt) days.add(activity.completedAt); });
+  });
+  Object.values(state.readings || {}).forEach(record => (record.attempts || []).forEach(attempt => {
+    if (!attempt.date) return;
+    days.add(/^\d{4}-\d{2}-\d{2}$/.test(attempt.date) ? attempt.date : localDayKey(attempt.date));
+  }));
+  return days;
+}
+
+function currentWeek() {
+  const current = new Date();
+  const monday = new Date(current);
+  const offset = (current.getDay() + 6) % 7;
+  monday.setDate(current.getDate() - offset);
+  monday.setHours(12, 0, 0, 0);
+  const names = ["M", "T", "W", "T", "F", "S", "S"];
+  const longNames = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+  const practiced = knownPracticeDays();
+  return names.map((name, index) => {
+    const date = new Date(monday);
+    date.setDate(monday.getDate() + index);
+    const key = localDayKey(date);
+    return { name, longName: longNames[index], key, active: practiced.has(key), current: key === today() };
+  });
 }
 
 function escapeHtml(value) {
@@ -303,6 +422,7 @@ function moduleRecord(id) {
 function recordActivityResult(moduleId, activity, score) {
   const record = moduleRecord(moduleId);
   const activityRecord = record.activities[activity];
+  const wasComplete = Boolean(activityRecord.completedAt);
   if (activity === "listening") activityRecord.version = listeningEvidenceVersion;
   activityRecord.attempts += 1;
   activityRecord.bestScore = Math.max(activityRecord.bestScore || 0, score);
@@ -311,7 +431,18 @@ function recordActivityResult(moduleId, activity, score) {
   record.started = true;
   state.skills[activity].attempts += 1;
   if (["listening", "reading"].includes(activity) && score >= 1) state.skills[activity].correct += 1;
-  saveState();
+  const firstCompletion = score >= 1 && !wasComplete;
+  if (firstCompletion) {
+    const module = moduleById(moduleId);
+    const labels = { listening: "Listening", reading: "Reading", writing: "Writing", speaking: "Speaking rehearsal" };
+    const completed = moduleStageStates(module).filter(stage => stage.complete).length;
+    const total = moduleStageStates(module).length;
+    const detail = activity === "listening" ? "The audio detail is checked off." : `${completed} of ${total} module stages are complete.`;
+    claimReward(`stage:${moduleId}:${activity}`, `${labels[activity]} complete.`, detail, { category: activity });
+  } else {
+    markPracticeDay(activity);
+    saveState();
+  }
   return activityRecord;
 }
 
@@ -543,15 +674,36 @@ function go(view) {
 
 function renderHome() {
   const module = activeModule();
-  const progress = overallProgress();
+  const progress = moduleProgress(module);
   const due = dueWords().length;
+  const stages = moduleStageStates(module);
+  const completedStages = stages.filter(stage => stage.complete).length;
+  const nextStage = stages.find(stage => !stage.complete);
+  const motivation = motivationState();
+  const todayWins = Number(motivation.days[today()]?.wins || 0);
+  const week = currentWeek();
+  const weekDays = week.filter(day => day.active).length;
+  const introducedRecords = introducedWords().map(word => state.words[word.globalId]).filter(Boolean);
+  const retrievable = introducedRecords.filter(record => ["retrievable", "durable"].includes(tierFor(record))).length;
+  const durable = introducedRecords.filter(record => tierFor(record) === "durable").length;
+  const completedModules = modules.filter(moduleIsComplete).length;
   $("#homePercent").textContent = `${progress}%`;
+  $("#homeDialLabel").textContent = `${completedStages} of ${stages.length} stages`;
+  $("#homeDial").style.setProperty("--progress", progress);
+  $("#homeDial").setAttribute("aria-label", `${module.code}: ${progress}% complete, ${completedStages} of ${stages.length} stages`);
   $("#dueCount").textContent = due;
   $("#dueMessage").textContent = due ? `${due} bundle${due === 1 ? " is" : "s are"} ready for a spaced return.` : "Your next scheduled reviews will appear here.";
-  $("#homeModuleCount").textContent = modules.length;
-  $("#homeWordCount").textContent = allWords.length;
-  $("#homePromptCount").textContent = allQuestions.length;
-  $("#homeListeningCount").textContent = listeningCourse.items.length;
+  $("#topWinCount").textContent = todayWins;
+  $("#topMomentum").setAttribute("aria-label", `${todayWins} learning win${todayWins === 1 ? "" : "s"} today`);
+  $("#todayWinCount").textContent = todayWins;
+  $("#moduleStageCount").textContent = `${completedStages} / ${stages.length}`;
+  $("#homeModulesPassed").textContent = completedModules;
+  $("#homeRetrievable").textContent = retrievable;
+  $("#homeDurable").textContent = durable;
+  $("#homeWeekDays").textContent = weekDays;
+  $("#weekRhythm").innerHTML = week.map(day => `<span class="rhythm-day ${day.active ? "active" : ""} ${day.current ? "today" : ""}" aria-label="${day.longName}, ${day.active ? "practiced" : "no activity recorded"}" title="${day.longName}: ${day.active ? "practiced" : "no activity recorded"}"><i aria-hidden="true"></i>${day.name}</span>`).join("");
+  $("#momentumTitle").textContent = todayWins ? `${todayWins} learning win${todayWins === 1 ? "" : "s"} today` : "One useful win starts the session";
+  $("#momentumText").textContent = nextStage ? `${completedStages} of ${stages.length} ${module.code} stages are complete. Next: ${nextStage.label}.` : `${module.code} is complete. Choose the next module when you are ready.`;
   $("#continueUnit").textContent = `${module.code} · ${module.title.toUpperCase()}`;
   const introduced = moduleWordCount(module, true);
   const core = moduleCoreWords(module);
@@ -668,6 +820,8 @@ function markLessonWords(module, step) {
 
 function completeLessonStep(module, step) {
   const record = moduleRecord(module.id);
+  const firstCompletion = !record.lessonSteps[step.id];
+  const lessonWasComplete = lessonIsComplete(module);
   record.lessonSteps[step.id] = true;
   record.started = true;
   markLessonWords(module, step);
@@ -681,7 +835,14 @@ function completeLessonStep(module, step) {
       addDay(item);
     });
   }
-  saveState();
+  if (firstCompletion) addLearningWin(step.title, `${module.code} guided lesson`, "lesson");
+  const lessonNowComplete = lessonIsComplete(module);
+  if (!lessonWasComplete && lessonNowComplete) {
+    const stages = moduleStageStates(module);
+    $("#wordDeckTab").disabled = false;
+    $("#wordDeckTab").textContent = "Word deck";
+    claimReward(`stage:${module.id}:lesson`, "Guided lesson complete.", `The word deck is unlocked. ${stages.filter(stage => stage.complete).length} of ${stages.length} module stages are complete.`, { category: "lesson", count: false, track: false });
+  } else saveState();
 }
 
 function setLearnMode(mode) {
@@ -950,6 +1111,7 @@ function startFlashRecall() {
   record.lastSeen = now();
   addDay(record);
   mRecord.started = true;
+  markPracticeDay("vocabulary");
   saveState();
   renderCard();
   renderDeckStrip();
@@ -967,6 +1129,8 @@ function submitVocabularyRecall(event) {
   const result = classifyVocabularyRecall(value, word, direction);
   const module = moduleById(word.moduleId);
   const coreWasComplete = verifiedCoreCount(module) === moduleCoreWords(module).length;
+  const previousTier = tierFor(record);
+  const firstSuccessfulRecall = result.correct && record.typedCorrect === 0;
   const stamp = now();
   const delayed = record.lastTest && stamp - record.lastTest >= 20 * 3600000;
   record.introduced = true;
@@ -990,10 +1154,19 @@ function submitVocabularyRecall(event) {
   }
   moduleRecord(word.moduleId).started = true;
   addDay(record);
+  if (firstSuccessfulRecall) addLearningWin(word.de, "First successful typed recall", "vocabulary");
+  else markPracticeDay("vocabulary");
   cardRevealed = true;
   saveState();
   const coreNowComplete = verifiedCoreCount(module) === moduleCoreWords(module).length;
   const milestone = result.correct && !coreWasComplete && coreNowComplete;
+  const currentTier = tierFor(record);
+  if (milestone) {
+    const stages = moduleStageStates(module);
+    claimReward(`stage:${module.id}:vocabulary`, "Core recall complete.", `All ${moduleCoreWords(module).length} core bundles are ready. ${stages.filter(stage => stage.complete).length} of ${stages.length} module stages are complete.`, { category: "vocabulary", count: false, track: false });
+  } else if (result.correct && previousTier !== currentTier && ["retrievable", "durable"].includes(currentTier)) {
+    claimReward(`tier:${word.globalId}:${currentTier}`, `${word.de} is now ${tierLabel(currentTier)}.`, currentTier === "durable" ? "This bundle has held across four study days." : "This bundle has held in both directions across separate days.", { category: "vocabulary", count: false, track: false, kind: "personal", label: "VOCABULARY GROWTH" });
+  }
   $("#flashRecallForm").hidden = true;
   $("#flashResult").hidden = false;
   $("#flashResult").className = "flash-result " + (result.correct ? "correct" : result.near ? "close" : "repair") + (milestone ? " milestone" : "");
@@ -1023,6 +1196,7 @@ function skipVocabularyRecall() {
   record.nextReview = now() + 10 * 60000;
   if (!deck.slice(deckIndex + 1).some(item => item.globalId === word.globalId)) deck.push({ ...word });
   cardRevealed = true;
+  markPracticeDay("vocabulary");
   saveState();
   $("#flashRecallForm").hidden = true;
   $("#flashResult").hidden = false;
@@ -1207,7 +1381,7 @@ function renderAssessmentIntro() {
   $("#assessmentRules").innerHTML = [
     "Answers are saved without correctness feedback during the attempt.",
     "Pass with 80% overall, plus 70% in vocabulary and sentences, 50% in reading, and 60% in structured writing and speaking.",
-    "Every completed attempt stays in your score history. A lower retake keeps your best score.",
+    "Your latest 10 completed attempts stay in your score history. A lower retake keeps your best score.",
     "Keyboard spellings such as ae, oe, ue, and ss receive full credit."
   ].map(rule => `<li>${escapeHtml(rule)}</li>`).join("");
   const archived = record.assessment.archive?.[record.assessment.archive.length - 1];
@@ -1280,9 +1454,20 @@ function startQuiz(checkpoint) {
   const unfinished = module.lesson && !checkpoint ? available.filter(question => !moduleRecord(module.id).completedPrompts[question.id]) : [];
   const source = checkpoint ? module.questions : unfinished.length ? unfinished : available;
   const questions = checkpoint ? assessmentItemsFor(module) : module.lesson ? [...source] : [...source].sort(() => Math.random() - .5);
-  quiz = { moduleId: module.id, checkpoint, assessment: checkpoint, questions, index: 0, firstCorrect: 0, recovered: 0, missed: [], responses: [], originalTotal: questions.length, retry: false, inlineRetry: false };
+  quiz = { moduleId: module.id, checkpoint, assessment: checkpoint, questions, index: 0, firstCorrect: 0, recovered: 0, missed: [], responses: [], originalTotal: questions.length, retry: false, inlineRetry: false, flow: 0, maxFlow: 0, flowRewarded: false, stageCompletedNow: false };
   $("#quizShell").hidden = false;
   renderQuestion();
+}
+
+function renderQuizFlow() {
+  const chip = $("#quizFlow");
+  if (!chip || !quiz || quiz.assessment || quiz.retry || quiz.flow < 3) {
+    if (chip) chip.hidden = true;
+    return;
+  }
+  chip.hidden = false;
+  chip.textContent = `FLOW · ${quiz.flow}`;
+  chip.className = "flow-chip" + (quiz.flow >= 5 ? " hot" : "");
 }
 
 function renderQuestion() {
@@ -1290,6 +1475,7 @@ function renderQuestion() {
   if (!question) return finishQuizSet();
   $("#quizMode").textContent = quiz.retry ? "REPAIR PASS" : quiz.assessment ? "MODULE ASSESSMENT" : "SENTENCE LAB";
   $("#quizProgress").textContent = `${quiz.index + 1} / ${quiz.questions.length}`;
+  renderQuizFlow();
   $("#quizProgressBar").style.width = `${((quiz.index + 1) / quiz.questions.length) * 100}%`;
   $("#quizType").textContent = question.type;
   $("#quizContext").textContent = question.context;
@@ -1664,6 +1850,8 @@ function answerCoverage(value, answer) {
 function updateQuestionEvidence(question, result, retry) {
   const module = moduleById(quiz.moduleId);
   const record = moduleRecord(module.id);
+  const promptWasComplete = Boolean(record.completedPrompts[question.id]);
+  const sentenceStageWasComplete = completedPromptCount(module) === module.questions.length;
   const stamp = now();
   if (!retry) {
     record.attempts += 1;
@@ -1672,6 +1860,8 @@ function updateQuestionEvidence(question, result, retry) {
   }
   if (result.correct) {
     record.completedPrompts[question.id] = true;
+    if (!promptWasComplete) addLearningWin(question.prompt, `${module.code} sentence pattern completed`, "sentences");
+    else markPracticeDay("sentences");
     if (retry) {
       if (quiz.missed.some(item => item.id === question.id)) {
         quiz.recovered += 1;
@@ -1698,6 +1888,7 @@ function updateQuestionEvidence(question, result, retry) {
       word.nextReview = stamp + ({ introduced: dayMs, practicing: 2 * dayMs, retrievable: 5 * dayMs, durable: 12 * dayMs })[tier];
     });
   } else {
+    markPracticeDay("sentences");
     if (!quiz.missed.some(item => item.id === question.id)) quiz.missed.push(question);
     question.requires.forEach(localId => {
       const word = wordRecord(globalWordId(module.id, localId));
@@ -1708,6 +1899,11 @@ function updateQuestionEvidence(question, result, retry) {
   }
   record.started = true;
   saveState();
+  const sentenceStageNowComplete = completedPromptCount(module) === module.questions.length;
+  if (!sentenceStageWasComplete && sentenceStageNowComplete) {
+    const stages = moduleStageStates(module);
+    quiz.stageCompletedNow = claimReward(`stage:${module.id}:sentences`, "Sentence Lab complete.", `All ${module.questions.length} sentence patterns are in place. ${stages.filter(stage => stage.complete).length} of ${stages.length} module stages are complete.`, { category: "sentences", count: false, track: false, announce: false });
+  }
 }
 
 function writingAssessmentScore(module, text) {
@@ -1761,9 +1957,20 @@ function submitQuizAnswer(event) {
   }
   const result = classifyAnswer(value, question.answers, module.level);
   const repairAttempt = quiz.retry || quiz.inlineRetry;
-  updateQuestionEvidence(question, result, repairAttempt);
-  const feedbackPanel = $("#quizFeedback");
   const coached = result.correct && Boolean(result.needsRevision);
+  if (!repairAttempt) {
+    if (result.correct && !coached) {
+      quiz.flow += 1;
+      quiz.maxFlow = Math.max(quiz.maxFlow, quiz.flow);
+    } else quiz.flow = 0;
+  }
+  updateQuestionEvidence(question, result, repairAttempt);
+  renderQuizFlow();
+  if (quiz.flow >= 3 && !quiz.flowRewarded && !quiz.stageCompletedNow) {
+    quiz.flowRewarded = true;
+    showReward("Three clean sentences in a row.", "The pattern is starting to hold under pressure.", "personal", "IN FLOW");
+  }
+  const feedbackPanel = $("#quizFeedback");
   const revealCorrection = result.correct || result.near || answerCoverage(value, result.answer) >= .5;
   feedbackPanel.hidden = false;
   feedbackPanel.className = "quiz-feedback " + (result.correct ? coached ? "close" : "" : result.near ? "close" : "wrong");
@@ -1808,6 +2015,8 @@ function finishQuizSet() {
   const cleared = stillMissed === 0;
   $("#quizSummary").className = "quiz-summary" + (cleared ? " stage-complete" : "");
   $("#completionBurst").hidden = true;
+  $("#summaryCanDo").hidden = true;
+  $("#summaryCanDo").innerHTML = "";
   $("#summaryEyebrow").textContent = cleared ? "SENTENCE LAB COMPLETE" : "SET COMPLETE";
   $("#summaryTitle").textContent = cleared && !quiz.retry ? `All ${moduleTotal} sentence patterns are complete.` : quiz.retry ? `${quiz.recovered} question${quiz.recovered === 1 ? "" : "s"} repaired.` : `${quiz.firstCorrect} of ${total} correct on the first pass.`;
   $("#summaryText").textContent = stillMissed ? `${stillMissed} question${stillMissed === 1 ? " is" : "s are"} ready for a focused repair pass.` : "This set is clear for today. A later return will test how well it holds.";
@@ -1822,7 +2031,12 @@ function finishQuizSet() {
   $("#nextModule").hidden = true;
   $("#assessmentReview").hidden = true;
   $("#assessmentHistory").hidden = true;
-  $("#summaryFootnote").textContent = "Same-session repairs help you understand the form. A later return supplies stronger evidence.";
+  $("#summaryFootnote").textContent = quiz.maxFlow >= 3 ? `Best clean run: ${quiz.maxFlow} sentence${quiz.maxFlow === 1 ? "" : "s"}. A later return will test how well the pattern holds.` : "Same-session repairs help you understand the form. A later return supplies stronger evidence.";
+  if (quiz.stageCompletedNow) {
+    const module = moduleById(quiz.moduleId);
+    const stages = moduleStageStates(module);
+    showReward("Sentence Lab complete.", `All ${module.questions.length} sentence patterns are in place. ${stages.filter(stage => stage.complete).length} of ${stages.length} module stages are complete.`);
+  }
   $("#summaryTitle").focus();
 }
 
@@ -1843,7 +2057,10 @@ function finishAssessment() {
   const firstCompletion = passed && !record.assessment.passedAt;
   const hadPriorAttempt = record.assessment.attempts.length > 0;
   const previousBest = record.assessment.bestScore || 0;
-  const personalBest = hadPriorAttempt && score > previousBest + .005;
+  const scorePoints = Math.round(score * 100);
+  const previousBestPoints = Math.round(previousBest * 100);
+  const personalBest = hadPriorAttempt && scorePoints > previousBestPoints;
+  const improvement = Math.max(0, scorePoints - previousBestPoints);
   const correct = quiz.responses.filter(response => response.score >= 1).length;
   const attempt = {
     date: new Date().toISOString(),
@@ -1863,21 +2080,42 @@ function finishAssessment() {
   record.checkpointScore = score;
   record.checkpointAt = today();
   if (firstCompletion) record.celebrationSeen = true;
-  saveState();
+  const levelGroup = modules.filter(item => item.level === module.level);
+  const levelComplete = firstCompletion && levelGroup.every(moduleIsComplete);
+  const courseComplete = firstCompletion && modules.every(moduleIsComplete);
+  const levelIndex = levels.findIndex(level => level.id === module.level);
+  const nextLevel = levels[levelIndex + 1] || null;
+  if (firstCompletion) {
+    claimReward(`module:${module.id}`, `${module.code} complete.`, `Passed with ${scorePoints}%.`, { category: "assessment", announce: false });
+    if (levelComplete) claimReward(`level:${module.level}`, `${module.level} complete.`, nextLevel ? `${nextLevel.id} is ready.` : "Every course level is complete.", { category: "assessment", count: false, track: false, announce: false, kind: "level" });
+  } else if (personalBest) {
+    claimReward(`personal-best:${module.id}:${scorePoints}`, `New personal best: ${scorePoints}%.`, `Up ${improvement} point${improvement === 1 ? "" : "s"} from your previous best.`, { category: "assessment", announce: false, kind: "personal" });
+  } else {
+    markPracticeDay("assessment");
+    saveState();
+  }
   $("#quizShell").hidden = true;
   $("#activityShell").hidden = true;
   $("#quizSummary").hidden = false;
   $("#quizSummary").className = "quiz-summary" + (passed ? " module-complete" : "");
   $("#completionBurst").hidden = !firstCompletion;
-  $("#summaryEyebrow").textContent = firstCompletion ? "MODULE COMPLETE" : personalBest ? "PERSONAL BEST" : passed ? "ASSESSMENT PASSED" : "ASSESSMENT COMPLETE";
-  $("#summaryTitle").textContent = firstCompletion ? `${module.code} complete. ${Math.round(score * 100)}%.` : personalBest ? `New best score: ${Math.round(score * 100)}%.` : passed ? `Passed with ${Math.round(score * 100)}%.` : `Score: ${Math.round(score * 100)}%.`;
+  $("#summaryEyebrow").textContent = courseComplete ? "COURSE COMPLETE" : levelComplete ? `${module.level} COMPLETE` : firstCompletion ? "MODULE COMPLETE" : personalBest ? "PERSONAL BEST" : passed ? "ASSESSMENT PASSED" : "ASSESSMENT COMPLETE";
+  $("#summaryTitle").textContent = courseComplete ? `A0 to B2 complete. ${scorePoints}%.` : levelComplete ? `${module.level} complete. ${module.code} passed with ${scorePoints}%.` : firstCompletion ? `${module.code} complete. ${scorePoints}%.` : personalBest ? `New best score: ${scorePoints}%.` : passed ? `Passed with ${scorePoints}%.` : `Score: ${scorePoints}%.`;
   const floorsMet = [sections.vocabulary >= .70, sections.sentences >= .70, sections.reading >= .50, sections.writing >= .60, sections.speaking >= .60].filter(Boolean).length;
   const next = modules[modules.findIndex(item => item.id === module.id) + 1];
-  $("#summaryText").textContent = firstCompletion
-    ? `Every section minimum is secure. ${next ? `${next.code} is ready.` : "The full course pathway is checked off."}`
-    : passed
-      ? "Every section minimum is secure. This module is checked off."
-      : `Passing requires 80% overall and each section minimum. ${floorsMet} of 5 section minimums were reached.`;
+  $("#summaryText").textContent = courseComplete
+    ? "Every module assessment is passed. Your complete pathway remains open for review."
+    : levelComplete
+      ? `Every ${module.level} module is passed. ${nextLevel ? `${nextLevel.id} is ready.` : "The complete pathway is checked off."}`
+      : firstCompletion
+        ? `You met the minimum in every section. ${next ? `${next.code} is ready.` : "The full course pathway is checked off."}`
+        : personalBest
+          ? `Up ${improvement} point${improvement === 1 ? "" : "s"} from your previous best. ${passed ? "You met the minimum in every section." : `${floorsMet} of 5 section minimums were reached.`}`
+          : passed
+            ? "You met the minimum in every section. This module is checked off."
+            : `Passing requires 80% overall and each section minimum. ${floorsMet} of 5 section minimums were reached.`;
+  $("#summaryCanDo").hidden = !passed;
+  $("#summaryCanDo").innerHTML = passed ? module.canDo.slice(0, 4).map(item => `<li>${escapeHtml(item)}</li>`).join("") : "";
   $("#summaryCorrect").textContent = `${Math.round(score * 100)}%`;
   $("#summaryCorrectLabel").textContent = "latest score";
   $("#summaryRecovered").textContent = `${correct}/${quiz.responses.length}`;
@@ -1894,7 +2132,11 @@ function finishAssessment() {
   $("#retakeAssessment").hidden = false;
   $("#nextModule").hidden = !passed || !next;
   $("#nextModule").dataset.nextModule = next?.id || "";
-  $("#summaryFootnote").textContent = "Each retake is a new closed attempt. Your best score and full attempt history stay visible.";
+  $("#summaryFootnote").textContent = "Each retake is a new closed attempt. Your best score and latest 10 attempts stay visible.";
+  if (courseComplete) showReward("A0 to B2 complete.", "Every module assessment has been passed.", "level", "COURSE LANDMARK");
+  else if (levelComplete) showReward(`${module.level} complete.`, nextLevel ? `${nextLevel.id} is ready.` : "Every course level is complete.", "level", "LEVEL LANDMARK");
+  else if (firstCompletion) showReward(`${module.code} complete.`, `Passed with ${scorePoints}%. ${module.canDo[0]}`, "stage", "MODULE COMPLETE");
+  else if (personalBest) showReward(`New personal best: ${scorePoints}%.`, `Up ${improvement} point${improvement === 1 ? "" : "s"} from your previous best.`, "personal", "PERSONAL BEST");
   $("#summaryTitle").focus();
 }
 
@@ -2394,10 +2636,16 @@ function renderProgress() {
   const accuracy = state.quiz.attempts ? Math.round((state.quiz.firstCorrect / state.quiz.attempts) * 100) : null;
   const started = modules.filter(module => state.modules[module.id]?.started || moduleWordCount(module, true) > 0).length;
   const completed = modules.filter(module => moduleIsComplete(module)).length;
+  const completedModules = modules.filter(module => moduleIsComplete(module));
   const verifiedCore = modules.reduce((sum, module) => sum + verifiedCoreCount(module), 0);
   const coreTotal = modules.reduce((sum, module) => sum + moduleCoreWords(module).length, 0);
   const readingLibrary = window.SATZWERK_READINGS || [];
   const passedLibraryReadings = readingLibrary.filter(item => state.readings?.[item.id]?.version === item.version && state.readings?.[item.id]?.passedAt).length;
+  const sentenceCompletions = Object.values(state.modules).reduce((sum, item) => sum + Object.keys(item.completedPrompts || {}).length, 0);
+  const retrievable = allWords.filter(word => ["retrievable", "durable"].includes(tierFor(state.words[word.globalId]))).length;
+  const durable = allWords.filter(word => tierFor(state.words[word.globalId]) === "durable").length;
+  const completedLevels = levels.filter(level => modules.filter(module => module.level === level.id).every(moduleIsComplete));
+  const readingPasses = passedLibraryReadings + modules.filter(module => activityIsComplete(module, "reading")).length;
   $("#progressWords").textContent = words.length;
   $("#progressWordsDetail").textContent = `of ${allWords.length} course bundles`;
   $("#progressAccuracy").textContent = accuracy == null ? "No data" : `${accuracy}%`;
@@ -2422,6 +2670,23 @@ function renderProgress() {
     const progress = levelProgress(level.id);
     return `<div class="progress-level"><b>${level.id}</b><div><span>${escapeHtml(level.title)} · ${completedAtLevel} complete · ${startedAtLevel} started</span><div><i style="width:${progress}%"></i></div></div><small>${progress}% complete</small></div>`;
   }).join("");
+
+  const landmarks = [
+    { earned: verifiedCore > 0, stamp: "01", title: "First recall", earnedText: "You typed your first successful core-word recall.", lockedText: "Type one core word correctly from memory." },
+    { earned: sentenceCompletions > 0, stamp: "DE", title: "First sentence", earnedText: "You completed your first Sentence Lab pattern.", lockedText: "Complete one Sentence Lab prompt." },
+    { earned: readingPasses > 0, stamp: "R", title: "Text reader", earnedText: "You completed a German reading activity.", lockedText: "Complete one reading activity or graded text." },
+    { earned: completed > 0, stamp: "✓", title: "Module passed", earnedText: `${completed} module${completed === 1 ? " is" : "s are"} now checked off.`, lockedText: "Pass your first closed module assessment." },
+    { earned: retrievable >= 10, stamp: "10", title: "Ten retrievable", earnedText: `${retrievable} word bundles are retrievable or durable.`, lockedText: `${Math.min(retrievable, 10)} of 10 word bundles are retrievable.` },
+    { earned: completedLevels.length > 0, stamp: completedLevels.at(-1)?.id || "A0", title: "Level complete", earnedText: `${completedLevels.map(level => level.id).join(", ")} ${completedLevels.length === 1 ? "is" : "are"} complete.`, lockedText: "Pass every module in one CEFR level." },
+    { earned: durable > 0, stamp: "◆", title: "Built to last", earnedText: `${durable} word bundle${durable === 1 ? " has" : "s have"} durable evidence.`, lockedText: "Recall a word across several study days." },
+    { earned: completed === modules.length, stamp: "B2", title: "Full pathway", earnedText: "Every module from A0 through B2 is passed.", lockedText: `${completed} of ${modules.length} modules are passed.` }
+  ];
+  $("#landmarkGrid").innerHTML = landmarks.map(landmark => `<article class="landmark-card ${landmark.earned ? "earned" : "locked"}"><span class="landmark-stamp" aria-hidden="true">${escapeHtml(landmark.stamp)}</span><div><span>${landmark.earned ? "EARNED" : "IN PROGRESS"}</span><h3>${escapeHtml(landmark.title)}</h3><p>${escapeHtml(landmark.earned ? landmark.earnedText : landmark.lockedText)}</p></div></article>`).join("");
+
+  const earnedAbilities = completedModules.flatMap(module => module.canDo.map(item => ({ module, item }))).slice(-8).reverse();
+  $("#earnedCanDo").innerHTML = earnedAbilities.length
+    ? earnedAbilities.map(({ module, item }) => `<article class="can-do-item"><span>${escapeHtml(module.code)}</span><p>${escapeHtml(item)}</p></article>`).join("")
+    : '<div class="can-do-empty"><strong>Your first ability will appear here.</strong><p>Pass a module assessment to add its real-world skills.</p></div>';
 }
 
 function renderSources() {

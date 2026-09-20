@@ -195,6 +195,12 @@
     const correct = results.filter(result => result.correct).length;
     const score = correct / item.questions.length;
     const record = readingRecord(item);
+    const hadPriorAttempt = record.attempts.length > 0;
+    const previousBestPoints = Math.round((record.bestScore || 0) * 100);
+    const scorePoints = Math.round(score * 100);
+    const firstPass = score >= item.passScore && !record.passedAt;
+    const personalBest = hadPriorAttempt && scorePoints > previousBestPoints;
+    const improvement = Math.max(0, scorePoints - previousBestPoints);
     const attempt = { date: today(), score, durationSeconds: Math.round((Date.now() - readingSession.startedAt) / 1000), responses: [...readingSession.responses] };
     record.attempts.push(attempt);
     if (record.attempts.length > 20) record.attempts = record.attempts.slice(-20);
@@ -204,7 +210,18 @@
     if (score >= item.passScore && !record.passedAt) record.passedAt = today();
     readingSession.results = results;
     readingSession.score = score;
+    readingSession.firstPass = firstPass;
+    readingSession.personalBest = personalBest;
+    readingSession.improvement = improvement;
     readingSession.finished = true;
+    if (firstPass) {
+      const passedCount = readings.filter(reading => state.readings[reading.id]?.version === reading.version && state.readings[reading.id]?.passedAt).length;
+      claimReward(`reading:${item.id}`, `${item.title} passed.`, `${passedCount} of ${readings.length} graded texts are complete.`, { category: "graded-reading", label: "READING LANDMARK" });
+    } else if (personalBest) {
+      claimReward(`reading-best:${item.id}:${scorePoints}`, `New reading best: ${scorePoints}%.`, `Up ${improvement} point${improvement === 1 ? "" : "s"} on ${item.title}.`, { category: "graded-reading", kind: "personal", label: "PERSONAL BEST" });
+    } else {
+      markPracticeDay("graded-reading");
+    }
     saveState();
     renderReadingLibrary();
   }
@@ -212,7 +229,15 @@
   function renderReadingResult(item) {
     const passed = readingSession.score >= item.passScore;
     const correct = readingSession.results.filter(result => result.correct).length;
-    $("#readingWorkspace").innerHTML = `<div class="reading-result ${passed ? "passed" : ""}"><span class="eyebrow">${passed ? "TEXT PASSED" : "ATTEMPT COMPLETE"}</span><h2>${Math.round(readingSession.score * 100)}% · ${correct} of ${item.questions.length}</h2><p>${passed ? "You secured the required evidence across this text." : `Review the evidence below. ${Math.ceil(item.passScore * item.questions.length)} correct answers are required to pass.`}</p><div class="reading-review">${readingSession.results.map((result, index) => `<article class="${result.correct ? "correct" : "missed"}"><span>${result.correct ? "✓" : "○"} ${escapeHtml(result.question.skill)} · ${index + 1}</span><h3>${escapeHtml(result.question.prompt)}</h3><p><strong>Your answer:</strong> ${escapeHtml(result.response)}</p>${result.correct ? "" : `<p><strong>Accepted answer:</strong> ${escapeHtml(result.expected)}</p>`}<blockquote lang="de-DE">${escapeHtml(result.question.evidence)}</blockquote><p>${escapeHtml(result.question.explanation)}</p></article>`).join("")}</div><div class="reading-result-actions"><button class="quiet-button" id="readingResultCatalog" type="button">Return to catalog</button><button class="primary-button" id="readingResultRetry" type="button">Try a new attempt <span>→</span></button></div></div>`;
+    const eyebrow = readingSession.firstPass ? "FIRST PASS" : readingSession.personalBest ? "PERSONAL BEST" : passed ? "TEXT PASSED" : "ATTEMPT COMPLETE";
+    const resultCopy = readingSession.firstPass
+      ? "This text is now part of your completed reading track."
+      : readingSession.personalBest
+        ? `Your best score rose by ${readingSession.improvement} point${readingSession.improvement === 1 ? "" : "s"}.`
+        : passed
+          ? "You reached the passing standard again."
+          : `Review the evidence below. ${Math.ceil(item.passScore * item.questions.length)} correct answers are required to pass.`;
+    $("#readingWorkspace").innerHTML = `<div class="reading-result ${passed ? "passed" : ""}"><span class="eyebrow">${eyebrow}</span><h2>${Math.round(readingSession.score * 100)}% · ${correct} of ${item.questions.length}</h2><p>${resultCopy}</p><div class="reading-review">${readingSession.results.map((result, index) => `<article class="${result.correct ? "correct" : "missed"}"><span>${result.correct ? "✓" : "○"} ${escapeHtml(result.question.skill)} · ${index + 1}</span><h3>${escapeHtml(result.question.prompt)}</h3><p><strong>Your answer:</strong> ${escapeHtml(result.response)}</p>${result.correct ? "" : `<p><strong>Accepted answer:</strong> ${escapeHtml(result.expected)}</p>`}<blockquote lang="de-DE">${escapeHtml(result.question.evidence)}</blockquote><p>${escapeHtml(result.question.explanation)}</p></article>`).join("")}</div><div class="reading-result-actions"><button class="quiet-button" id="readingResultCatalog" type="button">Return to catalog</button><button class="primary-button" id="readingResultRetry" type="button">Try a new attempt <span>→</span></button></div></div>`;
     $("#readingResultCatalog").addEventListener("click", () => { readingSession = null; renderReadingLibrary(); });
     $("#readingResultRetry").addEventListener("click", () => {
       readingSession = { itemId: item.id, index: 0, responses: Array(item.questions.length).fill(""), startedAt: Date.now(), finished: false };
