@@ -2574,11 +2574,11 @@
       { label: `Build at least ${sentenceMinimum} sentence units`, type: "sentenceCount", min: sentenceMinimum, essential: true },
       { label: "Use a varied vocabulary", type: "lexicalDiversity", minRatio: .42, minDistinct: minimumDistinct, essential: true },
       { label: "Use enough German sentence words", type: "distinctRegexCount", pattern: "\\b(?:ich|du|er|sie|es|wir|ihr|Sie|der|die|das|den|dem|ein|eine|einen|einem|und|aber|weil|wenn|dass|ist|sind|hat|haben|wird|werden|kann|können|muss|müssen|soll|sollen|mit|für|auf|in|zu|von|bei|nach)\\b", flags: "giu", min: functionMinimum, essential: true },
-      { label: "Finish each sentence or line with punctuation", type: "punctuatedLines", required: levelOrder[plan.level] >= levelOrder.A2, essential: levelOrder[plan.level] >= levelOrder.A2 }
+      { label: "Finish each sentence or line with punctuation", type: "punctuatedLines", required: levelOrder[plan.level] >= levelOrder.B1, essential: levelOrder[plan.level] >= levelOrder.B1 }
     ];
     const nouns = nounHeads(core);
-    if (nouns.length) checks.push({ label: "Capitalize the German nouns used in this module", type: "capitalization", words: nouns, required: levelOrder[plan.level] >= levelOrder.A2 });
-    else if (levelOrder[plan.level] < levelOrder.A2) checks.push({ label: "Use the taught capitalization", type: "capitalization", words: [], required: false });
+    if (nouns.length) checks.push({ label: "Capitalize the German nouns used in this module", type: "capitalization", words: nouns, required: levelOrder[plan.level] >= levelOrder.B1 });
+    else if (levelOrder[plan.level] < levelOrder.B1) checks.push({ label: "Use the taught capitalization", type: "capitalization", words: [], required: false });
     return checks;
   }
 

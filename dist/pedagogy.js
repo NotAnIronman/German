@@ -191,7 +191,7 @@
         title: "A short profile about you",
         intro: "Each new fact gets its own sentence frame. Questions come after the matching statement.",
         steps: [
-          { id: "name-review", kind: "teach", label: "REVIEW", title: "Begin with your name", body: "Carry one useful pattern forward from the first module.", examples: [{ de: "Ich heiße Ravi.", en: "My name is Ravi." }, { de: "Mein Name ist Ravi.", en: "My name is Ravi." }], teaches: ["name"] },
+          { id: "name-review", kind: "teach", label: "REVIEW", title: "Choose a name pattern", body: "Three familiar patterns can give your name. Choose the one you want to use.", examples: [{ de: "Ich bin Ravi.", en: "I am Ravi." }, { de: "Ich heiße Ravi.", en: "My name is Ravi." }, { de: "Mein Name ist Ravi.", en: "My name is Ravi." }], note: "A greeting such as Hallo may come before any of these patterns.", teaches: ["name"] },
           { id: "age", kind: "teach", label: "LEARN", title: "Give your age with digits", body: "Use Ich bin, then the age, then Jahre alt. Digits keep the first practice focused on the sentence frame.", examples: [{ de: "Ich bin 28 Jahre alt.", en: "I am 28 years old." }, { de: "Ich bin 40 Jahre alt.", en: "I am 40 years old." }], note: "Jahre means years. Alt means old in this phrase.", teaches: ["a0pd-alt"] },
           { id: "home", kind: "teach", label: "LEARN", title: "Say where you live", body: "Use wohnen in with a city. Wo asks for a place.", examples: [{ de: "Ich wohne in Bonn.", en: "I live in Bonn." }, { de: "Wo wohnst du?", en: "Where do you live?" }], teaches: ["wohnen", "stadt"] },
           { id: "build-home", kind: "arrange", label: "BUILD", title: "Use the city frame", body: "Keep Ich wohne in together and place the city last.", prompt: "Build: I live in Chicago.", tokens: ["Chicago.", "wohne", "Ich", "in"], answer: "Ich wohne in Chicago.", success: "Ich wohne in plus a city gives your home city.", retry: "Start with Ich and place wohne second." },
@@ -203,7 +203,7 @@
         ]
       },
       questions: [
-        question("name", "PATTERN", "You give your name.", "Say: My name is Ravi.", ["Ich heiße Ravi.", "Mein Name ist Ravi."], "Use one of the two taught name patterns.", ["name"], ["Ich", "heiße", "Ravi."], { title: "Name frame", model: "Ich heiße Mina.", translation: "My name is Mina.", tip: "Replace Mina with Ravi." }),
+        question("name", "PATTERN", "You give your name. A taught greeting is optional.", "Give the name Ravi. Use Ich bin, Ich heiße, or Mein Name ist. You may begin with Hallo or a time-of-day greeting.", ["Ich bin Ravi.", "Ich heiße Ravi.", "Mein Name ist Ravi.", "Hallo, ich bin Ravi.", "Hallo, ich heiße Ravi.", "Hallo, mein Name ist Ravi.", "Guten Morgen, ich bin Ravi.", "Guten Morgen, ich heiße Ravi.", "Guten Morgen, mein Name ist Ravi.", "Guten Tag, ich bin Ravi.", "Guten Tag, ich heiße Ravi.", "Guten Tag, mein Name ist Ravi.", "Guten Abend, ich bin Ravi.", "Guten Abend, ich heiße Ravi.", "Guten Abend, mein Name ist Ravi."], "All three taught name patterns are valid. A taught greeting may come first.", ["name"], ["Ich", "heiße", "Ravi."], { title: "Choose a taught name pattern", model: "Ich bin Mina. · Ich heiße Mina. · Mein Name ist Mina.", translation: "I am Mina. · My name is Mina.", tip: "Replace Mina with Ravi. You may add a greeting." }),
         question("age", "PATTERN", "You give your age with digits.", "Say: I am 28 years old.", ["Ich bin 28 Jahre alt."], "The age goes between Ich bin and Jahre alt.", ["a0pd-alt"], ["Ich", "bin", "28", "Jahre", "alt."], { title: "Age frame", model: "Ich bin 40 Jahre alt.", translation: "I am 40 years old.", tip: "Replace 40 with 28." }),
         question("home", "PATTERN", "You give your current city.", "Say: I live in Chicago.", ["Ich wohne in Chicago."], "Use wohnen in with a city.", ["wohnen", "stadt"], ["Ich", "wohne", "in", "Chicago."], { title: "City frame", model: "Ich wohne in Bonn.", translation: "I live in Bonn.", tip: "Replace Bonn with Chicago." }),
         question("ask-home", "WORD ORDER", "You are using du.", "Ask: Where do you live?", ["Wo wohnst du?"], "Wo comes first, followed by wohnst and du.", ["wohnen"], ["Wo", "wohnst", "du?"], { title: "Build from the statement", model: "Ich wohne in Bonn.", translation: "I live in Bonn.", tip: "Begin the question with Wo, then use wohnst du." }),
@@ -222,14 +222,14 @@
         readAnswers: ["Bonn.", "Bonn", "In Bonn."]
       },
       task: {
-        writingPrompt: "Write exactly five lines about an invented person and use at least 18 words. Choose details from the guide. Give a name, age, country, city, and language in that order.",
+        writingPrompt: "Write exactly five lines about an invented person and use at least 18 words. Give a name, age, country, city, and language in that order. For the name, use Ich bin, Ich heiße, or Mein Name ist. A greeting at the start of line 1 is optional.",
         minWords: 18,
-        guide: ["Line 1: Ravi or Mina", "Line 2: 28 or 40", "Line 3: Kanada or Indien", "Line 4: Bonn or Chicago", "Line 5: Englisch, Deutsch, or Englisch und ein bisschen Deutsch"],
+        guide: ["Line 1: Ravi or Mina with any taught name pattern. You may begin with Hallo, Guten Morgen, Guten Tag, or Guten Abend.", "Line 2: 28 or 40", "Line 3: Kanada or Indien", "Line 4: Bonn or Chicago", "Line 5: Englisch, Deutsch, or Englisch und ein bisschen Deutsch"],
         required: ["ich", "komme", "wohne", "spreche"],
         checks: [
           { type: "lineCount", value: 5, label: "Exactly five non-empty lines" },
           { type: "minWords", value: 18, label: "At least 18 words" },
-          { type: "regexLine", line: 0, pattern: "^(?:ich\\s+(?:bin|hei(?:ß|ss)e)|mein\\s+name\\s+ist)\\s+(?:Ravi|Mina)[.!]?$", flags: "iu", label: "Line 1 gives Ravi or Mina as the name" },
+          { type: "regexLine", line: 0, pattern: "^(?:(?:hallo|guten\\s+(?:morgen|tag|abend))[!,.]?\\s+)?(?:ich\\s+(?:bin|hei(?:ß|ss)e)|mein\\s+name\\s+ist)\\s+(?:Ravi|Mina)[.!]?$", flags: "iu", label: "Line 1 gives Ravi or Mina with a taught name pattern; a greeting is optional" },
           { type: "regexLine", line: 1, pattern: "^ich\\s+bin\\s+(?:28|40)\\s+jahre\\s+alt[.!]?$", flags: "iu", label: "Line 2 gives age 28 or 40" },
           { type: "regexLine", line: 2, pattern: "^ich\\s+komme\\s+aus\\s+(?:Kanada|Indien)[.!]?$", flags: "iu", label: "Line 3 gives Kanada or Indien" },
           { type: "regexLine", line: 3, pattern: "^ich\\s+wohne\\s+in\\s+(?:Bonn|Chicago)[.!]?$", flags: "iu", label: "Line 4 gives Bonn or Chicago" },
@@ -241,7 +241,7 @@
         model: "Ich heiße Ravi.\nIch bin 28 Jahre alt.\nIch komme aus Indien.\nIch wohne in Bonn.\nIch spreche Englisch und ein bisschen Deutsch.",
         speakingPrompt: "Give the same five personal details from the taught frames.",
         speakingGuide: ["Name", "Age", "Country", "City", "Language"],
-        speakingRequired: [["heiße", "heisse", "name"], "jahre alt", "komme", "wohne", "spreche"],
+        speakingRequired: [["heiße", "heisse", "mein name ist", "bin ravi", "bin mina"], "jahre alt", "komme", "wohne", "spreche"],
         speakingModel: "Ich heiße Ravi. Ich bin 28 Jahre alt. Ich komme aus Indien. Ich wohne in Bonn. Ich spreche Englisch und ein bisschen Deutsch."
       }
     },
@@ -325,7 +325,7 @@
       "wie-gehts": { bundle: "Wie geht es dir? · Wie geht es Ihnen?", example: "Mir geht es gut, danke.", exampleEn: "I am well, thank you.", recall: { enAnswers: ["How are you?", "How are you doing?"] } }
     },
     "a0-personal-details": {
-      name: { de: "Mein Name ist ...", en: "my name is ...", bundle: "Mein Name ist Ravi.", example: "Mein Name ist Ravi.", exampleEn: "My name is Ravi." },
+      name: { de: "Mein Name ist ...", en: "my name is ...", bundle: "Mein Name ist Ravi.", example: "Mein Name ist Ravi.", exampleEn: "My name is Ravi.", recall: { deAnswers: ["Mein Name ist ...", "Ich heiße ...", "Ich heisse ...", "Ich bin ..."], enAnswers: ["my name is ...", "I am ..."] } },
       land: { de: "aus Kanada", en: "from Canada", bundle: "Ich komme aus Kanada.", example: "Ich komme aus Kanada.", exampleEn: "I come from Canada." },
       stadt: { de: "in Bonn", en: "in Bonn", bundle: "Ich wohne in Bonn.", example: "Ich wohne in Bonn.", exampleEn: "I live in Bonn." },
       sprache: { de: "Englisch · Deutsch", en: "English · German", bundle: "Ich spreche Englisch.", example: "Ich spreche Englisch.", exampleEn: "I speak English." },

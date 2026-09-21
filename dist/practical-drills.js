@@ -383,6 +383,44 @@
     return match ? match[1] : "";
   };
 
+  const dictionaryNoun = word => {
+    const source = String(word.de || "").trim();
+    const metadata = `${source} ${word.bundle || ""}`;
+    if (!source || /[.!?·]/u.test(source) || /\b(?:nur\s+Plural|plural only)\b/iu.test(metadata)) return null;
+    const firstForm = source.split(",")[0].split(/\s+\/\s+/u)[0].trim();
+    const match = firstForm.match(/^(der|die|das)\s+((?:(?:[\p{Ll}äöüß][\p{L}-]*\s+)*[A-ZÄÖÜ][\p{L}-]*))$/u);
+    if (!match) return null;
+    return {
+      article: match[1].toLocaleLowerCase("de-DE"),
+      form: firstForm,
+      meaning: String(word.en || "").trim(),
+      wordId: word.id
+    };
+  };
+
+  const articleDrillContext = {
+    A0: "Articles belong to German noun bundles. Give the singular noun with der, die, or das.",
+    A1: "Retrieve the singular noun as a complete dictionary bundle with its nominative article.",
+    A2: "Use the singular dictionary form of the noun with its nominative article.",
+    B1: "Keep gender attached to the noun. Give the singular nominative dictionary form with its article.",
+    B2: "Retrieve the singular noun precisely as a dictionary form with its nominative article."
+  };
+
+  const articleDrillSurface = noun => ({
+    prompt: `Write the German noun for “${noun.meaning}”. Include its nominative article.`,
+    context: articleDrillContext[noun.level],
+    answers: unique([noun.form, asciiGerman(noun.form)]),
+    wordBank: [],
+    requires: [noun.wordId],
+    explanation: `The complete noun bundle begins ${noun.form}.`,
+    support: {
+      title: "Retrieve the article with the noun",
+      model: "der · die · das",
+      translation: "",
+      tip: "Choose the article stored with this noun, then write the capitalized noun."
+    }
+  });
+
   const modelSentenceCue = word => {
     const german = String(word.example || "");
     const notes = [];
@@ -448,6 +486,25 @@
       existingAnswers.add(answerKey(word.example));
     }
 
+    const articleNouns = [...new Map(module.words
+      .filter(word => !word.supplemental)
+      .map(dictionaryNoun)
+      .filter(Boolean)
+      .map(noun => [noun.form.toLocaleLowerCase("de-DE"), { ...noun, level: module.level }])).values()]
+      .slice(0, 12);
+    if (articleNouns.length && !module.questions.some(question => question.id === "article-bundle-retrieval")) {
+      const [baseNoun, ...variantNouns] = articleNouns;
+      const baseSurface = articleDrillSurface(baseNoun);
+      module.questions.push({
+        id: "article-bundle-retrieval",
+        type: "ARTICLE RETRIEVAL",
+        ...baseSurface,
+        promptVariants: [],
+        contextVariants: [],
+        surfaceVariants: variantNouns.map(articleDrillSurface)
+      });
+    }
+
     if (!module.task.checks?.length) {
       const nounWords = [...new Set(module.words.map(nounHead).filter(Boolean))].slice(0, 12);
       const requiredLabel = item => `Include ${Array.isArray(item) ? item.join(" or ") : item}`;
@@ -460,13 +517,13 @@
           pattern: writingPattern(item),
           flags: "iu"
         })),
-        { label: "Finish each sentence or line with punctuation", type: "punctuatedLines", required: rank[module.level] < rank.A2 ? false : true },
+        { label: "Finish each sentence or line with punctuation", type: "punctuatedLines", required: rank[module.level] >= rank.B1 },
         ...(nounWords.length ? [{
           label: "Capitalize the German nouns used in this module",
           type: "capitalization",
           words: nounWords,
-          required: rank[module.level] < rank.A2 ? false : true
-        }] : rank[module.level] < rank.A2 ? [{
+          required: rank[module.level] >= rank.B1
+        }] : rank[module.level] < rank.B1 ? [{
           label: "Use the taught capitalization",
           type: "capitalization",
           words: [],

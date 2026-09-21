@@ -21,9 +21,9 @@
     "a0-personal-details": {
       words: [
         ["a0pd-alt", "Jahre alt sein", "to be years old", "Ich bin ... Jahre alt.", "Ich bin vierundzwanzig Jahre alt.", "I am twenty-four years old.", []],
-        ["a0pd-email", "die E-Mail-Adresse, die E-Mail-Adressen", "email address", "die E-Mail-Adresse · die E-Mail-Adressen", "Meine E-Mail-Adresse ist lena@example.de.", "My email address is lena@example.de.", []],
-        ["a0pd-strasse", "die Straße, die Straßen", "street", "die Straße · die Straßen", "Ich wohne in der Gartenstraße.", "I live on Gartenstrasse.", ["die Strasse, die Strassen"]],
-        ["a0pd-postleitzahl", "die Postleitzahl, die Postleitzahlen", "postal code", "die Postleitzahl · die Postleitzahlen", "Die Postleitzahl ist 53111.", "The postal code is 53111.", []],
+        ["a0pd-email", "die E-Mail-Adresse, die E-Mail-Adressen", "the email address", "die E-Mail-Adresse · die E-Mail-Adressen", "Meine E-Mail-Adresse ist lena@example.de.", "My email address is lena@example.de.", []],
+        ["a0pd-strasse", "die Straße, die Straßen", "the street", "die Straße · die Straßen", "Ich wohne in der Gartenstraße.", "I live on Gartenstrasse.", ["die Strasse, die Strassen"]],
+        ["a0pd-postleitzahl", "die Postleitzahl, die Postleitzahlen", "the postal code", "die Postleitzahl · die Postleitzahlen", "Die Postleitzahl ist 53111.", "The postal code is 53111.", []],
         ["a0pd-buchstabieren", "buchstabieren", "to spell", "buchstabieren · ich buchstabiere", "Ich buchstabiere meinen Namen.", "I spell my name.", []],
         ["a0pd-verstehen", "verstehen", "to understand", "verstehen · ich verstehe · du verstehst", "Ich verstehe die Frage.", "I understand the question.", []],
         ["a0pd-wiederholen", "wiederholen", "to repeat", "etwas wiederholen", "Können Sie das bitte wiederholen?", "Could you repeat that, please?", []],
@@ -558,9 +558,9 @@
     },
     "a0-personal-details": {
       words: [
-        ["a0pd-handynummer", "die Handynummer, die Handynummern", "mobile number", "Meine Handynummer ist ...", "Meine Handynummer ist 0176 482913.", "My mobile number is 0176 482913.", []],
-        ["a0pd-geburtsdatum", "das Geburtsdatum, die Geburtsdaten", "date of birth", "Mein Geburtsdatum ist ...", "Mein Geburtsdatum ist der dritte Mai.", "My date of birth is May third.", []],
-        ["a0pd-muttersprache", "die Muttersprache, die Muttersprachen", "native language", "Meine Muttersprache ist ...", "Meine Muttersprache ist Englisch.", "My native language is English.", []]
+        ["a0pd-handynummer", "die Handynummer, die Handynummern", "the mobile number", "die Handynummer · die Handynummern", "Meine Handynummer ist 0176 482913.", "My mobile number is 0176 482913.", []],
+        ["a0pd-geburtsdatum", "das Geburtsdatum, die Geburtsdaten", "the date of birth", "das Geburtsdatum · die Geburtsdaten", "Mein Geburtsdatum ist der dritte Mai.", "My date of birth is May third.", []],
+        ["a0pd-muttersprache", "die Muttersprache, die Muttersprachen", "the native language", "die Muttersprache · die Muttersprachen", "Meine Muttersprache ist Englisch.", "My native language is English.", []]
       ]
     },
     "a0-everyday-things": {
@@ -795,8 +795,8 @@
       ["a0fc-gute-nacht", "Gute Nacht!", "Good night!", "Gute Nacht! · Schlaf gut!", "Gute Nacht, Paul!", "Good night, Paul!", ["Gute Nacht, Ben!"]]
     ] },
     "a0-personal-details": { words: [
-      ["a0pd-vorname", "der Vorname, die Vornamen", "first name", "Mein Vorname ist ...", "Mein Vorname ist Lina.", "My first name is Lina.", []],
-      ["a0pd-nachname", "der Nachname, die Nachnamen", "last name", "Mein Nachname ist ...", "Mein Nachname ist Weber.", "My last name is Weber.", []]
+      ["a0pd-vorname", "der Vorname, die Vornamen", "the first name", "der Vorname · die Vornamen", "Mein Vorname ist Lina.", "My first name is Lina.", []],
+      ["a0pd-nachname", "der Nachname, die Nachnamen", "the last name", "der Nachname · die Nachnamen", "Mein Nachname ist Weber.", "My last name is Weber.", []]
     ] },
     "a0-everyday-things": { words: [
       ["a0et-regenschirm", "der Regenschirm, die Regenschirme", "umbrella", "der Regenschirm · die Regenschirme", "Der Regenschirm ist neben der Tür.", "The umbrella is next to the door.", ["Der Regenschirm ist neben der Tuer."]],

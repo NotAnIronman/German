@@ -402,6 +402,13 @@ mark.answer-token, mark.case-character { color: inherit; }
 .skill-task textarea { width: 100%; resize: vertical; border: 2px solid var(--ink); padding: 14px; line-height: 1.55; }
 .task-checklist { margin: 20px 0; padding: 18px 20px 18px 40px; background: #eef1f7; color: var(--ink-2); line-height: 1.55; }
 .task-actions, .speech-controls { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 12px; }
+.speech-controls { flex-wrap: wrap; justify-content: flex-start; }
+.local-speech-button { border-color: var(--blue); color: var(--blue-dark); }
+.local-speech-note { margin: 12px 0 18px; padding: 14px 16px; border-left: 4px solid var(--blue); background: var(--blue-soft); }
+.local-speech-note p { margin: 5px 0 0; color: var(--muted); line-height: 1.5; }
+.speaking-playback { display: grid; gap: 7px; margin: 16px 0; }
+.speaking-playback label { color: var(--muted); font-size: .75rem; font-weight: 820; text-transform: uppercase; }
+.speaking-playback audio { width: min(100%, 560px); }
 .completion-actions { justify-content: flex-end; padding-top: 10px; }
 .task-actions span { color: var(--muted); font-size: .8rem; }
 .reading-actions { justify-content: flex-end; }

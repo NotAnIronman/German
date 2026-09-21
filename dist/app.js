@@ -121,7 +121,7 @@ const localDayKey = (value = new Date()) => {
 };
 const today = () => localDayKey();
 const dayMs = 86400000;
-const assessmentVersion = 6;
+const assessmentVersion = 7;
 const assessmentPassScore = .8;
 
 const defaultState = {
@@ -463,6 +463,7 @@ function questionSurfaceCandidates(question) {
     context: question.context,
     answers: baseAnswers.length ? baseAnswers : [...(question.answers || [])],
     wordBank: [...(question.wordBank || [])],
+    requires: [...(question.requires || [])],
     support: question.support,
     explanation: question.explanation
   };
@@ -482,6 +483,7 @@ function questionSurfaceCandidates(question) {
       context: typeof contextEntry === "string" ? contextEntry : variant.context || base.context,
       answers: variantAnswers.length ? variantAnswers : base.answers,
       wordBank: Array.isArray(variant.wordBank) ? [...variant.wordBank] : base.wordBank,
+      requires: Array.isArray(variant.requires) ? [...variant.requires] : base.requires,
       support: variant.support || base.support,
       explanation: variant.explanation || base.explanation
     });
@@ -497,6 +499,7 @@ function questionSurfaceCandidates(question) {
       context: variant.context || base.context,
       answers: variantAnswers.length ? variantAnswers : base.answers,
       wordBank: Array.isArray(variant.wordBank) ? [...variant.wordBank] : base.wordBank,
+      requires: Array.isArray(variant.requires) ? [...variant.requires] : base.requires,
       support: variant.support || base.support,
       explanation: variant.explanation || base.explanation
     });
@@ -520,6 +523,7 @@ function materializeQuestion(question, moduleId, run, options = {}) {
     context: selected.context || question.context,
     answers: selected.answers?.length ? selected.answers : answerStrings(question.answers || [], question.acceptable || [], question.acceptableAnswers || []),
     wordBank,
+    requires: Array.isArray(selected.requires) ? [...selected.requires] : [...(question.requires || [])],
     support: selected.support || question.support,
     explanation: selected.explanation || question.explanation
   };
@@ -1804,9 +1808,17 @@ function renderAssessmentIntro() {
   $("#assessmentIntro").hidden = false;
   $("#assessmentIntroTitle").textContent = `${module.code}: ${module.title}`;
   $("#assessmentIntroText").textContent = `${coreCount + sentenceCount + 3} responses cover ${coreCount} core vocabulary bundles, ${sentenceCount} sentence targets, one reading task, one structured writing task, and one speaking transcript.`;
+  const levelScoringRule = {
+    A0: "A0 scoring accepts taught equivalent phrases and harmless taught greetings. Minor spelling slips can earn partial credit. An article counts when the prompt asks for one.",
+    A1: "A1 scoring accepts taught equivalent phrases. Word choice, articles, and sentence structure carry the score. Minor mechanics still receive coaching.",
+    A2: "A2 scoring accepts natural taught equivalents. Articles, cases, verb forms, and word order carry the score. Minor mechanics still receive coaching.",
+    B1: "B1 scoring expects the requested register, grammar, noun capitalization, and sentence punctuation.",
+    B2: "B2 scoring expects precise register, grammar, capitalization, punctuation, and complete fulfillment of the prompt."
+  }[module.level];
   $("#assessmentRules").innerHTML = [
     "Answers are saved without correctness feedback during the attempt.",
     "Pass with 80% overall, plus 70% in vocabulary and sentences, 50% in reading, and 60% in structured writing and speaking.",
+    levelScoringRule,
     "Your latest 10 completed attempts stay in your score history. A lower retake keeps your best score.",
     "Keyboard spellings such as ae, oe, ue, and ss receive full credit.",
     levelRank[module.level] >= levelRank.B1
@@ -1947,10 +1959,17 @@ function assessmentRegisterRequirement(question, prompt, answers) {
 function assessmentNameAnswers(prompt) {
   const name = assessmentNameTarget(prompt);
   if (!name) return [];
-  return [
+  const introductions = [
     `Ich bin ${name}.`,
     `Ich heiße ${name}.`,
     `Mein Name ist ${name}.`
+  ];
+  const greetings = ["Hallo", "Guten Morgen", "Guten Tag", "Guten Abend"];
+  return [
+    ...introductions,
+    ...greetings.flatMap(greeting => introductions.map(introduction =>
+      `${greeting}, ${introduction.charAt(0).toLocaleLowerCase("de-DE")}${introduction.slice(1)}`
+    ))
   ];
 }
 
@@ -2062,20 +2081,58 @@ if (typeof window !== "undefined") {
 }
 /* ASSESSMENT_CONTRACTS_END */
 
-function assessmentItemsFor(module, run) {
-  const vocabularyItems = moduleCoreWords(module).map(word => ({
+function assessmentNounBundle(word) {
+  const source = String(word.de || "").trim();
+  const metadata = `${source} ${word.bundle || ""}`;
+  if (!source || /[.!?·]/u.test(source) || /\b(?:nur\s+Plural|plural only)\b/iu.test(metadata)) return null;
+  const firstForm = source.split(",")[0].split(/\s+\/\s+/u)[0].trim();
+  const match = firstForm.match(/^(der|die|das)\s+((?:(?:[\p{Ll}äöüß][\p{L}-]*\s+)*[A-ZÄÖÜ][\p{L}-]*))$/u);
+  if (!match) return null;
+  return { article: match[1].toLocaleLowerCase("de-DE"), noun: match[2], form: firstForm };
+}
+
+function assessmentVocabularyItem(word) {
+  const noun = assessmentNounBundle(word);
+  if (noun) {
+    return {
+      id: `vocabulary:${word.id}`,
+      kind: "vocabulary",
+      type: "ARTICLE AND NOUN",
+      context: "Write the noun with its nominative article. The plural form is outside this question.",
+      prompt: `Write the German noun for “${word.en}”. Include der, die, or das.`,
+      promptVariants: [
+        `Recall the complete German noun for “${word.en}”. Include its nominative article.`,
+        `Give “${word.en}” in German with der, die, or das.`
+      ],
+      answers: germanRecallAnswers(word),
+      explanation: word.bundle,
+      noun
+    };
+  }
+  const openingArticle = String(word.de || "").trim().match(/^(der|die|das)\s/iu)?.[1]?.toLocaleLowerCase("de-DE") || "";
+  return {
     id: `vocabulary:${word.id}`,
     kind: "vocabulary",
-    type: "CORE VOCABULARY",
-    context: "Write the taught German form. Include the article when the bundle shows one.",
-    prompt: `Write the German for “${word.en}”.`,
-    promptVariants: [
-      `Recall “${word.en}” in German.`,
+    type: openingArticle ? "ARTICLE AND EXPRESSION" : "CORE VOCABULARY",
+    context: openingArticle ? "Write the complete taught expression, including its opening article." : "Write the taught German form.",
+    prompt: openingArticle
+      ? `Write the complete German expression for “${word.en}”. Include its opening article.`
+      : `Write the taught German form for “${word.en}”.`,
+    promptVariants: openingArticle ? [
+      `Recall the complete German expression for “${word.en}”. Include der, die, or das.`,
+      `Give the taught German expression for “${word.en}”, including its opening article.`
+    ] : [
+      `Recall the taught German form for “${word.en}”.`,
       `Give the complete taught German form for “${word.en}”.`
     ],
     answers: germanRecallAnswers(word),
-    explanation: word.bundle
-  }));
+    explanation: word.bundle,
+    openingArticle
+  };
+}
+
+function assessmentItemsFor(module, run) {
+  const vocabularyItems = moduleCoreWords(module).map(assessmentVocabularyItem);
   const vocabulary = variedOrder(
     vocabularyItems.map(question => materializeQuestion(question, module.id, run, { assessment: true })),
     `assessment-order:${module.id}:vocabulary`,
@@ -2617,11 +2674,60 @@ function writingAssessmentScore(module, text) {
   return points / Math.max(1, requirements.length + 1);
 }
 
+function assessmentVocabularyGrade(question, value, module) {
+  const typed = normalizedRecall(value, "german");
+  const semanticMatch = question.answers.find(candidate => normalizedRecall(candidate, "german") === typed);
+  if (semanticMatch) {
+    if (levelRank[module.level] < levelRank.B1) return { score: 1, correct: true, answer: question.answers[0], note: "The taught form is present." };
+    const typedCase = foldKeyboardCase(stripPunctuation(value));
+    const expectedCase = foldKeyboardCase(stripPunctuation(semanticMatch));
+    if (typedCase === expectedCase) return { score: 1, correct: true, answer: question.answers[0], note: "The taught form is present." };
+    const score = module.level === "B1" ? .75 : .65;
+    return { score, correct: false, answer: question.answers[0], note: "The vocabulary was recognized. Review the standard capitalization shown in the reference answer." };
+  }
+
+  if (module.level === "A0") {
+    const typo = question.answers.find(candidate => minorRecallTypo(value, candidate, "A0", "german"));
+    if (typo) return { score: .8, correct: false, answer: question.answers[0], note: "The intended A0 word was clear. Review the spelling shown in the reference answer." };
+  }
+
+  if (question.noun) {
+    const typedWords = stripPunctuation(value);
+    const typedNounCandidates = [
+      typedWords.replace(/^(?:der|die|das)\s+/iu, ""),
+      typedWords.replace(/^\S+\s+/u, "")
+    ];
+    if (typedNounCandidates.some(candidate => foldSpelling(candidate) === foldSpelling(question.noun.noun))) {
+      const articleCredit = { A0: .6, A1: .5, A2: .4, B1: .25, B2: .15 }[module.level] || .25;
+      return { score: articleCredit, correct: false, answer: question.answers[0], note: "The noun was recognized. This prompt also required its nominative article." };
+    }
+  }
+
+  if (question.openingArticle) {
+    const withoutOpeningArticle = candidate => normalizedRecall(
+      stripPunctuation(candidate).replace(/^(?:der|die|das)\s+/iu, ""),
+      "german"
+    );
+    const typedWithoutArticle = withoutOpeningArticle(value);
+    if (question.answers.some(candidate => withoutOpeningArticle(candidate) === typedWithoutArticle)) {
+      const articleCredit = { A0: .6, A1: .5, A2: .4, B1: .25, B2: .15 }[module.level] || .25;
+      return { score: articleCredit, correct: false, answer: question.answers[0], note: "The expression was recognized. This prompt also required its opening article." };
+    }
+  }
+
+  return { score: 0, correct: false, answer: question.answers[0], note: "Review the complete taught form in the reference answer." };
+}
+
+if (typeof window !== "undefined") {
+  window.SatzwerkAssessmentScoring = Object.freeze({
+    vocabularyItem: assessmentVocabularyItem,
+    vocabularyGrade: assessmentVocabularyGrade
+  });
+}
+
 function gradeAssessmentResponse(question, value, module) {
   if (question.kind === "vocabulary") {
-    const typed = normalizedRecall(value, "german");
-    const answer = question.answers.find(candidate => normalizedRecall(candidate, "german") === typed);
-    return { score: answer ? 1 : 0, correct: Boolean(answer), answer: question.answers[0] };
+    return assessmentVocabularyGrade(question, value, module);
   }
   if (question.kind === "writing") {
     const score = writingAssessmentScore(module, value);
@@ -2634,7 +2740,9 @@ function gradeAssessmentResponse(question, value, module) {
   if (question.kind === "reading") return readingAnswerResult(value, question.answers, module.level, question.prompt, module.input.readRequired || []);
   const answers = question.kind === "sentences" ? assessmentContractFor(question).answers : question.answers;
   const result = classifyAnswer(value, answers, module.level);
-  return { score: result.correct ? 1 : 0, correct: result.correct, answer: result.answer };
+  const nearCredit = { A0: .6, A1: .35, A2: .2, B1: 0, B2: 0 }[module.level] || 0;
+  const score = result.correct ? 1 : result.near ? nearCredit : 0;
+  return { score, correct: result.correct, answer: result.answer, note: result.note || (result.near ? "The response was close to a taught form." : "Review the requested pattern and the reference answer.") };
 }
 
 function submitQuizAnswer(event) {
@@ -2645,7 +2753,7 @@ function submitQuizAnswer(event) {
   if (!value.trim()) return;
   if (quiz.assessment) {
     const result = gradeAssessmentResponse(question, value, module);
-    quiz.responses.push({ id: question.id, kind: question.kind, type: question.type, prompt: question.prompt, value, answer: result.answer, score: result.score, explanation: question.explanation || "" });
+    quiz.responses.push({ id: question.id, kind: question.kind, type: question.type, prompt: question.prompt, value, answer: result.answer, score: result.score, note: result.note || "", explanation: question.explanation || "" });
     const record = moduleRecord(module.id);
     record.started = true;
     saveState();
@@ -2825,7 +2933,7 @@ function finishAssessment() {
   const sectionLabels = { vocabulary: "Vocabulary", sentences: "Sentence production", reading: "Reading", writing: "Structured writing", speaking: "Speaking transcript" };
   const missed = quiz.responses.filter(response => response.score < 1);
   $("#assessmentReview").hidden = false;
-  $("#assessmentReview").innerHTML = '<h3>Section scores</h3><ol>' + Object.entries(sections).map(([key, value]) => `<li><strong>${sectionLabels[key]}: ${Math.round(value * 100)}%</strong></li>`).join("") + '</ol>' + (missed.length ? '<h3>Review after the attempt</h3><ol>' + missed.map(response => `<li><strong>${escapeHtml(response.prompt)}</strong><small>Your answer: ${escapeHtml(response.value)}</small><small>Reference answer: ${escapeHtml(response.answer)}</small></li>`).join("") + '</ol>' : '<p>Every scored item received full credit.</p>');
+  $("#assessmentReview").innerHTML = '<h3>Section scores</h3><ol>' + Object.entries(sections).map(([key, value]) => `<li><strong>${sectionLabels[key]}: ${Math.round(value * 100)}%</strong></li>`).join("") + '</ol>' + (missed.length ? '<h3>Review after the attempt</h3><ol>' + missed.map(response => `<li><strong>${escapeHtml(response.prompt)}</strong><small>Your answer: ${escapeHtml(response.value)}</small><small>Reference answer: ${escapeHtml(response.answer)}</small><small>Credit earned: ${Math.round(response.score * 100)}%</small>${response.note ? `<small>${escapeHtml(response.note)}</small>` : ""}</li>`).join("") + '</ol>' : '<p>Every scored item received full credit.</p>');
   $("#assessmentHistory").hidden = false;
   $("#assessmentHistory").innerHTML = '<h3>Assessment history</h3><ol>' + [...record.assessment.attempts].reverse().map((item, index) => `<li>${index === 0 ? "Latest" : new Date(item.date).toLocaleDateString()}: <strong>${Math.round(item.score * 100)}%</strong> · ${item.passed ? "Passed" : "Review and retake"}</li>`).join("") + '</ol>';
   $("#retryMissed").hidden = true;
@@ -3209,28 +3317,36 @@ const speakingStatusDefault = "This activity checks included phrases through a t
 let activeSpeechRecognition = null;
 let speechRecognitionAttempt = 0;
 let microphoneRequestPending = false;
+let localSpeechTranscriber = null;
+let localSpeechAttempt = 0;
+let browserTranscriptionUnavailable = false;
 
 function setSpeakingMicrophoneStatus(message = speakingStatusDefault) {
   const status = $("#speakingMicStatus");
   if (status) status.textContent = message;
 }
 
-function stopMediaStreamTracks(stream) {
-  if (!stream?.getTracks) return;
-  stream.getTracks().forEach(track => {
-    try { track.stop(); } catch {}
-  });
-}
-
 function resetSpeakingMicrophoneControls(label = "Record again", message = "Microphone stopped. Record again, or type your transcript below.") {
   const button = $("#startRecognition");
+  const localButton = $("#localTranscription");
   const transcript = $("#speakingTranscript");
   if (!button || !transcript) return;
-  const supported = Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
-  button.disabled = !supported;
-  button.textContent = supported ? label : "Type a transcript here";
-  transcript.placeholder = supported ? "Speak with the microphone, or type your transcript here." : "Type your transcript here.";
-  setSpeakingMicrophoneStatus(supported ? message : "Speech recognition is unavailable in this browser. Type your transcript below to complete the rehearsal.");
+  const browserSupported = Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
+  const localSupported = Boolean(window.SatzwerkLocalSpeech?.supported?.());
+  button.hidden = !browserSupported;
+  button.disabled = !browserSupported || browserTranscriptionUnavailable;
+  button.textContent = browserTranscriptionUnavailable ? "Browser transcription unavailable" : browserSupported ? label : "Start microphone";
+  if (localButton) {
+    const localState = localSpeechTranscriber?.state?.() || {};
+    localButton.hidden = !localSupported;
+    localButton.disabled = false;
+    localButton.textContent = localState.ready ? "Start local recording" : "Download local transcription (about 50 MB)";
+  }
+  transcript.placeholder = browserSupported || localSupported ? "Speak with the microphone, or type your transcript here." : "Type your transcript here.";
+  const fallbackMessage = localSupported
+    ? "Browser speech recognition is unavailable. Download local transcription, or type your transcript below."
+    : "Speech recognition is unavailable in this browser. Type your transcript below to complete the rehearsal.";
+  setSpeakingMicrophoneStatus(browserSupported ? message : fallbackMessage);
 }
 
 function cancelActiveSpeechRecognition(options = {}) {
@@ -3246,7 +3362,19 @@ function cancelActiveSpeechRecognition(options = {}) {
     recognition.onend = null;
     try { recognition.abort(); } catch {}
   }
-  if (options.resetControls !== false && (recognition || requestWasPending || options.forceReset)) {
+  const localState = localSpeechTranscriber?.state?.() || {};
+  const localWasActive = Boolean(localState.recording || localState.transcribing);
+  localSpeechTranscriber?.cancel?.({ clearPlayback: Boolean(options.clearPlayback) });
+  if (options.clearPlayback) {
+    const playback = $("#speakingPlayback");
+    if (playback) {
+      playback.pause();
+      playback.removeAttribute("src");
+      playback.load();
+    }
+    if ($("#speakingPlaybackWrap")) $("#speakingPlaybackWrap").hidden = true;
+  }
+  if (options.resetControls !== false && (recognition || requestWasPending || localWasActive || options.forceReset)) {
     resetSpeakingMicrophoneControls(options.label || "Record again", options.message);
   }
 }
@@ -3260,13 +3388,162 @@ function microphoneErrorMessage(error) {
     return "The browser could not open a microphone. Check the selected input device, then try again. You can also type your transcript.";
   }
   if (code === "no-speech") return "No speech was detected. Try again, or type your transcript below.";
-  if (code === "network") return "Speech recognition could not connect. Try again, or type your transcript below.";
+  if (code === "network") {
+    return window.SatzwerkLocalSpeech?.supported?.()
+      ? "Your microphone opened. This browser's transcription service could not connect. Choose local transcription below, or type your transcript."
+      : "Your microphone opened. This browser's transcription service could not connect. Type your transcript below.";
+  }
   if (code === "aborted" || code === "aborterror") return "The microphone stopped. Try again, or type your transcript below.";
   return "The microphone stopped before a transcript was captured. Try again, or type your transcript below.";
 }
 
+function revealLocalTranscription(message = "") {
+  const button = $("#localTranscription");
+  const note = $("#localSpeechNote");
+  if (!button || !window.SatzwerkLocalSpeech?.supported?.()) return;
+  const state = localSpeechTranscriber?.state?.() || {};
+  button.hidden = false;
+  button.disabled = false;
+  button.textContent = state.ready ? "Start local recording" : "Download local transcription (about 50 MB)";
+  if (note) note.hidden = false;
+  if (message) setSpeakingMicrophoneStatus(message);
+}
+
+function localSpeechCallbackIsCurrent() {
+  return localSpeechAttempt === speechRecognitionAttempt && currentView === "practice" && !$("#speakingTask")?.hidden;
+}
+
+function ensureLocalSpeechTranscriber() {
+  if (localSpeechTranscriber || !window.SatzwerkLocalSpeech?.supported?.()) return localSpeechTranscriber;
+  localSpeechTranscriber = new window.SatzwerkLocalSpeech.LocalGermanTranscriber({
+    onProgress(message) {
+      if (!localSpeechCallbackIsCurrent()) return;
+      const progress = Number.isFinite(message.progress) ? ` ${Math.round(message.progress)}%` : "";
+      const file = message.file ? ` ${message.file.split("/").at(-1)}` : "";
+      $("#localTranscription").textContent = `Loading local model${progress}`;
+      setSpeakingMicrophoneStatus(`Preparing private German transcription${progress}.${file}`.trim());
+    },
+    onReady() {
+      if (!localSpeechCallbackIsCurrent()) return;
+      const button = $("#localTranscription");
+      button.disabled = false;
+      button.textContent = "Start local recording";
+      setSpeakingMicrophoneStatus("Local German transcription is ready. Start a recording when you are ready to speak.");
+    },
+    onRecording(maxDurationMs) {
+      if (!localSpeechCallbackIsCurrent()) return;
+      const seconds = Math.round(maxDurationMs / 1000);
+      $("#localTranscription").disabled = false;
+      $("#localTranscription").textContent = "Stop and transcribe";
+      $("#startRecognition").disabled = true;
+      setSpeakingMicrophoneStatus(`Recording German now. It will stop automatically after ${seconds} seconds.`);
+    },
+    onPlayback(url) {
+      if (!localSpeechCallbackIsCurrent()) return;
+      const audio = $("#speakingPlayback");
+      audio.src = url;
+      $("#speakingPlaybackWrap").hidden = false;
+    },
+    onTranscribing() {
+      if (!localSpeechCallbackIsCurrent()) return;
+      const button = $("#localTranscription");
+      button.disabled = true;
+      button.textContent = "Transcribing locally";
+      setSpeakingMicrophoneStatus("Recording complete. German transcription is running on this device.");
+    },
+    onResult(value) {
+      if (!localSpeechCallbackIsCurrent()) return;
+      const transcript = $("#speakingTranscript");
+      if (value) transcript.value = value;
+      const button = $("#localTranscription");
+      button.disabled = false;
+      button.textContent = "Record again locally";
+      $("#startRecognition").disabled = browserTranscriptionUnavailable;
+      setSpeakingMicrophoneStatus(value
+        ? "Local transcript captured. Read it below and make any needed edits."
+        : "The recording was saved, but no words were transcribed. Listen to it, record again, or type your transcript.");
+    },
+    onError(message) {
+      if (!localSpeechCallbackIsCurrent()) return;
+      const state = localSpeechTranscriber?.state?.() || {};
+      const button = $("#localTranscription");
+      button.disabled = false;
+      button.textContent = state.ready ? "Record again locally" : "Retry local setup";
+      $("#startRecognition").disabled = browserTranscriptionUnavailable;
+      setSpeakingMicrophoneStatus(`${message} Your saved recording remains available when one was captured. You can also type your transcript.`);
+    }
+  });
+  return localSpeechTranscriber;
+}
+
+async function useLocalTranscription() {
+  const transcriber = ensureLocalSpeechTranscriber();
+  if (!transcriber) {
+    setSpeakingMicrophoneStatus("Local recording is unavailable in this browser. Type your transcript below.");
+    return;
+  }
+  if (activeSpeechRecognition || microphoneRequestPending) cancelActiveSpeechRecognition({ resetControls: false });
+  localSpeechAttempt = speechRecognitionAttempt;
+  revealLocalTranscription();
+  const button = $("#localTranscription");
+  const state = transcriber.state();
+  if (state.recording) {
+    button.disabled = true;
+    button.textContent = "Finishing recording";
+    if (!transcriber.stop()) {
+      button.disabled = false;
+      button.textContent = "Record again locally";
+    }
+    return;
+  }
+  if (state.transcribing || state.loading) return;
+  if (!state.ready) {
+    button.disabled = true;
+    button.textContent = "Loading local model";
+    setSpeakingMicrophoneStatus("Downloading the private German transcription model. This happens once on this browser and may take a few minutes.");
+    try {
+      await transcriber.prepare();
+    } catch (error) {
+      if (!localSpeechCallbackIsCurrent()) return;
+      button.disabled = false;
+      button.textContent = "Retry local setup";
+      setSpeakingMicrophoneStatus("The local model could not be downloaded. Check the connection, retry the setup, or type your transcript.");
+    }
+    return;
+  }
+  try {
+    const module = activeModule();
+    const maxDurationMs = levelRank[module.level] <= levelRank.A1 ? 15000 : levelRank[module.level] === levelRank.A2 ? 25000 : 45000;
+    button.disabled = true;
+    button.textContent = "Opening microphone";
+    setSpeakingMicrophoneStatus("Opening the microphone for a local recording.");
+    const started = await transcriber.start(maxDurationMs);
+    if (!started) {
+      button.disabled = false;
+      button.textContent = "Start local recording";
+    }
+  } catch (error) {
+    if (!localSpeechCallbackIsCurrent()) return;
+    button.disabled = false;
+    button.textContent = "Start local recording";
+    setSpeakingMicrophoneStatus(microphoneErrorMessage(error));
+  }
+}
+
+async function browserCanRecognizeLocally(Recognition) {
+  if (Recognition !== window.SpeechRecognition
+    || typeof Recognition.available !== "function"
+    || !("processLocally" in Recognition.prototype)) return false;
+  try {
+    const status = await Recognition.available({ langs: ["de-DE"], processLocally: true });
+    return status === "available";
+  } catch {
+    return false;
+  }
+}
+
 function renderSpeaking() {
-  cancelActiveSpeechRecognition();
+  cancelActiveSpeechRecognition({ clearPlayback: true });
   const module = activeModule();
   const task = module.task;
   $("#speakingTask").hidden = false;
@@ -3277,11 +3554,18 @@ function renderSpeaking() {
   $("#speakingTranscript").value = "";
   $("#speakingFeedback").hidden = true;
   $("#speakingActions").hidden = true;
-  const supported = Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
-  $("#startRecognition").disabled = !supported;
-  $("#startRecognition").textContent = supported ? "Start microphone" : "Type a transcript here";
-  $("#speakingTranscript").placeholder = supported ? "Speak with the microphone, or type your transcript here." : "Type your transcript here.";
-  setSpeakingMicrophoneStatus();
+  const browserSupported = Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
+  const localSupported = Boolean(window.SatzwerkLocalSpeech?.supported?.());
+  browserTranscriptionUnavailable = false;
+  $("#startRecognition").hidden = !browserSupported;
+  $("#startRecognition").disabled = !browserSupported;
+  $("#startRecognition").textContent = "Start microphone";
+  $("#localTranscription").hidden = !localSupported;
+  $("#localTranscription").disabled = false;
+  $("#localTranscription").textContent = localSpeechTranscriber?.state?.().ready ? "Start local recording" : "Download local transcription (about 50 MB)";
+  $("#localSpeechNote").hidden = true;
+  $("#speakingTranscript").placeholder = browserSupported || localSupported ? "Speak with the microphone, or type your transcript here." : "Type your transcript here.";
+  setSpeakingMicrophoneStatus(browserSupported || localSupported ? speakingStatusDefault : "Speech recognition is unavailable in this browser. Type your transcript below to complete the rehearsal.");
 }
 
 async function startRecognition() {
@@ -3303,32 +3587,15 @@ async function startRecognition() {
 
   cancelActiveSpeechRecognition({ resetControls: false });
   const attempt = speechRecognitionAttempt;
+  localSpeechAttempt = attempt;
   microphoneRequestPending = true;
   button.disabled = false;
-  button.textContent = "Cancel microphone request";
+  button.textContent = "Stop microphone";
   transcript.placeholder = "You can type your transcript while the microphone opens.";
-  setSpeakingMicrophoneStatus("Waiting for microphone access. Your browser may ask for permission.");
+  setSpeakingMicrophoneStatus("Opening German speech recognition. Your browser may ask for microphone permission.");
 
-  let permissionStream = null;
-  try {
-    if (navigator.mediaDevices?.getUserMedia) {
-      permissionStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    }
-  } catch (error) {
-    if (attempt !== speechRecognitionAttempt) return;
-    microphoneRequestPending = false;
-    const message = microphoneErrorMessage(error);
-    button.disabled = false;
-    button.textContent = "Try microphone again";
-    transcript.placeholder = message;
-    setSpeakingMicrophoneStatus(message);
-    return;
-  } finally {
-    stopMediaStreamTracks(permissionStream);
-  }
-
+  const processLocally = await browserCanRecognizeLocally(Recognition);
   if (attempt !== speechRecognitionAttempt) return;
-  microphoneRequestPending = false;
   let recognition;
   try {
     recognition = new Recognition();
@@ -3345,13 +3612,17 @@ async function startRecognition() {
   recognition.lang = "de-DE";
   recognition.interimResults = false;
   recognition.maxAlternatives = 1;
+  if (processLocally) recognition.processLocally = true;
   let transcriptCaptured = false;
   let recognitionError = "";
   recognition.onstart = () => {
     if (attempt !== speechRecognitionAttempt) return;
+    microphoneRequestPending = false;
     button.disabled = false;
     button.textContent = "Stop microphone";
-    setSpeakingMicrophoneStatus("Listening for German. The transcript will appear below.");
+    setSpeakingMicrophoneStatus(processLocally
+      ? "Listening for German with this browser's local speech pack."
+      : "Listening for German. The transcript will appear below.");
   };
   recognition.onresult = event => {
     if (attempt !== speechRecognitionAttempt) return;
@@ -3367,20 +3638,30 @@ async function startRecognition() {
   recognition.onerror = event => {
     if (attempt !== speechRecognitionAttempt) return;
     recognitionError = event.error || "unknown";
+    microphoneRequestPending = false;
     const message = microphoneErrorMessage(event);
     if (activeSpeechRecognition === recognition) activeSpeechRecognition = null;
     recognition.onerror = null;
     try { recognition.abort(); } catch {}
-    button.disabled = false;
-    button.textContent = "Try microphone again";
+    if (recognitionError === "network") {
+      browserTranscriptionUnavailable = true;
+      button.disabled = true;
+      button.textContent = "Browser transcription unavailable";
+      revealLocalTranscription(message);
+    } else {
+      button.disabled = false;
+      button.textContent = "Try microphone again";
+    }
     transcript.placeholder = message;
     setSpeakingMicrophoneStatus(message);
   };
   recognition.onend = () => {
     if (attempt !== speechRecognitionAttempt) return;
     if (activeSpeechRecognition === recognition) activeSpeechRecognition = null;
-    button.disabled = false;
+    microphoneRequestPending = false;
+    button.disabled = recognitionError === "network";
     if (transcriptCaptured) button.textContent = "Record again";
+    else if (recognitionError === "network") button.textContent = "Browser transcription unavailable";
     else if (recognitionError) button.textContent = "Try microphone again";
     else {
       button.textContent = "Record again";
@@ -3398,6 +3679,7 @@ async function startRecognition() {
     recognition.onresult = null;
     recognition.onerror = null;
     recognition.onend = null;
+    microphoneRequestPending = false;
     const message = microphoneErrorMessage(error);
     button.disabled = false;
     button.textContent = "Try microphone again";
@@ -3645,7 +3927,8 @@ function bindEvents() {
   $("#writingRetry").addEventListener("click", retryWriting);
   $("#writingContinue").addEventListener("click", renderPracticeMenu);
   $("#startRecognition").addEventListener("click", startRecognition);
-  window.addEventListener("pagehide", cancelActiveSpeechRecognition);
+  $("#localTranscription").addEventListener("click", useLocalTranscription);
+  window.addEventListener("pagehide", () => cancelActiveSpeechRecognition({ clearPlayback: true }));
   window.addEventListener("pageshow", event => {
     if (event.persisted) cancelActiveSpeechRecognition({ forceReset: true, label: "Start microphone", message: speakingStatusDefault });
   });
