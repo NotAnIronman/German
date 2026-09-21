@@ -106,6 +106,13 @@ function validateDocumentShell() {
   });
   if (!/<html\b[^>]*\blang="en"/iu.test(html)) fail("index.html needs a document language");
   if (!/\bid="quizAudio"/u.test(html)) fail("index.html needs the closed-assessment audio player");
+  ["exportProgress", "importProgress", "importProgressFile", "testerTools", "testerLevel", "testerOpenLevel", "testerCompleteBefore", "testerCompleteCourse", "testerClear", "testerDisable"].forEach(id => {
+    if (!ids.includes(id)) fail(`index.html needs progress or testing control: ${id}`);
+  });
+  const app = fs.readFileSync(path.join(dist, "app.js"), "utf8");
+  if (!/function\s+exportProgress\s*\(/u.test(app) || !/function\s+importProgressFile\s*\(/u.test(app)) fail("Portable progress transfer is unavailable");
+  if (!/testerQueryValue\s*=\s*"satzwerk"/u.test(app) || !/function\s+testerModuleIsComplete\s*\(/u.test(app)) fail("Private tester mode is unavailable");
+  if (!/Boolean\(record\.completedAt\)/u.test(app)) fail("Passed module certificates are not durable across content updates");
 }
 
 function validateAssessmentListeningCoverage(listening) {

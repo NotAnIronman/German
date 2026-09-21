@@ -126,9 +126,11 @@ const today = () => localDayKey();
 const dayMs = 86400000;
 const assessmentVersion = 7;
 const assessmentPassScore = .8;
+const testerQueryKey = "tester";
+const testerQueryValue = "satzwerk";
 
 const defaultState = {
-  version: 7,
+  version: 8,
   activeModule: modules[0].id,
   courseLevel: "A0",
   cultureLevel: "A0",
@@ -145,6 +147,7 @@ const defaultState = {
   cardDirection: "mixed",
   drafts: { writing: {}, speaking: {}, speakingFollowUp: {} },
   assessmentSessions: {},
+  testing: { enabled: false, bypassPrerequisites: false, completedModules: {}, targetLevel: null },
   motivation: { activityDays: [], days: {}, claims: {}, recentWins: [], points: 0 },
   variation: { recentChoices: {}, recentOrders: {}, recentLexemes: {}, recentSurfaces: {}, counters: {} }
 };
@@ -261,6 +264,12 @@ function loadState(serializedState = null, allowBackup = true) {
         recentSurfaces: recordOrEmpty(parsed.variation?.recentSurfaces),
         counters: recordOrEmpty(parsed.variation?.counters)
       },
+      testing: {
+        enabled: Boolean(parsed.testing?.enabled),
+        bypassPrerequisites: Boolean(parsed.testing?.bypassPrerequisites),
+        completedModules: recordOrEmpty(parsed.testing?.completedModules),
+        targetLevel: levels.some(level => level.id === parsed.testing?.targetLevel) ? parsed.testing.targetLevel : null
+      },
       readings: recordMapOrEmpty(parsed.readings),
       readingLibrary: recordOrEmpty(parsed.readingLibrary),
       audioStudy: recordOrEmpty(parsed.audioStudy)
@@ -303,6 +312,18 @@ function loadState(serializedState = null, allowBackup = true) {
         if (record?.assessment?.passedAt && !record.activities?.listening?.completedAt) record.listeningGrandfathered = true;
       });
       next.version = 7;
+    }
+    if (storedVersion < 8) {
+      Object.values(next.modules).forEach(record => {
+        if (record.completedAt || record.assessment?.passedAt) return;
+        const passedAttempt = arrayOrEmpty(record.assessment?.attempts).find(attempt => attempt?.passed)
+          || arrayOrEmpty(record.assessment?.archive).flatMap(item => arrayOrEmpty(item?.attempts)).find(attempt => attempt?.passed);
+        if (!passedAttempt) return;
+        const passedDate = passedAttempt.date ? localDayKey(passedAttempt.date) : today();
+        record.completedAt = passedDate;
+        record.completionRestored = true;
+      });
+      next.version = 8;
     }
     if (parsed.motivation?.points == null) {
       const activityPoints = { listening: 12, reading: 14, writing: 18, speaking: 16 };
@@ -349,6 +370,22 @@ function loadState(serializedState = null, allowBackup = true) {
 }
 
 let state = loadState();
+
+function activateTesterModeFromUrl() {
+  try {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get(testerQueryKey) !== testerQueryValue) return;
+    state.testing ||= { enabled: false, bypassPrerequisites: false, completedModules: {}, targetLevel: null };
+    state.testing.enabled = true;
+    state.testing.bypassPrerequisites = true;
+    state.testing.completedModules ||= {};
+    saveState();
+    url.searchParams.delete(testerQueryKey);
+    window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+  } catch {}
+}
+
+activateTesterModeFromUrl();
 let currentView = "home";
 let courseSelectedModule = state.activeModule;
 let cultureLevel = state.cultureLevel || "A0";
@@ -595,6 +632,82 @@ function discardPreviousProgress() {
   } catch {
     progressDataStatus("The recovery copy could not be removed in this browser.", true);
   }
+}
+
+function testerState() {
+  state.testing ||= { enabled: false, bypassPrerequisites: false, completedModules: {}, targetLevel: null };
+  state.testing.completedModules ||= {};
+  return state.testing;
+}
+
+function testerModuleIsComplete(module) {
+  return Boolean(state.testing?.enabled && state.testing?.completedModules?.[module.id]);
+}
+
+function testerStatus(message) {
+  const status = $("#testerStatus");
+  if (status) status.textContent = message;
+}
+
+function renderTesterTools() {
+  const tools = $("#testerTools");
+  if (!tools) return;
+  const testing = testerState();
+  tools.hidden = !testing.enabled;
+  if (!testing.enabled) return;
+  $("#testerLevel").value = testing.targetLevel || activeModule().level;
+  const simulated = modules.filter(testerModuleIsComplete).length;
+  testerStatus(`${simulated} simulated module completion${simulated === 1 ? "" : "s"}. Every module is open for testing.`);
+}
+
+function openTesterLevel() {
+  const levelId = $("#testerLevel").value;
+  const first = modules.find(module => module.level === levelId);
+  if (!first) return;
+  testerState().targetLevel = levelId;
+  state.courseLevel = levelId;
+  courseSelectedModule = first.id;
+  setActiveModule(first.id, false);
+  saveState();
+  go("course");
+  announceMessage(`${levelId} is open for testing.`);
+}
+
+function completeTesterPrerequisites() {
+  const levelId = $("#testerLevel").value;
+  const rank = levelRank[levelId];
+  const testing = testerState();
+  testing.targetLevel = levelId;
+  testing.completedModules = Object.fromEntries(modules.filter(module => levelRank[module.level] < rank).map(module => [module.id, true]));
+  testing.bypassPrerequisites = true;
+  saveState();
+  renderProgress();
+  testerStatus(`Earlier levels now count as complete for the ${levelId} test path.`);
+}
+
+function completeTesterCourse() {
+  const testing = testerState();
+  testing.completedModules = Object.fromEntries(modules.map(module => [module.id, true]));
+  testing.bypassPrerequisites = true;
+  saveState();
+  renderProgress();
+  testerStatus("The full pathway now counts as complete on this testing copy.");
+}
+
+function clearTesterCompletions() {
+  const testing = testerState();
+  testing.completedModules = {};
+  testing.bypassPrerequisites = true;
+  saveState();
+  renderProgress();
+  testerStatus("Simulated completions cleared. Every module remains open for testing.");
+}
+
+function disableTesterMode() {
+  state.testing = { enabled: false, bypassPrerequisites: false, completedModules: {}, targetLevel: null };
+  saveState();
+  renderProgress();
+  announceMessage("Tester mode closed. Your recorded learning progress is unchanged.");
 }
 
 const variationChoiceLimit = 4;
@@ -1203,6 +1316,7 @@ function moduleRecord(id) {
   record.assessment ||= { version: assessmentVersion, firstScore: null, latestScore: null, bestScore: null, attempts: [], passedAt: null, archive: [] };
   if (record.assessment.version !== assessmentVersion) {
     const previous = record.assessment;
+    const existingCompletion = record.completedAt || previous.passedAt || null;
     record.assessment = {
       version: assessmentVersion,
       firstScore: null,
@@ -1212,11 +1326,11 @@ function moduleRecord(id) {
       passedAt: null,
       archive: [
         ...(previous.archive || []),
-        { version: previous.version || 1, bestScore: previous.bestScore ?? previous.latestScore ?? null, attempts: previous.attempts || [] }
+        { version: previous.version || 1, bestScore: previous.bestScore ?? previous.latestScore ?? null, passedAt: previous.passedAt || null, attempts: previous.attempts || [] }
       ]
     };
-    record.completedAt = null;
-    record.celebrationSeen = false;
+    record.completedAt = existingCompletion;
+    if (existingCompletion) record.updatedAssessmentAvailable = true;
   }
   record.assessment.attempts ||= [];
   record.assessment.archive ||= [];
@@ -1325,6 +1439,7 @@ function verifiedCoreCount(module) {
 
 function moduleStageStates(module) {
   const record = moduleRecord(module.id);
+  const completionHeld = Boolean(record.completedAt) || testerModuleIsComplete(module);
   const coreTotal = moduleCoreWords(module).length;
   const promptTotal = module.questions.length;
   const stages = [];
@@ -1343,6 +1458,12 @@ function moduleStageStates(module) {
     { id: "speaking", label: "Speaking rehearsal", complete: activityIsComplete(module, "speaking"), value: record.activities.speaking.bestScore || 0 },
     { id: "assessment", label: "Module assessment", complete: Boolean(record.assessment.passedAt), value: record.assessment.bestScore || 0 }
   );
+  if (completionHeld) {
+    stages.forEach(stage => {
+      stage.complete = true;
+      stage.value = 1;
+    });
+  }
   const firstOpen = stages.find(stage => !stage.complete);
   stages.forEach(stage => { stage.current = stage === firstOpen; });
   return stages;
@@ -1360,6 +1481,7 @@ function completedPromptCount(module) {
 }
 
 function courseworkIsComplete(module) {
+  if (moduleRecord(module.id).completedAt || testerModuleIsComplete(module)) return true;
   return lessonIsComplete(module) &&
     verifiedCoreCount(module) === moduleCoreWords(module).length &&
     completedPromptCount(module) === module.questions.length &&
@@ -1370,7 +1492,8 @@ function courseworkIsComplete(module) {
 }
 
 function moduleIsComplete(module) {
-  return courseworkIsComplete(module) && Boolean(moduleRecord(module.id).assessment.passedAt);
+  const record = moduleRecord(module.id);
+  return testerModuleIsComplete(module) || Boolean(record.completedAt) || (courseworkIsComplete(module) && Boolean(record.assessment.passedAt));
 }
 
 function moduleSequenceComplete(module) {
@@ -1378,6 +1501,7 @@ function moduleSequenceComplete(module) {
 }
 
 function unmetPrerequisite(module) {
+  if (state.testing?.enabled && state.testing?.bypassPrerequisites) return null;
   const existing = state.modules[module.id];
   if (existing?.started || existing?.assessment?.attempts?.length) return null;
   if (!module.prerequisite) return null;
@@ -1392,6 +1516,7 @@ function introducedCoreCount(module) {
 }
 
 function moduleProgress(module) {
+  if (moduleIsComplete(module)) return 100;
   if (!state.modules[module.id] && moduleWordCount(module, true) === 0) return 0;
   const stages = moduleStageStates(module);
   return Math.round(stages.reduce((sum, stage) => sum + Math.min(1, stage.complete ? 1 : stage.value || 0), 0) / stages.length * 100);
@@ -1399,6 +1524,7 @@ function moduleProgress(module) {
 
 function moduleStatus(module) {
   const record = state.modules[module.id];
+  if (testerModuleIsComplete(module)) return "Tester complete";
   if (!record) return "Fresh";
   if (moduleIsComplete(module)) return "Module complete";
   if (record.assessment?.attempts?.length) return "Assessment attempted";
@@ -4709,6 +4835,7 @@ function renderProgress() {
   $("#earnedCanDo").innerHTML = earnedAbilities.length
     ? earnedAbilities.map(({ module, item }) => `<article class="can-do-item"><span>${escapeHtml(module.code)}</span><p>${escapeHtml(item)}</p></article>`).join("")
     : '<div class="can-do-empty"><strong>Your first ability will appear here.</strong><p>Pass a module assessment to add its real-world skills.</p></div>';
+  renderTesterTools();
 }
 
 function renderSources() {
@@ -4880,6 +5007,15 @@ function bindEvents() {
     await importProgressFile(file);
     event.target.value = "";
   });
+  $("#testerOpenLevel").addEventListener("click", openTesterLevel);
+  $("#testerLevel").addEventListener("change", event => {
+    testerState().targetLevel = event.target.value;
+    saveState();
+  });
+  $("#testerCompleteBefore").addEventListener("click", completeTesterPrerequisites);
+  $("#testerCompleteCourse").addEventListener("click", completeTesterCourse);
+  $("#testerClear").addEventListener("click", clearTesterCompletions);
+  $("#testerDisable").addEventListener("click", disableTesterMode);
   $("#resetProgress").addEventListener("click", () => $("#resetDialog").showModal());
   $("#confirmReset").addEventListener("click", () => {
     suppressPagehidePersistence = true;
