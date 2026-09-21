@@ -10,6 +10,7 @@ const errors = [];
 const warnings = [];
 
 const contentScripts = [
+  "language-engine.js",
   "curriculum.js",
   "content-expansion.js",
   "pedagogy.js",
@@ -71,6 +72,26 @@ function validateProductCopy() {
     if (/\bnot\b[^.!?\n]{0,90}\bbut\b/iu.test(source) || /\bit(?:'s| is) not\b/iu.test(source)) {
       fail(`${entry.name} contains a prohibited contrast construction`);
     }
+  });
+}
+
+function validateGermanRegressionChecks() {
+  const files = Object.fromEntries([
+    "reading-library.js",
+    "lexicon-expansion-b2.js",
+    "grammar-pathway-b2.js",
+    "grammar-pathway-a2-b1.js"
+  ].map(name => [name, fs.readFileSync(path.join(dist, name), "utf8")]));
+  const forbidden = [
+    ["reading-library.js", /Der Anruf würde am Abend mindestens 140 Euro kosten/u, "The locksmith cost is assigned to the phone call"],
+    ["reading-library.js", /teilt seine Beschäftigten zwischen Montag und Freitag als freien Tag auf/u, "The four-day-week reading contains an invalid free-day construction"],
+    ["lexicon-expansion-b2.js", /formal response \/ correction/u, "Gegendarstellung is mistranslated as a correction"],
+    ["grammar-pathway-b2.js", /der Adressat, die Adressatin/u, "Adressatin is incorrectly placed in the plural slot for Adressat"],
+    ["grammar-pathway-b2.js", /Mehrere carries no case ending here/u, "The genitive ending on mehrerer is described incorrectly"],
+    ["grammar-pathway-a2-b1.js", /List the four case-controlled actions/u, "The A2.40 reading asks for four actions although the text contains five"]
+  ];
+  forbidden.forEach(([name, pattern, message]) => {
+    if (pattern.test(files[name])) fail(message);
   });
 }
 
@@ -233,6 +254,24 @@ function validateReadings(readings) {
   });
 }
 
+function validateLanguageEngine(course, engine) {
+  required(engine, "Language engine");
+  if (!engine) return { nouns: 0, verbs: 0, prepositions: 0, connectors: 0, adverbs: 0, profiles: 0, practice: 0, assessment: 0 };
+  if (typeof engine.candidatesFor !== "function") fail("Language engine cannot generate candidates");
+  if (typeof engine.validate !== "function") fail("Language engine has no validation routine");
+  const engineErrors = typeof engine.validate === "function" ? engine.validate(course) : [];
+  engineErrors.forEach(message => fail(message));
+  const stats = typeof engine.stats === "function" ? engine.stats() : {};
+  if (Number(stats.nouns || 0) < 30) fail(`Language engine noun ontology is too small: ${stats.nouns || 0}`);
+  if (Number(stats.verbs || 0) < 15) fail(`Language engine verb ontology is too small: ${stats.verbs || 0}`);
+  if (Number(stats.prepositions || 0) < 12) fail(`Language engine preposition ontology is too small: ${stats.prepositions || 0}`);
+  if (Number(stats.connectors || 0) < 10) fail(`Language engine connector ontology is too small: ${stats.connectors || 0}`);
+  if (Number(stats.adverbs || 0) < 10) fail(`Language engine adverb ontology is too small: ${stats.adverbs || 0}`);
+  if (Number(stats.profiles || 0) < 30) fail(`Language engine question coverage is too small: ${stats.profiles || 0}`);
+  if (Number(stats.assessment || 0) < 30) fail(`Language engine held-out assessment pool is too small: ${stats.assessment || 0}`);
+  return stats;
+}
+
 function wavDuration(file) {
   const data = fs.readFileSync(file);
   if (data.length < 44 || data.toString("ascii", 0, 4) !== "RIFF" || data.toString("ascii", 8, 12) !== "WAVE") {
@@ -300,11 +339,13 @@ function validateListening(course, listening) {
 
 validateJavaScriptSyntax();
 validateProductCopy();
+validateGermanRegressionChecks();
 validateDocumentShell();
 validateSpeechSafeguards();
 const assembled = loadContent();
 const course = assembled.SATZWERK_CURRICULUM;
 const moduleResult = validateModules(course);
+const languageEngineResult = validateLanguageEngine(course, assembled.SATZWERK_LANGUAGE_ENGINE);
 validateReadings(assembled.SATZWERK_READINGS || []);
 const listeningResult = validateListening(course, assembled.SATZWERK_MODULE_AUDIO || {});
 validateAssessmentListeningCoverage(assembled.SATZWERK_MODULE_AUDIO || {});
@@ -329,6 +370,8 @@ const coverageLines = [
   `Modules: ${moduleResult.modules.length} (${Object.entries(moduleResult.counts).map(([level, count]) => `${level} ${count}`).join(", ")})`,
   `Vocabulary bundles: ${totalWords}`,
   `Typed questions: ${totalQuestions}`,
+  `Language engine: ${languageEngineResult.nouns} nouns, ${languageEngineResult.verbs} verbs, ${languageEngineResult.prepositions} prepositions, ${languageEngineResult.connectors} connectors, ${languageEngineResult.adverbs} adverbs`,
+  `Generated variation: ${languageEngineResult.profiles} profiles, ${languageEngineResult.practice} practice variants, ${languageEngineResult.assessment} held-out assessment variants`,
   `Graded readings: ${readings.length} (${readings.reduce((sum, reading) => sum + Number(reading.wordCount || 0), 0).toLocaleString("en-US")} words, ${readings.reduce((sum, reading) => sum + reading.questions.length, 0)} questions)`,
   `Listening items: ${listeningResult.items.length} (${listeningResult.items.reduce((sum, item) => sum + item.turns.length, 0)} turns, ${(listeningResult.seconds / 60).toFixed(1)} minutes)`
 ];

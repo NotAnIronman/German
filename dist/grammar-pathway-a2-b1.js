@@ -311,9 +311,9 @@
         listenPromptVariants: ["Name the recipient of the backpack and the information the customer needs."],
         listenAnswers: ["Der Mann erhält den Rucksack, und der Mitarbeiter soll der Kundin den Weg zur Information zeigen.", "Dem Mann wird der Rucksack gegeben, und die Kundin fragt nach dem Weg zur Information."],
         passage: "Hinweis für neue Mitarbeitende: Geben Sie den Gästen beim Einchecken die Zimmerkarte und erklären Sie ihnen den Weg zum Aufzug. Gästen mit kleinen Kindern bieten wir ein Familienzimmer an. Für Fragen zur Rechnung schicken Sie die Gäste zur Rezeption. Nach dem Auschecken danken Sie ihnen für den Besuch.",
-        readPrompt: "List the four case-controlled actions employees should perform.",
-        readPromptVariants: ["Which four actions in the notice require an object or a governed preposition?"],
-        readAnswers: ["Sie geben den Gästen die Zimmerkarte, erklären ihnen den Weg, schicken die Gäste zur Rezeption und danken ihnen für den Besuch.", "Zimmerkarte geben, den Weg erklären, Gäste zur Rezeption schicken und ihnen danken."]
+        readPrompt: "List the five case-controlled actions employees should perform.",
+        readPromptVariants: ["Which five actions in the notice require an object or a governed preposition?"],
+        readAnswers: ["Sie geben den Gästen die Zimmerkarte, erklären ihnen den Weg, bieten Gästen mit kleinen Kindern ein Familienzimmer an, schicken die Gäste zur Rezeption und danken ihnen für den Besuch.", "Zimmerkarte geben, den Weg erklären, ein Familienzimmer anbieten, Gäste zur Rezeption schicken und ihnen danken."]
       },
       task: {
         writingPrompt: "Write a practical message about returning a borrowed key and helping a neighbor. Include a recipient, a direct object, two governed prepositions, and two pronoun replacements.",

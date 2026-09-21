@@ -290,10 +290,13 @@ a { color: inherit; }
 .quiz-progress-track { height: 5px; margin: 10px 0 16px; background: #dfe3eb; }
 .quiz-progress-track i { display: block; height: 100%; width: 10%; background: var(--blue); transition: width .25s; }
 .quiz-card { border: 1px solid var(--line); background: white; box-shadow: var(--shadow); overflow: hidden; }
-.quiz-card > .eyebrow, .quiz-context, .quiz-card > h2, .quiz-support, .quiz-word-bank, .quiz-card form { margin-left: 42px; margin-right: 42px; }
+.quiz-card > .eyebrow, .quiz-context, .quiz-card > h2, .quiz-instruction-hint, .quiz-support, .quiz-word-bank, .quiz-card form { margin-left: 42px; margin-right: 42px; }
 .quiz-card > .eyebrow { display: block; margin-top: 42px; }
 .quiz-context { margin-top: 16px; color: var(--muted); line-height: 1.5; }
 .quiz-card > h2 { margin-top: 14px; margin-bottom: 26px; font: 700 clamp(1.65rem, 4vw, 2.7rem)/1.2 Georgia, serif; letter-spacing: -.03em; }
+.quiz-instruction-hint { width: fit-content; max-width: calc(100% - 84px); margin-top: -12px; margin-bottom: 20px; color: var(--muted); font-size: .83rem; }
+.quiz-instruction-hint summary { width: fit-content; cursor: pointer; color: var(--blue); font-weight: 800; }
+.quiz-instruction-hint p { margin: 8px 0 0; padding: 10px 12px; border: 1px solid var(--line); background: var(--paper); line-height: 1.45; }
 .quiz-support { margin-bottom: 18px; padding: 16px 18px; border-left: 4px solid var(--blue); background: var(--blue-soft); }
 .quiz-support span, .quiz-support strong, .quiz-support small { display: block; }
 .quiz-support span { color: var(--blue-dark); font-size: .69rem; font-weight: 850; letter-spacing: .09em; text-transform: uppercase; }
@@ -716,7 +719,8 @@ dialog form > div { display: flex; justify-content: flex-end; gap: 9px; margin-t
   .audio-rating-row { grid-template-columns: 1fr; }
   .module-journey ol { grid-template-columns: 1fr 1fr; }
   .next-step-bar { align-items: stretch; flex-direction: column; }
-  .quiz-card > .eyebrow, .quiz-context, .quiz-card > h2, .quiz-support, .quiz-word-bank, .quiz-card form { margin-left: 22px; margin-right: 22px; }
+  .quiz-card > .eyebrow, .quiz-context, .quiz-card > h2, .quiz-instruction-hint, .quiz-support, .quiz-word-bank, .quiz-card form { margin-left: 22px; margin-right: 22px; }
+  .quiz-instruction-hint { max-width: calc(100% - 44px); }
   .quiz-listening-player { margin-left: 22px; margin-right: 22px; }
   .answer-line { grid-template-columns: 1fr; gap: 8px; }
   .answer-line input { border-right: 2px solid var(--ink); }

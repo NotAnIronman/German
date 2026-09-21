@@ -142,11 +142,11 @@ const defaultState = {
     speaking: { attempts: 0 }
   },
   deckPositions: {},
-  cardDirection: "german",
+  cardDirection: "mixed",
   drafts: { writing: {}, speaking: {}, speakingFollowUp: {} },
   assessmentSessions: {},
   motivation: { activityDays: [], days: {}, claims: {}, recentWins: [], points: 0 },
-  variation: { recentChoices: {}, recentOrders: {}, counters: {} }
+  variation: { recentChoices: {}, recentOrders: {}, recentLexemes: {}, recentSurfaces: {}, counters: {} }
 };
 
 let storageNotice = "";
@@ -257,6 +257,8 @@ function loadState(serializedState = null, allowBackup = true) {
       variation: {
         recentChoices: recordOrEmpty(parsed.variation?.recentChoices),
         recentOrders: recordOrEmpty(parsed.variation?.recentOrders),
+        recentLexemes: recordOrEmpty(parsed.variation?.recentLexemes),
+        recentSurfaces: recordOrEmpty(parsed.variation?.recentSurfaces),
         counters: recordOrEmpty(parsed.variation?.counters)
       },
       readings: recordMapOrEmpty(parsed.readings),
@@ -600,9 +602,11 @@ const variationOrderLimit = 3;
 const variationRecordLimit = 320;
 
 function variationState() {
-  state.variation ||= { recentChoices: {}, recentOrders: {}, counters: {} };
+  state.variation ||= { recentChoices: {}, recentOrders: {}, recentLexemes: {}, recentSurfaces: {}, counters: {} };
   state.variation.recentChoices ||= {};
   state.variation.recentOrders ||= {};
+  state.variation.recentLexemes ||= {};
+  state.variation.recentSurfaces ||= {};
   state.variation.counters ||= {};
   return state.variation;
 }
@@ -701,6 +705,25 @@ function candidateSignature(candidate) {
   return hashVariationSeed(JSON.stringify(candidate)).toString(36);
 }
 
+function candidateLexemes(candidate) {
+  return Array.isArray(candidate?.variantMeta?.lexemes) ? candidate.variantMeta.lexemes.filter(Boolean) : [];
+}
+
+function candidateSurface(candidate) {
+  return answerStrings(candidate?.answers || []).map(answer => stripTerminal(answer).toLocaleLowerCase("de-DE")).join(" | ");
+}
+
+function diversityRepeatScore(candidate, lexemeHistory, surfaceHistory) {
+  const lexemes = candidateLexemes(candidate);
+  const surface = candidateSurface(candidate);
+  const lexemeScore = lexemeHistory.reduce((score, previous, index) => {
+    const weight = index + 1;
+    return score + lexemes.filter(lexeme => previous.includes(lexeme)).length * weight;
+  }, 0);
+  const surfaceScore = surfaceHistory.reduce((score, previous, index) => score + (surface && surface === previous ? (index + 1) * 8 : 0), 0);
+  return lexemeScore + surfaceScore;
+}
+
 function chooseRecentSafe(candidates, key, random, options = {}) {
   const unique = [...new Map(candidates.map(candidate => [candidateSignature(candidate), candidate])).entries()];
   if (!unique.length) return null;
@@ -709,10 +732,25 @@ function chooseRecentSafe(candidates, key, random, options = {}) {
   const unseen = unique.filter(([signature]) => !recent.includes(signature));
   const pool = unseen.length ? unseen : unique.filter(([signature]) => signature !== recent[recent.length - 1]);
   const choices = pool.length ? pool : unique;
-  const [signature, candidate] = options.preserveFirst && recent.length === 0
-    ? unique[0]
-    : choices[Math.floor(random() * choices.length)];
+  const diversityScope = options.diversityScope;
+  const lexemeHistory = diversityScope && Array.isArray(variation.recentLexemes[diversityScope]) ? variation.recentLexemes[diversityScope] : [];
+  const surfaceHistory = diversityScope && Array.isArray(variation.recentSurfaces[diversityScope]) ? variation.recentSurfaces[diversityScope] : [];
+  let selection;
+  if (options.preserveFirst && recent.length === 0) selection = unique[0];
+  else if (diversityScope && choices.some(([, choice]) => candidateLexemes(choice).length)) {
+    const scored = choices.map(choice => ({ choice, score: diversityRepeatScore(choice[1], lexemeHistory, surfaceHistory) }));
+    const lowest = Math.min(...scored.map(entry => entry.score));
+    const best = scored.filter(entry => entry.score === lowest);
+    selection = best[Math.floor(random() * best.length)].choice;
+  } else selection = choices[Math.floor(random() * choices.length)];
+  const [signature, candidate] = selection;
   touchVariationEntry(variation.recentChoices, key, [...recent, signature].slice(-variationChoiceLimit));
+  if (diversityScope) {
+    const lexemes = candidateLexemes(candidate);
+    const surface = candidateSurface(candidate);
+    if (lexemes.length) touchVariationEntry(variation.recentLexemes, diversityScope, [...lexemeHistory, lexemes].slice(-18));
+    if (surface) touchVariationEntry(variation.recentSurfaces, diversityScope, [...surfaceHistory, surface].slice(-18));
+  }
   return candidate;
 }
 
@@ -752,11 +790,17 @@ function generatedContextVariants(context) {
 }
 
 const safeNamePools = [
-  ["Nina", "Mina", "Lina", "Mia", "Lea", "Lara", "Anna", "Emma", "Julia"],
-  ["Daniel", "Jonas", "Paul", "David", "Leon", "Ben", "Lukas", "Max", "Felix"],
-  ["Sam", "Alex", "Kim"]
+  ["Nina", "Mina", "Lina", "Mia", "Lea", "Lara", "Anna", "Emma", "Julia", "Aylin", "Clara", "Daria", "Eva", "Fatima", "Greta", "Hana", "Ida", "Jana", "Klara", "Laura", "Maja", "Nele", "Nora", "Sara", "Sofia", "Yasmin"],
+  ["Daniel", "Jonas", "Paul", "David", "Leon", "Ben", "Lukas", "Max", "Felix", "Amir", "Elias", "Emre", "Finn", "Hassan", "Jakob", "Joël", "Karim", "Luis", "Matteo", "Mehmet", "Milan", "Noah", "Oskar", "Ravi", "Tobias"],
+  ["Sam", "Alex", "Kim", "Toni", "Robin", "Sascha", "Mika"]
 ];
-const safeSurnamePool = ["Roth", "Kaya", "Yilmaz", "Weber", "Neumann", "Schneider", "Becker", "Hoffmann"];
+const safeSurnamePool = ["Roth", "Kaya", "Yilmaz", "Weber", "Neumann", "Schneider", "Becker", "Hoffmann", "Aydin", "Bauer", "Berger", "Costa", "Demir", "Fischer", "Klein", "König", "Novak", "Özkan", "Peters", "Schmidt", "Wagner", "Winter"];
+
+function inferredNameVariantMeta(question) {
+  const combined = [question.prompt, question.context, ...(question.answers || [])].filter(Boolean).join(" ");
+  const names = [...safeNamePools.flat(), ...safeSurnamePool].filter(name => new RegExp(`\\b${name}\\b`, "u").test(combined));
+  return names.length ? { source: "authored", template: "named-scenario", lexemes: names.map(name => `name:${name}`) } : undefined;
+}
 
 function replaceName(value, source, replacement) {
   if (typeof value !== "string") return value;
@@ -771,11 +815,11 @@ function nameSurfaceVariants(question, base) {
   safeNamePools.forEach(pool => {
     const source = pool.find(name => new RegExp(`\\b${name}\\b`, "u").test(promptAndContext)
       && new RegExp(`\\b${name}\\b`, "u").test(answerText));
-    if (source) pool.filter(name => name !== source).slice(0, 4).forEach(target => replacements.push([source, target]));
+    if (source) pool.filter(name => name !== source).forEach(target => replacements.push([source, target]));
   });
   const titledSurname = safeSurnamePool.find(name => new RegExp(`\\b(?:Frau|Herr|Ms\\.|Mr\\.)\\s+${name}\\b`, "u").test(combined));
   if (titledSurname && new RegExp(`\\b${titledSurname}\\b`, "u").test(answerText)) {
-    safeSurnamePool.filter(name => name !== titledSurname).slice(0, 4).forEach(target => replacements.push([titledSurname, target]));
+    safeSurnamePool.filter(name => name !== titledSurname).forEach(target => replacements.push([titledSurname, target]));
   }
   return replacements.map(([source, target]) => ({
     ...base,
@@ -784,11 +828,16 @@ function nameSurfaceVariants(question, base) {
     answers: base.answers.map(answer => replaceName(answer, source, target)),
     wordBank: base.wordBank.map(word => replaceName(word, source, target)),
     explanation: replaceName(base.explanation, source, target),
-    support: base.support ? Object.fromEntries(Object.entries(base.support).map(([key, value]) => [key, replaceName(value, source, target)])) : base.support
+    support: base.support ? Object.fromEntries(Object.entries(base.support).map(([key, value]) => [key, replaceName(value, source, target)])) : base.support,
+    variantMeta: {
+      source: "name-surface",
+      template: "name-rotation",
+      lexemes: [...new Set([...(base.variantMeta?.lexemes || []).filter(lexeme => lexeme !== `name:${source}`), `name:${target}`])]
+    }
   }));
 }
 
-function questionSurfaceCandidates(question) {
+function questionSurfaceCandidates(question, moduleId, options = {}) {
   const baseAnswers = answerStrings(question.answers || [], question.acceptable || [], question.acceptableAnswers || [], question.answerVariants || []);
   const base = {
     prompt: question.prompt,
@@ -797,8 +846,12 @@ function questionSurfaceCandidates(question) {
     wordBank: [...(question.wordBank || [])],
     requires: [...(question.requires || [])],
     support: question.support,
-    explanation: question.explanation
+    explanation: question.explanation,
+    instructionHint: question.instructionHint || "",
+    variantMeta: question.variantMeta || inferredNameVariantMeta(question)
   };
+  const generated = window.SATZWERK_LANGUAGE_ENGINE?.candidatesFor?.({ moduleId, question, assessment: Boolean(options.assessment) }) || [];
+  if (options.assessment && generated.length) return generated;
   const candidates = [base];
   const promptVariants = Array.isArray(question.promptVariants) ? question.promptVariants : [];
   const contextVariants = Array.isArray(question.contextVariants) ? question.contextVariants : [];
@@ -817,7 +870,9 @@ function questionSurfaceCandidates(question) {
       wordBank: Array.isArray(variant.wordBank) ? [...variant.wordBank] : base.wordBank,
       requires: Array.isArray(variant.requires) ? [...variant.requires] : base.requires,
       support: variant.support || base.support,
-      explanation: variant.explanation || base.explanation
+      explanation: variant.explanation || base.explanation,
+      instructionHint: variant.instructionHint || base.instructionHint,
+      variantMeta: variant.variantMeta || base.variantMeta
     });
   }
   const objectVariants = [
@@ -833,18 +888,25 @@ function questionSurfaceCandidates(question) {
       wordBank: Array.isArray(variant.wordBank) ? [...variant.wordBank] : base.wordBank,
       requires: Array.isArray(variant.requires) ? [...variant.requires] : base.requires,
       support: variant.support || base.support,
-      explanation: variant.explanation || base.explanation
+      explanation: variant.explanation || base.explanation,
+      instructionHint: variant.instructionHint || base.instructionHint,
+      variantMeta: variant.variantMeta || base.variantMeta
     });
   });
   generatedPromptVariants(base.prompt).forEach(prompt => candidates.push({ ...base, prompt }));
   generatedContextVariants(base.context).forEach(context => candidates.push({ ...base, context }));
   candidates.push(...nameSurfaceVariants(question, base));
+  candidates.push(...generated);
   return candidates;
 }
 
 function materializeQuestion(question, moduleId, run, options = {}) {
   const identity = question.sourceId || question.id;
-  const selected = chooseRecentSafe(questionSurfaceCandidates(question), `surface:${moduleId}:${identity}`, run.random, { preserveFirst: options.preserveSurface }) || {};
+  const mode = options.assessment ? "assessment" : "practice";
+  const selected = chooseRecentSafe(questionSurfaceCandidates(question, moduleId, options), `surface:${mode}:${moduleId}:${identity}`, run.random, {
+    preserveFirst: options.preserveSurface,
+    diversityScope: `${mode}:${moduleId}`
+  }) || {};
   let wordBank = Array.isArray(selected.wordBank) ? [...selected.wordBank] : [...(question.wordBank || [])];
   if (wordBank.length > 1 && !options.assessment) {
     wordBank = variedOrder(wordBank, `word-bank:${moduleId}:${identity}`, run.random, { preserveFirst: false });
@@ -857,7 +919,9 @@ function materializeQuestion(question, moduleId, run, options = {}) {
     wordBank,
     requires: Array.isArray(selected.requires) ? [...selected.requires] : [...(question.requires || [])],
     support: selected.support || question.support,
-    explanation: selected.explanation || question.explanation
+    explanation: selected.explanation || question.explanation,
+    instructionHint: selected.instructionHint || question.instructionHint || "",
+    variantMeta: selected.variantMeta || question.variantMeta
   };
 }
 
@@ -1363,7 +1427,7 @@ function populateStaticControls() {
     $(selector).value = state.activeModule;
   });
   $("#vocabLevel").innerHTML = '<option value="all">All levels</option>' + levels.map(level => `<option value="${level.id}">${level.id} · ${escapeHtml(level.title)}</option>`).join("");
-  $("#cardDirection").value = state.cardDirection || "german";
+  $("#cardDirection").value = state.cardDirection || "mixed";
 }
 
 function syncModuleControls() {
@@ -1826,7 +1890,13 @@ function prepareDeck() {
 function cardDirectionFor() {
   const selected = $("#cardDirection").value;
   if (selected !== "mixed") return selected;
-  return deckIndex % 2 === 0 ? "german" : "english";
+  const word = deck[deckIndex];
+  const record = word ? state.words[word.globalId] : null;
+  const meaningEvidence = Number(record?.directionCorrect?.meaning || 0);
+  const germanEvidence = Number(record?.directionCorrect?.german || 0);
+  if (germanEvidence < meaningEvidence) return "english";
+  if (meaningEvidence < germanEvidence) return "german";
+  return (meaningEvidence + germanEvidence + deckIndex) % 2 === 0 ? "german" : "english";
 }
 
 function splitRecallParts(value) {
@@ -2678,13 +2748,14 @@ function startQuiz(checkpoint) {
   const source = checkpoint ? module.questions : unfinished.length ? unfinished : available;
   const run = beginVariationRun(`${checkpoint ? "assessment" : "sentences"}:${module.id}`);
   const hasPriorSentencePractice = Object.keys(record.attemptedPrompts || {}).length > 0;
+  const preserveFirstBeginnerPass = !hasPriorSentencePractice && module.level === "A0";
   const questions = checkpoint
     ? assessmentItemsFor(module, run)
     : variedOrder(
-      source.map(question => preparePracticeSentence(materializeQuestion(question, module.id, run, { preserveSurface: !hasPriorSentencePractice }))),
+      source.map(question => preparePracticeSentence(materializeQuestion(question, module.id, run, { preserveSurface: preserveFirstBeginnerPass }))),
       `sentence-order:${module.id}`,
       run.random,
-      { preserveFirst: !hasPriorSentencePractice }
+      { preserveFirst: preserveFirstBeginnerPass }
     );
   quiz = { moduleId: module.id, checkpoint, assessment: checkpoint, questions, index: 0, firstCorrect: 0, recovered: 0, missed: [], responses: [], originalTotal: questions.length, retry: false, inlineRetry: false, flow: 0, maxFlow: 0, flowRewarded: false, stageCompletedNow: false };
   if (checkpoint) persistAssessmentSession();
@@ -2704,6 +2775,18 @@ function renderQuizFlow() {
   chip.className = "flow-chip" + (quiz.flow >= 5 ? " hot" : "");
 }
 
+function quizInstructionHintElements() {
+  let details = $("#quizInstructionHint");
+  if (!details) {
+    details = document.createElement("details");
+    details.id = "quizInstructionHint";
+    details.className = "quiz-instruction-hint";
+    details.innerHTML = '<summary>English instruction</summary><p id="quizInstructionHintText"></p>';
+    $("#quizPrompt").insertAdjacentElement("afterend", details);
+  }
+  return { details, text: $("#quizInstructionHintText") };
+}
+
 function renderQuestion() {
   const question = quiz.questions[quiz.index];
   if (!question) return finishQuizSet();
@@ -2718,6 +2801,11 @@ function renderQuestion() {
   $("#quizType").textContent = question.type;
   $("#quizContext").textContent = question.context;
   $("#quizPrompt").textContent = question.prompt;
+  const instructionHint = quiz.assessment ? "" : String(question.instructionHint || "");
+  const hintElements = quizInstructionHintElements();
+  hintElements.details.hidden = !instructionHint;
+  hintElements.details.open = false;
+  hintElements.text.textContent = instructionHint;
   quizAudioWrap.hidden = !hasAssessmentAudio;
   if (hasAssessmentAudio) {
     if (quizAudio.getAttribute("src") !== question.audioSrc) {
