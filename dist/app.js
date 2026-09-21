@@ -111,6 +111,9 @@ modules.forEach(module => {
 const allWords = modules.flatMap(module => module.words.map(word => ({ ...word, moduleId: module.id, level: module.level, globalId: `${module.id}:${word.id}` })));
 const allQuestions = modules.flatMap(module => module.questions.map(question => ({ ...question, moduleId: module.id, level: module.level, globalId: `${module.id}:${question.id}` })));
 const storageKey = "satzwerk-production-v1";
+const backupStorageKey = `${storageKey}-backup`;
+const progressExportFormat = "satzwerk-progress-v1";
+const maxProgressImportBytes = 10 * 1024 * 1024;
 const levelRank = { A0: 0, A1: 1, A2: 2, B1: 3, B2: 4 };
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
@@ -125,7 +128,7 @@ const assessmentVersion = 7;
 const assessmentPassScore = .8;
 
 const defaultState = {
-  version: 5,
+  version: 7,
   activeModule: modules[0].id,
   courseLevel: "A0",
   cultureLevel: "A0",
@@ -140,43 +143,134 @@ const defaultState = {
   },
   deckPositions: {},
   cardDirection: "german",
+  drafts: { writing: {}, speaking: {}, speakingFollowUp: {} },
+  assessmentSessions: {},
   motivation: { activityDays: [], days: {}, claims: {}, recentWins: [], points: 0 },
   variation: { recentChoices: {}, recentOrders: {}, counters: {} }
 };
 
-function loadState() {
+let storageNotice = "";
+let storageFailureNoticeAt = 0;
+let suppressPagehidePersistence = false;
+
+function isPlainRecord(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+
+function recordOrEmpty(value) {
+  return isPlainRecord(value) ? value : {};
+}
+
+function arrayOrEmpty(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function recordMapOrEmpty(value) {
+  return Object.fromEntries(Object.entries(recordOrEmpty(value)).filter(([, entry]) => isPlainRecord(entry)));
+}
+
+function normalizeLoadedRecords(next) {
+  next.words = recordMapOrEmpty(next.words);
+  Object.values(next.words).forEach(record => {
+    record.days = arrayOrEmpty(record.days);
+    record.typedDays = arrayOrEmpty(record.typedDays);
+    record.directionCorrect = recordOrEmpty(record.directionCorrect);
+  });
+
+  next.modules = recordMapOrEmpty(next.modules);
+  Object.values(next.modules).forEach(record => {
+    record.completedPrompts = recordOrEmpty(record.completedPrompts);
+    record.attemptedPrompts = recordOrEmpty(record.attemptedPrompts);
+    record.lessonSteps = recordOrEmpty(record.lessonSteps);
+    record.activities = recordMapOrEmpty(record.activities);
+    Object.values(record.activities).forEach(activity => {
+      activity.attempts = Number(activity.attempts || 0);
+      activity.bestScore = Number(activity.bestScore || 0);
+    });
+    record.assessment = recordOrEmpty(record.assessment);
+    record.assessment.attempts = arrayOrEmpty(record.assessment.attempts);
+    record.assessment.archive = arrayOrEmpty(record.assessment.archive);
+  });
+
+  next.readings = recordMapOrEmpty(next.readings);
+  Object.values(next.readings).forEach(record => {
+    record.attempts = arrayOrEmpty(record.attempts);
+    record.archive = arrayOrEmpty(record.archive);
+  });
+  next.readingLibrary = recordOrEmpty(next.readingLibrary);
+  next.audioStudy = recordOrEmpty(next.audioStudy);
+  return next;
+}
+
+function writeStateToStorage(value, options = {}) {
   try {
-    const parsed = JSON.parse(localStorage.getItem(storageKey) || "{}");
+    const serialized = JSON.stringify(value);
+    const previous = localStorage.getItem(storageKey);
+    localStorage.setItem(storageKey, serialized);
+    if (options.preservePrevious === true && previous && previous !== serialized && !localStorage.getItem(backupStorageKey)) {
+      try { localStorage.setItem(backupStorageKey, previous); } catch {}
+    }
+    return true;
+  } catch {
+    storageNotice = "Progress could not be saved in this browser. Export a progress copy before closing the page.";
+    const timestamp = Date.now();
+    if (timestamp - storageFailureNoticeAt > 60000 && typeof window !== "undefined") {
+      storageFailureNoticeAt = timestamp;
+      window.setTimeout(() => announceMessage(storageNotice), 0);
+    }
+    return false;
+  }
+}
+
+function loadState(serializedState = null, allowBackup = true) {
+  try {
+    const parsed = JSON.parse(serializedState ?? localStorage.getItem(storageKey) ?? "{}");
+    if (!isPlainRecord(parsed)) throw new Error("Saved progress must be an object.");
     const storedVersion = Number(parsed.version || 1);
     const next = {
       ...defaultState,
       ...parsed,
-      words: parsed.words || {},
-      modules: parsed.modules || {},
-      quiz: { ...defaultState.quiz, ...(parsed.quiz || {}) },
+      words: recordMapOrEmpty(parsed.words),
+      modules: recordMapOrEmpty(parsed.modules),
+      quiz: { ...defaultState.quiz, ...recordOrEmpty(parsed.quiz) },
       skills: {
-        listening: { ...defaultState.skills.listening, ...(parsed.skills?.listening || {}) },
-        reading: { ...defaultState.skills.reading, ...(parsed.skills?.reading || {}) },
-        writing: { ...defaultState.skills.writing, ...(parsed.skills?.writing || {}) },
-        speaking: { ...defaultState.skills.speaking, ...(parsed.skills?.speaking || {}) }
+        listening: { ...defaultState.skills.listening, ...recordOrEmpty(parsed.skills?.listening) },
+        reading: { ...defaultState.skills.reading, ...recordOrEmpty(parsed.skills?.reading) },
+        writing: { ...defaultState.skills.writing, ...recordOrEmpty(parsed.skills?.writing) },
+        speaking: { ...defaultState.skills.speaking, ...recordOrEmpty(parsed.skills?.speaking) }
       },
-      deckPositions: parsed.deckPositions || {},
+      deckPositions: recordOrEmpty(parsed.deckPositions),
+      drafts: {
+        writing: recordOrEmpty(parsed.drafts?.writing),
+        speaking: recordOrEmpty(parsed.drafts?.speaking),
+        speakingFollowUp: recordOrEmpty(parsed.drafts?.speakingFollowUp)
+      },
       motivation: {
-        activityDays: parsed.motivation?.activityDays || [],
-        days: parsed.motivation?.days || {},
-        claims: parsed.motivation?.claims || {},
-        recentWins: parsed.motivation?.recentWins || [],
+        activityDays: arrayOrEmpty(parsed.motivation?.activityDays),
+        days: recordMapOrEmpty(parsed.motivation?.days),
+        claims: recordOrEmpty(parsed.motivation?.claims),
+        recentWins: arrayOrEmpty(parsed.motivation?.recentWins),
         points: Number(parsed.motivation?.points || 0)
       },
       variation: {
-        recentChoices: parsed.variation?.recentChoices || {},
-        recentOrders: parsed.variation?.recentOrders || {},
-        counters: parsed.variation?.counters || {}
-      }
+        recentChoices: recordOrEmpty(parsed.variation?.recentChoices),
+        recentOrders: recordOrEmpty(parsed.variation?.recentOrders),
+        counters: recordOrEmpty(parsed.variation?.counters)
+      },
+      readings: recordMapOrEmpty(parsed.readings),
+      readingLibrary: recordOrEmpty(parsed.readingLibrary),
+      audioStudy: recordOrEmpty(parsed.audioStudy)
     };
+    next.assessmentSessions = recordOrEmpty(parsed.assessmentSessions);
+    if (isPlainRecord(parsed.assessmentSession) && parsed.assessmentSession.moduleId && !next.assessmentSessions[parsed.assessmentSession.moduleId]) {
+      next.assessmentSessions[parsed.assessmentSession.moduleId] = parsed.assessmentSession;
+    }
+    delete next.assessmentSession;
     const rewardCategories = ["lesson", "vocabulary", "sentences", "listening", "reading", "graded-reading", "writing", "speaking", "assessment"];
     Object.values(next.motivation.days).forEach(day => {
-      if (!day.categories) {
+      if (!isPlainRecord(day.categories)) {
         day.categories = Object.fromEntries(rewardCategories.filter(category => Number(day[category] || 0) > 0).map(category => [category, Number(day[category])]));
       }
       day.points = Number(day.points || 0);
@@ -200,6 +294,14 @@ function loadState() {
       next.deckPositions = {};
     }
     if (storedVersion < 5) next.version = 5;
+    if (storedVersion < 6) next.version = 6;
+    if (storedVersion < 7) {
+      (listeningCourse.items || []).forEach(item => {
+        const record = next.modules[item.moduleId];
+        if (record?.assessment?.passedAt && !record.activities?.listening?.completedAt) record.listeningGrandfathered = true;
+      });
+      next.version = 7;
+    }
     if (parsed.motivation?.points == null) {
       const activityPoints = { listening: 12, reading: 14, writing: 18, speaking: 16 };
       const modulePoints = Object.values(next.modules).reduce((total, record) => {
@@ -215,10 +317,31 @@ function loadState() {
       const gradedReadingPoints = Object.values(next.readings || {}).filter(record => record?.passedAt).length * 18;
       next.motivation.points = modulePoints + vocabularyPoints + gradedReadingPoints;
     }
-    localStorage.setItem(storageKey, JSON.stringify(next));
+    normalizeLoadedRecords(next);
+    Object.entries(next.assessmentSessions).forEach(([moduleId, session]) => {
+      if (!isPlainRecord(session)
+        || session.version !== assessmentVersion
+        || session.moduleId !== moduleId
+        || !modules.some(module => module.id === moduleId)
+        || !isPlainRecord(session.quiz)
+        || !Array.isArray(session.quiz.questions)
+        || !Array.isArray(session.quiz.responses)
+        || (listeningByModule.has(moduleId) && !session.quiz.questions.some(question => question?.kind === "listening"))) delete next.assessmentSessions[moduleId];
+    });
     if (!modules.some(module => module.id === next.activeModule)) next.activeModule = modules[0].id;
+    writeStateToStorage(next, { preservePrevious: storedVersion < defaultState.version });
     return next;
   } catch {
+    if (allowBackup) {
+      try {
+        const backup = localStorage.getItem(backupStorageKey);
+        if (backup) {
+          storageNotice = "The latest progress file could not be read. Satzwerk restored the previous local copy.";
+          return loadState(backup, false);
+        }
+      } catch {}
+    }
+    storageNotice = "Saved progress could not be read. Import a progress copy if you have one.";
     return structuredClone(defaultState);
   }
 }
@@ -260,7 +383,216 @@ function migrateLegacyWords() {
 }
 
 function saveState() {
-  localStorage.setItem(storageKey, JSON.stringify(state));
+  return writeStateToStorage(state);
+}
+
+let draftSaveTimer = 0;
+const pendingDraftKinds = new Set();
+
+function draftText(kind, moduleId) {
+  const entry = state.drafts?.[kind]?.[moduleId];
+  return typeof entry === "string" ? entry : String(entry?.text || "");
+}
+
+function setDraftStatus(kind, message) {
+  const selectors = { writing: "#writingDraftStatus", speaking: "#speakingDraftStatus", speakingFollowUp: "#speakingFollowUpDraftStatus" };
+  const target = $(selectors[kind]);
+  if (target) target.textContent = message;
+}
+
+function updateDraft(kind, moduleId, text) {
+  state.drafts ||= { writing: {}, speaking: {}, speakingFollowUp: {} };
+  state.drafts[kind] ||= {};
+  if (String(text).trim()) state.drafts[kind][moduleId] = { text: String(text), savedAt: new Date().toISOString() };
+  else delete state.drafts[kind][moduleId];
+  pendingDraftKinds.add(kind);
+  setDraftStatus(kind, "Saving draft on this device...");
+  window.clearTimeout(draftSaveTimer);
+  draftSaveTimer = window.setTimeout(() => {
+    const saved = saveState();
+    pendingDraftKinds.forEach(pendingKind => setDraftStatus(pendingKind, saved ? "Draft saved on this device." : storageNotice));
+    pendingDraftKinds.clear();
+  }, 350);
+}
+
+function flushDrafts() {
+  window.clearTimeout(draftSaveTimer);
+  draftSaveTimer = 0;
+  const saved = saveState();
+  pendingDraftKinds.forEach(kind => setDraftStatus(kind, saved ? "Draft saved on this device." : storageNotice));
+  pendingDraftKinds.clear();
+}
+
+function progressDataStatus(message, isError = false) {
+  const status = $("#progressDataStatus");
+  if (!status) return;
+  status.textContent = message;
+  status.classList.toggle("error", isError);
+}
+
+function backupProgressAvailable() {
+  try { return Boolean(localStorage.getItem(backupStorageKey)); } catch { return false; }
+}
+
+function exportProgress() {
+  try {
+    flushDrafts();
+    const payload = JSON.stringify({
+      format: progressExportFormat,
+      exportedAt: new Date().toISOString(),
+      appState: state
+    }, null, 2);
+    const url = URL.createObjectURL(new Blob([payload], { type: "application/json" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `satzwerk-progress-${today()}.json`;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    progressDataStatus("Progress copy downloaded.");
+  } catch {
+    progressDataStatus("The progress copy could not be created in this browser.", true);
+  }
+}
+
+function containsUnsafeImportKey(value, depth = 0) {
+  if (!value || typeof value !== "object") return false;
+  if (depth > 20) return true;
+  if (Object.keys(value).some(key => ["__proto__", "prototype", "constructor"].includes(key))) return true;
+  return Object.values(value).some(item => containsUnsafeImportKey(item, depth + 1));
+}
+
+function validateImportedProgress(value) {
+  const candidate = value?.format === progressExportFormat ? value.appState : value;
+  if (!isPlainRecord(candidate) || containsUnsafeImportKey(candidate)) throw new Error("This file is not a valid Satzwerk progress copy.");
+  if (!Number.isFinite(Number(candidate.version)) || Number(candidate.version) < 1 || Number(candidate.version) > defaultState.version) throw new Error("This progress version is unsupported.");
+  ["words", "modules", "readings", "quiz", "skills", "deckPositions", "drafts", "motivation", "variation", "readingLibrary", "audioStudy"].forEach(key => {
+    if (candidate[key] != null && !isPlainRecord(candidate[key])) throw new Error("This file has an invalid progress structure.");
+  });
+  if (candidate.assessmentSession != null) {
+    if (!isPlainRecord(candidate.assessmentSession) || !isPlainRecord(candidate.assessmentSession.quiz)) throw new Error("This file has an invalid saved assessment.");
+    if (!Array.isArray(candidate.assessmentSession.quiz.questions) || !Array.isArray(candidate.assessmentSession.quiz.responses)) throw new Error("This file has an invalid saved assessment.");
+  }
+  if (candidate.assessmentSessions != null) {
+    if (!isPlainRecord(candidate.assessmentSessions)) throw new Error("This file has invalid saved assessments.");
+    Object.values(candidate.assessmentSessions).forEach(session => {
+      if (!isPlainRecord(session) || !isPlainRecord(session.quiz) || !Array.isArray(session.quiz.questions) || !Array.isArray(session.quiz.responses)) throw new Error("This file has an invalid saved assessment.");
+    });
+  }
+  ["words", "modules", "readings"].forEach(key => {
+    Object.values(recordOrEmpty(candidate[key])).forEach(record => {
+      if (!isPlainRecord(record)) throw new Error("This file has an invalid progress record.");
+    });
+  });
+  if (candidate.motivation) {
+    if (candidate.motivation.activityDays != null && !Array.isArray(candidate.motivation.activityDays)) throw new Error("This file has an invalid activity history.");
+    if (candidate.motivation.recentWins != null && !Array.isArray(candidate.motivation.recentWins)) throw new Error("This file has an invalid reward history.");
+    if (candidate.motivation.days != null && !isPlainRecord(candidate.motivation.days)) throw new Error("This file has an invalid daily progress record.");
+  }
+  Object.values(recordOrEmpty(candidate.words)).forEach(record => {
+    if (record.days != null && !Array.isArray(record.days)) throw new Error("This file has an invalid vocabulary history.");
+    if (record.typedDays != null && !Array.isArray(record.typedDays)) throw new Error("This file has an invalid retrieval history.");
+  });
+  Object.values(recordOrEmpty(candidate.modules)).forEach(record => {
+    ["completedPrompts", "attemptedPrompts", "lessonSteps", "activities", "assessment"].forEach(key => {
+      if (record[key] != null && !isPlainRecord(record[key])) throw new Error("This file has an invalid module record.");
+    });
+    if (record.assessment?.attempts != null && !Array.isArray(record.assessment.attempts)) throw new Error("This file has an invalid assessment history.");
+  });
+  Object.values(recordOrEmpty(candidate.readings)).forEach(record => {
+    if (record.attempts != null && !Array.isArray(record.attempts)) throw new Error("This file has an invalid reading history.");
+  });
+  if (candidate.activeModule != null && typeof candidate.activeModule !== "string") throw new Error("This file has an invalid module record.");
+  return candidate;
+}
+
+async function importProgressFile(file) {
+  if (!file) return;
+  if (file.size > maxProgressImportBytes) {
+    progressDataStatus("That file is too large to be a Satzwerk progress copy.", true);
+    return;
+  }
+  try {
+    const candidate = validateImportedProgress(JSON.parse(await file.text()));
+    const accepted = window.confirm("Import this progress copy? Your current local progress will be kept as a recovery copy.");
+    if (!accepted) {
+      progressDataStatus("Import cancelled.");
+      return;
+    }
+    const current = localStorage.getItem(storageKey);
+    const earlierBackup = localStorage.getItem(backupStorageKey);
+    const imported = JSON.stringify(candidate);
+    try {
+      if (current) localStorage.setItem(backupStorageKey, current);
+      localStorage.setItem(storageKey, imported);
+    } catch (storageError) {
+      try {
+        if (earlierBackup) localStorage.setItem(backupStorageKey, earlierBackup);
+        else localStorage.removeItem(backupStorageKey);
+      } catch {}
+      throw storageError;
+    }
+    progressDataStatus("Progress imported. Reloading the course...");
+    suppressPagehidePersistence = true;
+    window.location.reload();
+  } catch (error) {
+    progressDataStatus(error?.message || "The progress copy could not be imported.", true);
+  }
+}
+
+function restorePreviousProgress() {
+  try {
+    const previous = localStorage.getItem(backupStorageKey);
+    if (!previous) {
+      progressDataStatus("No previous local copy is available.", true);
+      return;
+    }
+    const accepted = window.confirm("Restore the previous local progress copy? The current copy will remain available if you need to switch back.");
+    if (!accepted) {
+      progressDataStatus("Restore cancelled.");
+      return;
+    }
+    const current = localStorage.getItem(storageKey);
+    try {
+      localStorage.setItem(storageKey, previous);
+      if (current) localStorage.setItem(backupStorageKey, current);
+      else localStorage.removeItem(backupStorageKey);
+    } catch (storageError) {
+      try {
+        if (current) localStorage.setItem(storageKey, current);
+        else localStorage.removeItem(storageKey);
+        localStorage.setItem(backupStorageKey, previous);
+      } catch {}
+      throw storageError;
+    }
+    suppressPagehidePersistence = true;
+    window.location.reload();
+  } catch {
+    progressDataStatus("The previous local copy could not be restored.", true);
+  }
+}
+
+function discardPreviousProgress() {
+  try {
+    if (!backupProgressAvailable()) {
+      progressDataStatus("No recovery copy is stored on this device.", true);
+      return;
+    }
+    const accepted = window.confirm("Remove the recovery copy from this device? Your current progress and any downloaded progress files will stay in place.");
+    if (!accepted) {
+      progressDataStatus("Recovery copy kept.");
+      return;
+    }
+    localStorage.removeItem(backupStorageKey);
+    const restoreButton = $("#restoreProgress");
+    const discardButton = $("#discardProgressBackup");
+    if (restoreButton) restoreButton.hidden = true;
+    if (discardButton) discardButton.hidden = true;
+    progressDataStatus("Recovery copy removed. Current progress is unchanged.");
+  } catch {
+    progressDataStatus("The recovery copy could not be removed in this browser.", true);
+  }
 }
 
 const variationChoiceLimit = 4;
@@ -841,6 +1173,7 @@ function recordActivityResult(moduleId, activity, score) {
   activityRecord.attempts += 1;
   activityRecord.bestScore = Math.max(activityRecord.bestScore || 0, score);
   if (score >= 1 && !activityRecord.completedAt) activityRecord.completedAt = today();
+  if (activity === "listening" && score >= 1) delete record.listeningGrandfathered;
   record[activity] = Math.max(Number(record[activity] || 0), score);
   record.started = true;
   state.skills[activity].attempts += 1;
@@ -865,6 +1198,10 @@ function activityIsComplete(module, activity) {
   const record = moduleRecord(module.id).activities[activity];
   if (activity === "listening") return Boolean(listeningFor(module) && record?.version === listeningEvidenceVersion && record.completedAt);
   return Boolean(record?.completedAt);
+}
+
+function listeningRequirementIsComplete(module) {
+  return activityIsComplete(module, "listening") || Boolean(moduleRecord(module.id).listeningGrandfathered);
 }
 
 function addDay(record) {
@@ -930,7 +1267,13 @@ function moduleStageStates(module) {
   if (module.lesson?.steps?.length) stages.push({ id: "lesson", label: "Guided lesson", complete: lessonIsComplete(module), value: Object.keys(record.lessonSteps).length / module.lesson.steps.length });
   stages.push(
     { id: "vocabulary", label: "Core word recall", complete: verifiedCoreCount(module) === coreTotal, value: verifiedCoreCount(module) / Math.max(1, coreTotal) },
-    { id: "sentences", label: "Sentence lab", complete: completedPromptCount(module) === promptTotal, value: completedPromptCount(module) / Math.max(1, promptTotal) },
+    { id: "sentences", label: "Sentence lab", complete: completedPromptCount(module) === promptTotal, value: completedPromptCount(module) / Math.max(1, promptTotal) }
+  );
+  if (listeningFor(module)) {
+    const grandfathered = Boolean(record.listeningGrandfathered) && !activityIsComplete(module, "listening");
+    stages.push({ id: "listening", label: grandfathered ? "Listening available for review" : "Listening", complete: listeningRequirementIsComplete(module), value: grandfathered ? 1 : record.activities.listening.bestScore || 0 });
+  }
+  stages.push(
     { id: "reading", label: "Reading", complete: activityIsComplete(module, "reading"), value: record.activities.reading.bestScore || 0 },
     { id: "writing", label: "Writing", complete: activityIsComplete(module, "writing"), value: record.activities.writing.bestScore || 0 },
     { id: "speaking", label: "Speaking rehearsal", complete: activityIsComplete(module, "speaking"), value: record.activities.speaking.bestScore || 0 },
@@ -956,6 +1299,7 @@ function courseworkIsComplete(module) {
   return lessonIsComplete(module) &&
     verifiedCoreCount(module) === moduleCoreWords(module).length &&
     completedPromptCount(module) === module.questions.length &&
+    (!listeningFor(module) || listeningRequirementIsComplete(module)) &&
     activityIsComplete(module, "reading") &&
     activityIsComplete(module, "writing") &&
     activityIsComplete(module, "speaking");
@@ -1052,8 +1396,20 @@ function pauseListeningAudio(reset = false) {
   }
 }
 
+function pauseAssessmentAudio(clear = false) {
+  const audio = $("#quizAudio");
+  if (!audio) return;
+  audio.pause?.();
+  if (clear) {
+    audio.removeAttribute("src");
+    audio.load?.();
+  }
+}
+
 function setActiveModule(id, announce = true) {
+  if (quiz?.assessment && !quiz.completed) persistAssessmentSession();
   pauseListeningAudio(true);
+  pauseAssessmentAudio(true);
   const module = moduleById(id);
   state.activeModule = module.id;
   state.courseLevel = module.level;
@@ -1065,8 +1421,10 @@ function setActiveModule(id, announce = true) {
 }
 
 function go(view) {
+  if (quiz?.assessment && !quiz.completed) persistAssessmentSession();
   if (view !== "practice") {
     pauseListeningAudio(true);
+    pauseAssessmentAudio(true);
     cancelActiveSpeechRecognition();
   }
   currentView = view;
@@ -1147,6 +1505,11 @@ function renderHome() {
     $("#continueText").textContent = resolved + " of " + module.questions.length + " sentence patterns are resolved. Successful repairs count here.";
     button.innerHTML = 'Open practice <span>→</span>';
     button.onclick = () => go("practice");
+  } else if (listeningFor(module) && !activityIsComplete(module, "listening")) {
+    $("#continueTitle").textContent = "Listen to the module dialogue";
+    $("#continueText").textContent = "Hear familiar language, identify the requested details, and complete the listening check.";
+    button.innerHTML = 'Open listening <span>→</span>';
+    button.onclick = () => go("practice");
   } else if (!activityIsComplete(module, "reading")) {
     $("#continueTitle").textContent = "Read the familiar patterns";
     $("#continueText").textContent = "The short passage uses language from the lesson and sentence practice.";
@@ -1164,7 +1527,7 @@ function renderHome() {
     button.onclick = () => go("practice");
   } else if (!record.assessment.passedAt) {
     $("#continueTitle").textContent = record.assessment.attempts.length ? "Retake the module assessment" : "Take the module assessment";
-    $("#continueText").textContent = record.assessment.attempts.length ? `Best score: ${Math.round((record.assessment.bestScore || 0) * 100)}%. Reach 80% and the section minimums to complete the module.` : "This closed attempt covers every core word, every sentence target, reading, structured writing, and a speaking transcript.";
+    $("#continueText").textContent = record.assessment.attempts.length ? `Best score: ${Math.round((record.assessment.bestScore || 0) * 100)}%. Reach 80% and the section minimums to complete the module.` : "This closed attempt covers every core word, every sentence target, reading, structured writing, speaking, and listening where available.";
     button.innerHTML = 'Open assessment <span>→</span>';
     button.onclick = () => go("practice");
   } else {
@@ -1219,7 +1582,12 @@ function renderModuleDetail(module) {
   const expansionCount = module.words.filter(word => word.supplemental).length;
   const bundleSummary = expansionCount ? `${moduleCoreWords(module).length} core + ${expansionCount} expansion bundles` : `${module.words.length} bundles`;
   const stages = moduleStageStates(module);
-  $("#moduleDetail").innerHTML = `<span class="eyebrow">${module.code} · ${moduleStatus(module).toUpperCase()}</span><h2>${escapeHtml(module.title)}</h2><p>${escapeHtml(module.subtitle)}</p><h3>You will learn to</h3><ul>${module.canDo.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ul>${listeningFor(module) ? `<div class="module-audio-note"><strong>Optional listening</strong><span>${escapeHtml(listeningFor(module).title)} · separate checkoff</span></div>` : ""}<h3>Completion stages</h3><ul>${stages.map(stage => `<li>${stage.complete ? "✓" : "○"} ${escapeHtml(stage.label)}</li>`).join("")}</ul><h3>Grammar focus</h3><ul>${module.grammar.map(item => `<li>${escapeHtml(item.title)}</li>`).join("")}</ul><div class="module-progress"><div><i style="width:${moduleProgress(module)}%"></i></div><small>${bundleSummary} · ${module.questions.length} typed prompts · ${stages.filter(stage => stage.complete).length} of ${stages.length} stages complete</small></div><div class="module-detail-actions"><button class="primary-button" type="button" data-module-learn="${module.id}">Learn words</button><button class="quiet-button" type="button" data-module-practice="${module.id}">Practice</button></div>`;
+  const listeningNote = listeningFor(module)
+    ? moduleRecord(module.id).listeningGrandfathered && !activityIsComplete(module, "listening")
+      ? `${listeningFor(module).title} · available for review; your earlier module pass remains valid`
+      : `${listeningFor(module).title} · required for this module`
+    : "";
+  $("#moduleDetail").innerHTML = `<span class="eyebrow">${module.code} · ${moduleStatus(module).toUpperCase()}</span><h2>${escapeHtml(module.title)}</h2><p>${escapeHtml(module.subtitle)}</p><h3>You will learn to</h3><ul>${module.canDo.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ul>${listeningNote ? `<div class="module-audio-note"><strong>Listening stage</strong><span>${escapeHtml(listeningNote)}</span></div>` : ""}<h3>Completion stages</h3><ul>${stages.map(stage => `<li>${stage.complete ? "✓" : "○"} ${escapeHtml(stage.label)}</li>`).join("")}</ul><h3>Grammar focus</h3><ul>${module.grammar.map(item => `<li>${escapeHtml(item.title)}</li>`).join("")}</ul><div class="module-progress"><div><i style="width:${moduleProgress(module)}%"></i></div><small>${bundleSummary} · ${module.questions.length} typed prompts · ${stages.filter(stage => stage.complete).length} of ${stages.length} stages complete</small></div><div class="module-detail-actions"><button class="primary-button" type="button" data-module-learn="${module.id}">Learn words</button><button class="quiet-button" type="button" data-module-practice="${module.id}">Practice</button></div>`;
   $('[data-module-learn]').addEventListener("click", event => { setActiveModule(event.currentTarget.dataset.moduleLearn); go("learn"); });
   $('[data-module-practice]').addEventListener("click", event => { setActiveModule(event.currentTarget.dataset.modulePractice); go("practice"); });
 }
@@ -1293,7 +1661,7 @@ function setLearnMode(mode) {
 }
 
 function lessonExampleHtml(example) {
-  return '<article><strong lang="de">' + escapeHtml(example.de) + '</strong><span>' + escapeHtml(example.en) + '</span>' + (example.note ? '<small>' + escapeHtml(example.note) + '</small>' : "") + '</article>';
+  return '<article><strong lang="de-DE">' + escapeHtml(example.de) + '</strong><span lang="en-US">' + escapeHtml(example.en) + '</span>' + (example.note ? '<small>' + escapeHtml(example.note) + '</small>' : "") + '</article>';
 }
 
 function renderLessonInteraction(step) {
@@ -1302,26 +1670,42 @@ function renderLessonInteraction(step) {
   target.hidden = step.kind === "teach";
   if (step.kind === "choice") {
     const options = lessonOptionOrder(activeModule(), step, "choices", step.options);
-    target.innerHTML = '<p class="lesson-prompt">' + escapeHtml(step.prompt) + '</p><div class="lesson-choices">' + options.map((option, index) => '<button type="button" data-lesson-choice="' + index + '">' + escapeHtml(option) + '</button>').join("") + '</div>';
+    target.innerHTML = '<p class="lesson-prompt" id="lessonChoicePrompt">' + escapeHtml(step.prompt) + '</p><div class="lesson-choices" role="group" aria-labelledby="lessonChoicePrompt">' + options.map((option, index) => '<button type="button" lang="de-DE" aria-pressed="false" data-lesson-choice="' + index + '">' + escapeHtml(option) + '</button>').join("") + '</div>';
     $$("[data-lesson-choice]").forEach(button => button.addEventListener("click", () => {
       lessonSelection = options[Number(button.dataset.lessonChoice)];
-      $$("[data-lesson-choice]").forEach(item => item.classList.toggle("selected", item === button));
+      $$("[data-lesson-choice]").forEach(item => {
+        const selected = item === button;
+        item.classList.toggle("selected", selected);
+        item.setAttribute("aria-pressed", String(selected));
+      });
     }));
   }
   if (step.kind === "arrange") {
     const tokens = step.tokens.map((value, sourceIndex) => ({ id: `${sourceIndex}:${value}`, value, sourceIndex }));
     const orderedTokens = lessonOptionOrder(activeModule(), step, "tokens", tokens);
-    target.innerHTML = '<p class="lesson-prompt">' + escapeHtml(step.prompt) + '</p><div class="lesson-builder" id="lessonBuilder"><span>Choose the words below.</span></div><div class="lesson-tiles">' + orderedTokens.map(token => '<button type="button" data-lesson-token="' + token.sourceIndex + '">' + escapeHtml(token.value) + '</button>').join("") + '</div><button class="lesson-clear" id="lessonClear" type="button">Clear</button>';
-    $$("[data-lesson-token]").forEach(button => button.addEventListener("click", () => {
+    target.innerHTML = '<p class="lesson-prompt" id="lessonArrangePrompt">' + escapeHtml(step.prompt) + '</p><div class="lesson-builder" id="lessonBuilder" role="status" aria-live="polite" aria-atomic="true"><span>Choose the words below.</span></div><div class="lesson-tiles" role="group" aria-labelledby="lessonArrangePrompt">' + orderedTokens.map(token => '<button type="button" lang="de-DE" data-lesson-token="' + token.sourceIndex + '">' + escapeHtml(token.value) + '</button>').join("") + '</div><button class="lesson-clear" id="lessonClear" type="button">Clear</button>';
+    const tileButtons = $$("[data-lesson-token]");
+    const clearButton = $("#lessonClear");
+    const updateBuilder = () => {
+      const phrase = lessonBuilt.map(item => step.tokens[item]).join(" ");
+      $("#lessonBuilder").innerHTML = phrase
+        ? '<span class="sr-only">Assembled phrase: </span><span lang="de-DE">' + escapeHtml(phrase) + '</span>'
+        : '<span>Choose the words below.</span>';
+    };
+    tileButtons.forEach((button, buttonIndex) => button.addEventListener("click", () => {
       const index = Number(button.dataset.lessonToken);
       if (lessonBuilt.includes(index)) return;
       lessonBuilt.push(index);
       button.disabled = true;
-      $("#lessonBuilder").textContent = lessonBuilt.map(item => step.tokens[item]).join(" ");
+      updateBuilder();
+      const followingButtons = tileButtons.slice(buttonIndex + 1).concat(tileButtons.slice(0, buttonIndex));
+      (followingButtons.find(item => !item.disabled) || clearButton).focus();
     }));
-    $("#lessonClear").addEventListener("click", () => {
+    clearButton.addEventListener("click", () => {
       lessonBuilt = [];
-      renderLessonInteraction(step);
+      tileButtons.forEach(button => { button.disabled = false; });
+      updateBuilder();
+      tileButtons[0]?.focus();
     });
   }
   if (step.kind === "type") {
@@ -1503,6 +1887,10 @@ function classifyVocabularyRecall(value, word, direction) {
   return { correct: Boolean(answer), near: Boolean(near), kind: near ? "typo" : "", answer: answers[0], accepted: answer || null };
 }
 
+function renderBilingualFlashExample(selector, word) {
+  $(selector).innerHTML = '<span lang="de-DE">' + escapeHtml(word.example) + '</span><span aria-hidden="true"> | </span><span lang="en-US">' + escapeHtml(word.exampleEn) + '</span>';
+}
+
 function renderCard() {
   const word = deck[deckIndex];
   if (!word) return;
@@ -1514,10 +1902,14 @@ function renderCard() {
   $("#deckPosition").textContent = `${deckIndex + 1} / ${deck.length}`;
   $("#cardUnit").textContent = targetedWordId ? "FOCUSED REVIEW" : word.supplemental ? `${module.code} · EXPANSION` : `${module.code} · ${module.title.toUpperCase()}`;
   $("#flashPrompt").textContent = unseen ? "MEET THE BUNDLE" : direction === "german" ? "GERMAN TO ENGLISH" : "ENGLISH TO GERMAN";
-  $("#flashFront").textContent = unseen || direction === "german" ? word.de : word.en;
-  $("#flashAnswer").textContent = unseen || direction === "german" ? word.en : word.de;
+  const frontIsGerman = unseen || direction === "german";
+  $("#flashFront").textContent = frontIsGerman ? word.de : word.en;
+  $("#flashFront").lang = frontIsGerman ? "de-DE" : "en-US";
+  $("#flashAnswer").textContent = frontIsGerman ? word.en : word.de;
+  $("#flashAnswer").lang = frontIsGerman ? "en-US" : "de-DE";
   $("#flashBundle").textContent = word.bundle;
-  $("#flashExample").textContent = `${word.example} | ${word.exampleEn}`;
+  $("#flashBundle").lang = "de-DE";
+  renderBilingualFlashExample("#flashExample", word);
   $("#flashStudy").hidden = !unseen;
   $("#flashRecallForm").hidden = unseen;
   $("#flashResult").hidden = true;
@@ -1609,8 +2001,10 @@ function submitVocabularyRecall(event) {
         : `Your answer: “${value}”`;
   $("#flashResultAnswerLabel").textContent = result.correct || result.near ? "Course form" : "Answer to study";
   $("#flashResultAnswer").textContent = direction === "meaning" ? word.en : word.de;
+  $("#flashResultAnswer").lang = direction === "meaning" ? "en-US" : "de-DE";
   $("#flashResultBundle").textContent = word.bundle;
-  $("#flashResultExample").textContent = `${word.example} | ${word.exampleEn}`;
+  $("#flashResultBundle").lang = "de-DE";
+  renderBilingualFlashExample("#flashResultExample", word);
   renderDeckStrip();
   renderDeckStatus();
 }
@@ -1633,9 +2027,12 @@ function skipVocabularyRecall() {
   $("#flashResultTitle").textContent = "Study this bundle once more.";
   $("#flashResultText").textContent = "No retrieval credit was added.";
   $("#flashResultAnswerLabel").textContent = "Answer to study";
-  $("#flashResultAnswer").textContent = cardDirectionFor() === "german" ? word.en : word.de;
+  const resultIsGerman = cardDirectionFor() !== "german";
+  $("#flashResultAnswer").textContent = resultIsGerman ? word.de : word.en;
+  $("#flashResultAnswer").lang = resultIsGerman ? "de-DE" : "en-US";
   $("#flashResultBundle").textContent = word.bundle;
-  $("#flashResultExample").textContent = `${word.example} | ${word.exampleEn}`;
+  $("#flashResultBundle").lang = "de-DE";
+  renderBilingualFlashExample("#flashResultExample", word);
 }
 
 function continueVocabularyCard() {
@@ -1707,6 +2104,9 @@ function renderPracticeMenu() {
   const speakingReady = writingReady && activityIsComplete(module, "writing");
   const checkpointReady = courseworkIsComplete(module);
   const modeButton = mode => $('[data-practice-mode="' + mode + '"]');
+  modeButton("checkpoint").querySelector("p").textContent = listening
+    ? "Take one closed, scored attempt across vocabulary, sentences, listening, reading, writing, and a speaking transcript."
+    : "Take one closed, scored attempt across vocabulary, sentences, reading, writing, and a speaking transcript.";
   modeButton("sentences").disabled = !sentenceReady;
   modeButton("reading").disabled = !readingReady;
   modeButton("writing").disabled = !writingReady;
@@ -1727,6 +2127,8 @@ function renderPracticeMenu() {
   $("#sentenceReadiness").textContent = sentenceComplete ? "✓ Sentence Lab complete. Practice again whenever you want." : !lessonReady ? "Complete the guided lesson first." : coreVerified < coreTotal ? `Recall ${coreTotal - coreVerified} more core bundle${coreTotal - coreVerified === 1 ? "" : "s"} first.` : available.length + " varied prompts use taught language.";
   if (listening) $("#listeningReadiness").textContent = activityIsComplete(module, "listening")
     ? "✓ Listening complete. Replay the conversation whenever you want."
+    : record.listeningGrandfathered
+      ? "Available for review. Your earlier module pass remains valid."
     : !lessonReady
       ? "Complete the guided lesson first."
       : coreVerified < coreTotal
@@ -1757,6 +2159,7 @@ function renderPracticeMenu() {
 
 function hideActivities() {
   pauseListeningAudio(true);
+  pauseAssessmentAudio(true);
   cancelActiveSpeechRecognition();
   ["#assessmentIntro", "#quizShell", "#listeningTask", "#readingTask", "#writingTask", "#speakingTask"].forEach(selector => { $(selector).hidden = true; });
 }
@@ -1803,11 +2206,14 @@ function openPracticeMode(mode) {
 function renderAssessmentIntro() {
   const module = activeModule();
   const record = moduleRecord(module.id);
+  const savedSession = savedAssessmentSession(module);
   const coreCount = moduleCoreWords(module).length;
   const sentenceCount = module.questions.length;
+  const includesListening = Boolean(listeningFor(module));
+  const responseCount = coreCount + sentenceCount + 3 + Number(includesListening);
   $("#assessmentIntro").hidden = false;
   $("#assessmentIntroTitle").textContent = `${module.code}: ${module.title}`;
-  $("#assessmentIntroText").textContent = `${coreCount + sentenceCount + 3} responses cover ${coreCount} core vocabulary bundles, ${sentenceCount} sentence targets, one reading task, one structured writing task, and one speaking transcript.`;
+  $("#assessmentIntroText").textContent = `${responseCount} responses cover ${coreCount} core vocabulary bundles, ${sentenceCount} sentence targets, ${includesListening ? "one listening task, " : ""}one reading task, one structured writing task, and one speaking transcript.`;
   const levelScoringRule = {
     A0: "A0 scoring accepts taught equivalent phrases and harmless taught greetings. Minor spelling slips can earn partial credit. An article counts when the prompt asks for one.",
     A1: "A1 scoring accepts taught equivalent phrases. Word choice, articles, and sentence structure carry the score. Minor mechanics still receive coaching.",
@@ -1817,7 +2223,8 @@ function renderAssessmentIntro() {
   }[module.level];
   $("#assessmentRules").innerHTML = [
     "Answers are saved without correctness feedback during the attempt.",
-    "Pass with 80% overall, plus 70% in vocabulary and sentences, 50% in reading, and 60% in structured writing and speaking.",
+    `Pass with 80% overall, plus 70% in vocabulary and sentences, ${includesListening ? "50% in listening and reading" : "50% in reading"}, and 60% in structured writing and speaking.`,
+    ...(includesListening ? ["The listening transcript stays closed during the assessment. You may replay the audio."] : []),
     levelScoringRule,
     "Your latest 10 completed attempts stay in your score history. A lower retake keeps your best score.",
     "Keyboard spellings such as ae, oe, ue, and ss receive full credit.",
@@ -1832,13 +2239,64 @@ function renderAssessmentIntro() {
   const archivedHistory = archived
     ? `This module now includes more material. Your earlier best score of ${Math.round((archived.bestScore || 0) * 100)}% is archived, and this assessment covers the expanded course.`
     : "";
-  $("#assessmentPrior").hidden = !(currentHistory || archivedHistory);
-  $("#assessmentPrior").textContent = currentHistory || archivedHistory;
+  const savedHistory = savedSession ? `Saved attempt: response ${savedSession.quiz.index + 1} of ${savedSession.quiz.questions.length}. Completed responses have been kept without feedback.` : "";
+  $("#assessmentPrior").hidden = !(savedHistory || currentHistory || archivedHistory);
+  $("#assessmentPrior").textContent = [savedHistory, currentHistory || archivedHistory].filter(Boolean).join(" ");
+  $("#beginAssessment").innerHTML = savedSession ? 'Resume saved assessment <span>→</span>' : 'Begin assessment <span>→</span>';
+  const discard = $("#discardAssessment");
+  if (discard) discard.hidden = !savedSession;
+  setTimeout(() => $("#assessmentIntroTitle").focus(), 40);
 }
 
 function beginModuleAssessment() {
   $("#assessmentIntro").hidden = true;
+  const saved = savedAssessmentSession(activeModule());
+  if (saved) {
+    quiz = structuredClone(saved.quiz);
+    $("#quizShell").hidden = false;
+    renderQuestion();
+    return;
+  }
   startQuiz(true);
+}
+
+function savedAssessmentSession(module) {
+  const saved = state.assessmentSessions?.[module.id];
+  if (!saved || saved.version !== assessmentVersion || saved.moduleId !== module.id || !saved.quiz?.assessment) return null;
+  if (!Array.isArray(saved.quiz.questions) || !Array.isArray(saved.quiz.responses)) return null;
+  if (listeningFor(module) && !saved.quiz.questions.some(question => question?.kind === "listening")) return null;
+  if (!Number.isInteger(saved.quiz.index) || saved.quiz.index < 0 || saved.quiz.index >= saved.quiz.questions.length) return null;
+  return saved;
+}
+
+let assessmentDraftSaveTimer = 0;
+
+function persistAssessmentSession() {
+  window.clearTimeout(assessmentDraftSaveTimer);
+  assessmentDraftSaveTimer = 0;
+  if (!quiz?.assessment || quiz.completed) return;
+  state.assessmentSessions ||= {};
+  state.assessmentSessions[quiz.moduleId] = { version: assessmentVersion, moduleId: quiz.moduleId, quiz: structuredClone(quiz) };
+  saveState();
+}
+
+function scheduleAssessmentSessionSave(value) {
+  if (!quiz?.assessment || quiz.completed) return;
+  quiz.currentValue = String(value || "");
+  window.clearTimeout(assessmentDraftSaveTimer);
+  assessmentDraftSaveTimer = window.setTimeout(persistAssessmentSession, 350);
+}
+
+function discardAssessmentSession() {
+  const saved = savedAssessmentSession(activeModule());
+  if (!saved) return;
+  if (!window.confirm("Discard this saved assessment attempt and its responses?")) return;
+  window.clearTimeout(assessmentDraftSaveTimer);
+  assessmentDraftSaveTimer = 0;
+  if (quiz?.assessment && quiz.moduleId === saved.moduleId) quiz = null;
+  delete state.assessmentSessions[saved.moduleId];
+  saveState();
+  renderAssessmentIntro();
 }
 
 /* ASSESSMENT_CONTRACTS_START */
@@ -2131,6 +2589,22 @@ function assessmentVocabularyItem(word) {
   };
 }
 
+function assessmentListeningItem(module) {
+  const item = listeningFor(module);
+  if (!item) return null;
+  return {
+    id: `listening:${item.id}`,
+    kind: "listening",
+    type: "LISTENING",
+    context: `${item.context} ${item.goal} Replay the audio as needed.`,
+    prompt: item.prompt,
+    audioSrc: item.src,
+    answers: item.answers,
+    requirements: item.requirements || [],
+    explanation: `Audio evidence: ${item.evidence}`
+  };
+}
+
 function assessmentItemsFor(module, run) {
   const vocabularyItems = moduleCoreWords(module).map(assessmentVocabularyItem);
   const vocabulary = variedOrder(
@@ -2161,6 +2635,8 @@ function assessmentItemsFor(module, run) {
     acceptableAnswers: module.input.acceptableAnswers || [],
     explanation: "Return to the passage and locate the requested detail."
   }];
+  const listeningItem = assessmentListeningItem(module);
+  const listening = listeningItem ? [listeningItem] : [];
   const writing = [{
     id: "writing:module-task",
     kind: "writing",
@@ -2186,6 +2662,7 @@ function assessmentItemsFor(module, run) {
   return [
     ...vocabulary,
     ...sentences,
+    ...listening,
     ...reading.map(question => materializeQuestion(question, module.id, run, { assessment: true })),
     ...writing.map(question => materializeQuestion(question, module.id, run, { assessment: true })),
     ...speaking.map(question => materializeQuestion(question, module.id, run, { assessment: true }))
@@ -2193,6 +2670,7 @@ function assessmentItemsFor(module, run) {
 }
 
 function startQuiz(checkpoint) {
+  if (quiz?.assessment && !quiz.completed) persistAssessmentSession();
   const module = activeModule();
   const record = moduleRecord(module.id);
   const available = availableQuestionsFor(module);
@@ -2209,6 +2687,7 @@ function startQuiz(checkpoint) {
       { preserveFirst: !hasPriorSentencePractice }
     );
   quiz = { moduleId: module.id, checkpoint, assessment: checkpoint, questions, index: 0, firstCorrect: 0, recovered: 0, missed: [], responses: [], originalTotal: questions.length, retry: false, inlineRetry: false, flow: 0, maxFlow: 0, flowRewarded: false, stageCompletedNow: false };
+  if (checkpoint) persistAssessmentSession();
   saveState();
   $("#quizShell").hidden = false;
   renderQuestion();
@@ -2228,6 +2707,10 @@ function renderQuizFlow() {
 function renderQuestion() {
   const question = quiz.questions[quiz.index];
   if (!question) return finishQuizSet();
+  const hasAssessmentAudio = Boolean(quiz.assessment && question.kind === "listening" && question.audioSrc);
+  const quizAudioWrap = $("#quizAudioWrap");
+  const quizAudio = $("#quizAudio");
+  pauseAssessmentAudio(!hasAssessmentAudio);
   $("#quizMode").textContent = quiz.retry ? "REPAIR PASS" : quiz.assessment ? "MODULE ASSESSMENT" : "SENTENCE LAB";
   $("#quizProgress").textContent = `${quiz.index + 1} / ${quiz.questions.length}`;
   renderQuizFlow();
@@ -2235,6 +2718,14 @@ function renderQuestion() {
   $("#quizType").textContent = question.type;
   $("#quizContext").textContent = question.context;
   $("#quizPrompt").textContent = question.prompt;
+  quizAudioWrap.hidden = !hasAssessmentAudio;
+  if (hasAssessmentAudio) {
+    if (quizAudio.getAttribute("src") !== question.audioSrc) {
+      quizAudio.src = question.audioSrc;
+      quizAudio.load?.();
+    }
+    $("#quizAudioNote").textContent = "Replay is allowed. The transcript stays closed until the attempt ends.";
+  }
   const support = quiz.assessment ? null : question.support;
   $("#quizSupport").hidden = !support;
   $("#quizSupport").innerHTML = support ? '<span>' + escapeHtml(support.title) + '</span><strong lang="de">' + escapeHtml(support.model) + '</strong><small>' + escapeHtml(support.translation) + '</small><p>' + escapeHtml(support.tip) + '</p>' : "";
@@ -2242,9 +2733,9 @@ function renderQuestion() {
   const bank = sourceBank;
   $("#quizWordBank").hidden = bank.length === 0;
   $("#quizWordBank").innerHTML = bank.map(word => `<span>${escapeHtml(word)}</span>`).join("");
-  $("#quizInput").value = "";
+  $("#quizInput").value = quiz.assessment ? String(quiz.currentValue || "") : "";
   $("#quizInput").disabled = false;
-  $("#quizLongInput").value = "";
+  $("#quizLongInput").value = quiz.assessment ? String(quiz.currentValue || "") : "";
   $("#quizLongInput").disabled = false;
   $("#quizShortAnswer").hidden = Boolean(question.longResponse);
   $("#quizLongInput").hidden = !question.longResponse;
@@ -2721,7 +3212,11 @@ function assessmentVocabularyGrade(question, value, module) {
 if (typeof window !== "undefined") {
   window.SatzwerkAssessmentScoring = Object.freeze({
     vocabularyItem: assessmentVocabularyItem,
-    vocabularyGrade: assessmentVocabularyGrade
+    vocabularyGrade: assessmentVocabularyGrade,
+    listeningItem: assessmentListeningItem,
+    gradeResponse: gradeAssessmentResponse,
+    sectionScores: assessmentSectionScores,
+    outcome: assessmentOutcome
   });
 }
 
@@ -2737,6 +3232,7 @@ function gradeAssessmentResponse(question, value, module) {
     const score = speakingAssessmentScore(module, value);
     return { score, correct: score >= 1, answer: module.task.speakingModel };
   }
+  if (question.kind === "listening") return readingAnswerResult(value, question.answers, module.level, question.prompt, question.requirements || []);
   if (question.kind === "reading") return readingAnswerResult(value, question.answers, module.level, question.prompt, module.input.readRequired || []);
   const answers = question.kind === "sentences" ? assessmentContractFor(question).answers : question.answers;
   const result = classifyAnswer(value, answers, module.level);
@@ -2756,10 +3252,13 @@ function submitQuizAnswer(event) {
     quiz.responses.push({ id: question.id, kind: question.kind, type: question.type, prompt: question.prompt, value, answer: result.answer, score: result.score, note: result.note || "", explanation: question.explanation || "" });
     const record = moduleRecord(module.id);
     record.started = true;
-    saveState();
+    quiz.currentValue = "";
     quiz.index += 1;
     if (quiz.index >= quiz.questions.length) finishQuizSet();
-    else renderQuestion();
+    else {
+      persistAssessmentSession();
+      renderQuestion();
+    }
     return;
   }
   const result = classifyAnswer(value, question.answers, module.level);
@@ -2848,19 +3347,42 @@ function finishQuizSet() {
 }
 
 function assessmentSectionScores(responses) {
-  const sectionNames = ["vocabulary", "sentences", "reading", "writing", "speaking"];
+  const sectionNames = ["vocabulary", "sentences", "listening", "reading", "writing", "speaking"]
+    .filter(section => section !== "listening" || responses.some(response => response.kind === "listening"));
   return Object.fromEntries(sectionNames.map(section => {
     const items = responses.filter(response => response.kind === section);
     return [section, items.length ? items.reduce((sum, response) => sum + response.score, 0) / items.length : 0];
   }));
 }
 
+function assessmentOutcome(responses) {
+  const sections = assessmentSectionScores(responses);
+  const weights = { vocabulary: .25, sentences: .30, listening: .12, reading: .15, writing: .20, speaking: .10 };
+  const minimums = { vocabulary: .70, sentences: .70, listening: .50, reading: .50, writing: .60, speaking: .60 };
+  const entries = Object.entries(sections);
+  const availableWeight = entries.reduce((sum, [section]) => sum + weights[section], 0);
+  const score = entries.reduce((sum, [section, value]) => sum + value * weights[section], 0) / Math.max(.01, availableWeight);
+  const floorResults = entries.map(([section, value]) => value >= minimums[section]);
+  return {
+    sections,
+    score,
+    floorResults,
+    floorsMet: floorResults.filter(Boolean).length,
+    floorTotal: floorResults.length,
+    passed: score >= assessmentPassScore && floorResults.every(Boolean)
+  };
+}
+
 function finishAssessment() {
+  window.clearTimeout(assessmentDraftSaveTimer);
+  assessmentDraftSaveTimer = 0;
+  pauseAssessmentAudio(true);
+  quiz.completed = true;
+  delete state.assessmentSessions[quiz.moduleId];
   const module = moduleById(quiz.moduleId);
   const record = moduleRecord(module.id);
-  const sections = assessmentSectionScores(quiz.responses);
-  const score = sections.vocabulary * .25 + sections.sentences * .30 + sections.reading * .15 + sections.writing * .20 + sections.speaking * .10;
-  const passed = score >= assessmentPassScore && sections.vocabulary >= .70 && sections.sentences >= .70 && sections.reading >= .50 && sections.writing >= .60 && sections.speaking >= .60;
+  const outcome = assessmentOutcome(quiz.responses);
+  const { sections, score, passed } = outcome;
   const firstCompletion = passed && !record.assessment.passedAt;
   const hadPriorAttempt = record.assessment.attempts.length > 0;
   const previousBest = record.assessment.bestScore || 0;
@@ -2909,7 +3431,8 @@ function finishAssessment() {
   $("#completionBurst").hidden = !firstCompletion;
   $("#summaryEyebrow").textContent = courseComplete ? "COURSE COMPLETE" : levelComplete ? `${module.level} COMPLETE` : firstCompletion ? "MODULE COMPLETE" : personalBest ? "PERSONAL BEST" : passed ? "ASSESSMENT PASSED" : "ASSESSMENT COMPLETE";
   $("#summaryTitle").textContent = courseComplete ? `A0 to B2 complete. ${scorePoints}%.` : levelComplete ? `${module.level} complete. ${module.code} passed with ${scorePoints}%.` : firstCompletion ? `${module.code} complete. ${scorePoints}%.` : personalBest ? `New best score: ${scorePoints}%.` : passed ? `Passed with ${scorePoints}%.` : `Score: ${scorePoints}%.`;
-  const floorsMet = [sections.vocabulary >= .70, sections.sentences >= .70, sections.reading >= .50, sections.writing >= .60, sections.speaking >= .60].filter(Boolean).length;
+  const floorsMet = outcome.floorsMet;
+  const sectionFloorTotal = outcome.floorTotal;
   const next = modules[modules.findIndex(item => item.id === module.id) + 1];
   $("#summaryText").textContent = courseComplete
     ? "Every module assessment is passed. Your complete pathway remains open for review."
@@ -2918,10 +3441,10 @@ function finishAssessment() {
       : firstCompletion
         ? `You met the minimum in every section. ${next ? `${next.code} is ready.` : "The full course pathway is checked off."}`
         : personalBest
-          ? `Up ${improvement} point${improvement === 1 ? "" : "s"} from your previous best. ${passed ? "You met the minimum in every section." : `${floorsMet} of 5 section minimums were reached.`}`
+          ? `Up ${improvement} point${improvement === 1 ? "" : "s"} from your previous best. ${passed ? "You met the minimum in every section." : `${floorsMet} of ${sectionFloorTotal} section minimums were reached.`}`
           : passed
             ? "You met the minimum in every section. This module is checked off."
-            : `Passing requires 80% overall and each section minimum. ${floorsMet} of 5 section minimums were reached.`;
+            : `Passing requires 80% overall and each section minimum. ${floorsMet} of ${sectionFloorTotal} section minimums were reached.`;
   $("#summaryCanDo").hidden = !passed;
   $("#summaryCanDo").innerHTML = passed ? module.canDo.slice(0, 4).map(item => `<li>${escapeHtml(item)}</li>`).join("") : "";
   $("#summaryCorrect").textContent = `${Math.round(score * 100)}%`;
@@ -2930,10 +3453,10 @@ function finishAssessment() {
   $("#summaryRecoveredLabel").textContent = "fully correct items";
   $("#summaryMissed").textContent = `${Math.round((record.assessment.bestScore || 0) * 100)}%`;
   $("#summaryMissedLabel").textContent = "best score";
-  const sectionLabels = { vocabulary: "Vocabulary", sentences: "Sentence production", reading: "Reading", writing: "Structured writing", speaking: "Speaking transcript" };
+  const sectionLabels = { vocabulary: "Vocabulary", sentences: "Sentence production", listening: "Listening", reading: "Reading", writing: "Structured writing", speaking: "Speaking transcript" };
   const missed = quiz.responses.filter(response => response.score < 1);
   $("#assessmentReview").hidden = false;
-  $("#assessmentReview").innerHTML = '<h3>Section scores</h3><ol>' + Object.entries(sections).map(([key, value]) => `<li><strong>${sectionLabels[key]}: ${Math.round(value * 100)}%</strong></li>`).join("") + '</ol>' + (missed.length ? '<h3>Review after the attempt</h3><ol>' + missed.map(response => `<li><strong>${escapeHtml(response.prompt)}</strong><small>Your answer: ${escapeHtml(response.value)}</small><small>Reference answer: ${escapeHtml(response.answer)}</small><small>Credit earned: ${Math.round(response.score * 100)}%</small>${response.note ? `<small>${escapeHtml(response.note)}</small>` : ""}</li>`).join("") + '</ol>' : '<p>Every scored item received full credit.</p>');
+  $("#assessmentReview").innerHTML = '<h3>Section scores</h3><ol>' + Object.entries(sections).map(([key, value]) => `<li><strong>${sectionLabels[key]}: ${Math.round(value * 100)}%</strong></li>`).join("") + '</ol>' + (missed.length ? '<h3>Review after the attempt</h3><ol>' + missed.map(response => `<li><strong>${escapeHtml(response.prompt)}</strong><small>Your answer: ${escapeHtml(response.value)}</small><small>Reference answer: ${escapeHtml(response.answer)}</small><small>Credit earned: ${Math.round(response.score * 100)}%</small>${response.note ? `<small>${escapeHtml(response.note)}</small>` : ""}${response.kind === "listening" && response.explanation ? `<small>${escapeHtml(response.explanation)}</small>` : ""}</li>`).join("") + '</ol>' : '<p>Every scored item received full credit.</p>');
   $("#assessmentHistory").hidden = false;
   $("#assessmentHistory").innerHTML = '<h3>Assessment history</h3><ol>' + [...record.assessment.attempts].reverse().map((item, index) => `<li>${index === 0 ? "Latest" : new Date(item.date).toLocaleDateString()}: <strong>${Math.round(item.score * 100)}%</strong> · ${item.passed ? "Passed" : "Review and retake"}</li>`).join("") + '</ol>';
   $("#retryMissed").hidden = true;
@@ -2977,6 +3500,21 @@ function retryMissedQuestions() {
   renderQuestion();
 }
 
+function listeningTranscriptMarkup(item) {
+  return `<div class="listening-transcript"><strong>Transcript</strong>${item.turns.map(turn => `<p><span>${escapeHtml(turn.speaker)}</span><q lang="de-DE">${escapeHtml(turn.text)}</q></p>`).join("")}</div>`;
+}
+
+function revealListeningTranscript() {
+  const item = listeningFor(activeModule());
+  if (!item) return;
+  const support = $("#listeningTextSupport");
+  support.innerHTML = `${listeningTranscriptMarkup(item)}<p class="listening-credit">Text support is open. Answer the same comprehension question above.</p>`;
+  support.hidden = false;
+  $("#listeningTranscriptHelp").hidden = true;
+  $("#listeningNote").textContent = "Use the transcript as an accessibility aid, then answer the same comprehension question.";
+  support.focus();
+}
+
 function renderListening() {
   const module = activeModule();
   const item = listeningFor(module);
@@ -3001,6 +3539,10 @@ function renderListening() {
   $("#listeningActions").hidden = true;
   $("#listeningRetry").hidden = true;
   $("#listeningContinue").hidden = true;
+  $("#listeningTranscriptHelp").hidden = false;
+  $("#listeningTextSupport").hidden = true;
+  $("#listeningTextSupport").innerHTML = "";
+  $("#listeningNote").textContent = "Replay the exchange whenever you need it. Text support is available below.";
   setTimeout(() => $("#listeningTitle").focus(), 40);
 }
 
@@ -3029,7 +3571,7 @@ function submitListening(event) {
   const learnerAnswer = `<div class="listening-answer-review ${revealSupport ? "" : "single"}"><p><strong>Your answer</strong><span>${escapeHtml(value)}</span></p>${revealSupport ? `<p><strong>Accepted answer</strong><span>${escapeHtml(result.answer)}</span></p><p><strong>Evidence</strong><span lang="de-DE">${escapeHtml(item.evidence)}</span></p>` : ""}</div>`;
   const contextNote = item.culture ? `<div class="listening-culture"><strong>In context</strong><p>${escapeHtml(item.culture)}</p>${item.source ? `<a href="${escapeHtml(item.source.url)}" target="_blank" rel="noreferrer">${escapeHtml(item.source.title)} source ↗</a>` : ""}</div>` : "";
   const strategyTip = item.tip ? `<div class="listening-strategy"><strong>Strategy</strong><p>${escapeHtml(item.tip)}</p></div>` : "";
-  const support = revealSupport ? `<div class="listening-transcript"><strong>Transcript</strong>${item.turns.map(turn => `<p><span>${escapeHtml(turn.speaker)}</span><q lang="de-DE">${escapeHtml(turn.text)}</q></p>`).join("")}</div>${contextNote}${strategyTip}` : "";
+  const support = revealSupport ? `${listeningTranscriptMarkup(item)}${contextNote}${strategyTip}` : "";
   feedback.innerHTML = `<div class="listening-status" role="status" aria-live="polite" aria-atomic="true"><h3>${result.correct ? "Correct." : score >= .5 ? "You caught part of it." : "Listen once more."}</h3><p>${escapeHtml(revealSupport ? (result.note || message) : message)}</p></div>${learnerAnswer}<div aria-live="off">${support}<p class="listening-credit">Female voice: Chatterbox Multilingual. Male voice: Coqui Thorsten VITS.</p></div>`;
   $("#listeningActions").hidden = false;
   $("#listeningRetry").hidden = result.correct;
@@ -3061,6 +3603,7 @@ function renderReading() {
   $("#readingActions").hidden = true;
   $("#readingRetry").hidden = true;
   $("#readingContinue").hidden = true;
+  setTimeout(() => $("#readingTitle").focus(), 40);
 }
 
 function submitReading(event) {
@@ -3249,16 +3792,19 @@ function writingTargetLabel(task) {
 function renderWriting() {
   const module = activeModule();
   const task = module.task;
+  const savedDraft = draftText("writing", module.id);
   $("#writingTask").hidden = false;
   $("#writingTitle").textContent = `${module.code}: ${module.title}`;
   $("#writingPrompt").textContent = task.writingPrompt;
   $("#writingGuide").innerHTML = task.guide.map(item => `<li>${escapeHtml(item)}</li>`).join("");
-  $("#writingInput").value = "";
-  $("#writingCount").textContent = `0 words · target ${writingTargetLabel(task)}`;
+  $("#writingInput").value = savedDraft;
+  $("#writingCount").textContent = `${countWords(savedDraft)} words · target ${writingTargetLabel(task)}`;
+  setDraftStatus("writing", savedDraft ? "Draft restored from this device." : "Drafts save on this device while you write.");
   $("#writingFeedback").hidden = true;
   $("#writingActions").hidden = true;
   $("#writingInput").disabled = false;
   $("#checkWriting").disabled = false;
+  setTimeout(() => $("#writingTitle").focus(), 40);
 }
 
 function checkWriting() {
@@ -3267,6 +3813,8 @@ function checkWriting() {
   const text = $("#writingInput").value;
   const words = countWords(text);
   if (!words) return;
+  updateDraft("writing", module.id, text);
+  flushDrafts();
   if (task.checks?.length) {
     const checks = evaluateWritingChecks(task, text);
     const requiredChecks = checks.filter(check => check.required !== false);
@@ -3320,6 +3868,35 @@ let microphoneRequestPending = false;
 let localSpeechTranscriber = null;
 let localSpeechAttempt = 0;
 let browserTranscriptionUnavailable = false;
+let activeSpeechDraftKind = "speaking";
+let localSpeechDraftKind = "speaking";
+let localSpeechModuleId = "";
+
+function speechTranscriptForKind(kind) {
+  return kind === "speakingFollowUp" ? $("#speakingFollowUpTranscript") : $("#speakingTranscript");
+}
+
+function speechTranscriptTarget() {
+  return speechTranscriptForKind(activeSpeechDraftKind);
+}
+
+function formatRecordingTime(milliseconds) {
+  const seconds = Math.max(0, Math.ceil(milliseconds / 1000));
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
+function setLocalRecordingTimer(milliseconds = 0, visible = false) {
+  const timer = $("#localSpeechTimer");
+  if (!timer) return;
+  timer.hidden = !visible;
+  if (visible) timer.textContent = `${formatRecordingTime(milliseconds)} remaining`;
+}
+
+function localRecordingDurationMs(module) {
+  if (["A0", "A1"].includes(module.level)) return 60000;
+  if (module.level === "A2") return 75000;
+  return 90000;
+}
 
 function setSpeakingMicrophoneStatus(message = speakingStatusDefault) {
   const status = $("#speakingMicStatus");
@@ -3329,7 +3906,7 @@ function setSpeakingMicrophoneStatus(message = speakingStatusDefault) {
 function resetSpeakingMicrophoneControls(label = "Record again", message = "Microphone stopped. Record again, or type your transcript below.") {
   const button = $("#startRecognition");
   const localButton = $("#localTranscription");
-  const transcript = $("#speakingTranscript");
+  const transcript = speechTranscriptTarget() || $("#speakingTranscript");
   if (!button || !transcript) return;
   const browserSupported = Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
   const localSupported = Boolean(window.SatzwerkLocalSpeech?.supported?.());
@@ -3342,6 +3919,7 @@ function resetSpeakingMicrophoneControls(label = "Record again", message = "Micr
     localButton.disabled = false;
     localButton.textContent = localState.ready ? "Start local recording" : "Download local transcription (about 50 MB)";
   }
+  setLocalRecordingTimer();
   transcript.placeholder = browserSupported || localSupported ? "Speak with the microphone, or type your transcript here." : "Type your transcript here.";
   const fallbackMessage = localSupported
     ? "Browser speech recognition is unavailable. Download local transcription, or type your transcript below."
@@ -3374,6 +3952,7 @@ function cancelActiveSpeechRecognition(options = {}) {
     }
     if ($("#speakingPlaybackWrap")) $("#speakingPlaybackWrap").hidden = true;
   }
+  setLocalRecordingTimer();
   if (options.resetControls !== false && (recognition || requestWasPending || localWasActive || options.forceReset)) {
     resetSpeakingMicrophoneControls(options.label || "Record again", options.message);
   }
@@ -3436,7 +4015,12 @@ function ensureLocalSpeechTranscriber() {
       $("#localTranscription").disabled = false;
       $("#localTranscription").textContent = "Stop and transcribe";
       $("#startRecognition").disabled = true;
+      setLocalRecordingTimer(maxDurationMs, true);
       setSpeakingMicrophoneStatus(`Recording German now. It will stop automatically after ${seconds} seconds.`);
+    },
+    onRecordingTick(remainingMs) {
+      if (!localSpeechCallbackIsCurrent()) return;
+      setLocalRecordingTimer(remainingMs, true);
     },
     onPlayback(url) {
       if (!localSpeechCallbackIsCurrent()) return;
@@ -3449,12 +4033,16 @@ function ensureLocalSpeechTranscriber() {
       const button = $("#localTranscription");
       button.disabled = true;
       button.textContent = "Transcribing locally";
+      setLocalRecordingTimer();
       setSpeakingMicrophoneStatus("Recording complete. German transcription is running on this device.");
     },
     onResult(value) {
       if (!localSpeechCallbackIsCurrent()) return;
-      const transcript = $("#speakingTranscript");
-      if (value) transcript.value = value;
+      const transcript = speechTranscriptForKind(localSpeechDraftKind) || $("#speakingTranscript");
+      if (value) {
+        transcript.value = value;
+        updateDraft(localSpeechDraftKind, localSpeechModuleId || activeModule().id, value);
+      }
       const button = $("#localTranscription");
       button.disabled = false;
       button.textContent = "Record again locally";
@@ -3470,6 +4058,7 @@ function ensureLocalSpeechTranscriber() {
       button.disabled = false;
       button.textContent = state.ready ? "Record again locally" : "Retry local setup";
       $("#startRecognition").disabled = browserTranscriptionUnavailable;
+      setLocalRecordingTimer();
       setSpeakingMicrophoneStatus(`${message} Your saved recording remains available when one was captured. You can also type your transcript.`);
     }
   });
@@ -3513,7 +4102,9 @@ async function useLocalTranscription() {
   }
   try {
     const module = activeModule();
-    const maxDurationMs = levelRank[module.level] <= levelRank.A1 ? 15000 : levelRank[module.level] === levelRank.A2 ? 25000 : 45000;
+    localSpeechDraftKind = activeSpeechDraftKind;
+    localSpeechModuleId = module.id;
+    const maxDurationMs = localRecordingDurationMs(module);
     button.disabled = true;
     button.textContent = "Opening microphone";
     setSpeakingMicrophoneStatus("Opening the microphone for a local recording.");
@@ -3546,14 +4137,18 @@ function renderSpeaking() {
   cancelActiveSpeechRecognition({ clearPlayback: true });
   const module = activeModule();
   const task = module.task;
+  const savedDraft = draftText("speaking", module.id);
+  activeSpeechDraftKind = "speaking";
   $("#speakingTask").hidden = false;
   $("#speakingTitle").textContent = `${module.code}: Rehearse familiar phrases`;
   $("#speakingPrompt").textContent = task.speakingPrompt;
   const minimum = speakingMinimumWords(module);
   $("#speakingGuide").innerHTML = [...task.speakingGuide, `Use at least ${minimum} words in the transcript.`].map(item => `<li>${escapeHtml(item)}</li>`).join("");
-  $("#speakingTranscript").value = "";
+  $("#speakingTranscript").value = savedDraft;
+  setDraftStatus("speaking", savedDraft ? "Draft restored from this device." : "Transcript drafts save on this device.");
   $("#speakingFeedback").hidden = true;
   $("#speakingActions").hidden = true;
+  $("#speakingFollowUp").hidden = true;
   const browserSupported = Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
   const localSupported = Boolean(window.SatzwerkLocalSpeech?.supported?.());
   browserTranscriptionUnavailable = false;
@@ -3564,14 +4159,19 @@ function renderSpeaking() {
   $("#localTranscription").disabled = false;
   $("#localTranscription").textContent = localSpeechTranscriber?.state?.().ready ? "Start local recording" : "Download local transcription (about 50 MB)";
   $("#localSpeechNote").hidden = true;
+  setLocalRecordingTimer();
   $("#speakingTranscript").placeholder = browserSupported || localSupported ? "Speak with the microphone, or type your transcript here." : "Type your transcript here.";
   setSpeakingMicrophoneStatus(browserSupported || localSupported ? speakingStatusDefault : "Speech recognition is unavailable in this browser. Type your transcript below to complete the rehearsal.");
+  if (activityIsComplete(module, "speaking")) showSpeakingFollowUp(module);
+  setTimeout(() => $("#speakingTitle").focus(), 40);
 }
 
 async function startRecognition() {
   const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   const button = $("#startRecognition");
-  const transcript = $("#speakingTranscript");
+  const draftKind = activeSpeechDraftKind;
+  const moduleId = activeModule().id;
+  const transcript = speechTranscriptForKind(draftKind) || $("#speakingTranscript");
   if (!Recognition) {
     button.disabled = true;
     button.textContent = "Type a transcript here";
@@ -3600,6 +4200,7 @@ async function startRecognition() {
   try {
     recognition = new Recognition();
   } catch (error) {
+    microphoneRequestPending = false;
     const message = microphoneErrorMessage(error);
     button.disabled = false;
     button.textContent = "Try microphone again";
@@ -3630,6 +4231,7 @@ async function startRecognition() {
     if (value) {
       transcriptCaptured = true;
       transcript.value = value;
+      updateDraft(draftKind, moduleId, value);
       transcript.placeholder = "Speak with the microphone, or type your transcript here.";
       setSpeakingMicrophoneStatus("Transcript captured. Read it below and make any needed edits.");
     }
@@ -3694,6 +4296,8 @@ function checkSpeaking() {
   const task = module.task;
   const text = $("#speakingTranscript").value;
   if (!text.trim()) return;
+  updateDraft("speaking", module.id, text);
+  flushDrafts();
   const requirements = speakingChecks(module, text);
   const ratio = scoredChecklistRatio(requirements);
   recordActivityResult(module.id, "speaking", ratio);
@@ -3703,6 +4307,175 @@ function checkSpeaking() {
   const model = ratio >= .5 ? `<p class="model"><strong>Model after submission:</strong> ${escapeHtml(task.speakingModel)}</p>` : "<p>The model appears after most required parts are present.</p>";
   feedback.innerHTML = `<h3>${ratio === 1 ? "The target phrases and response length are present." : "Repeat once with the missing parts."}</h3><ul>${requirements.map(item => `<li>${item.met ? "✓" : "○"} ${escapeHtml(item.item)}${item.detail ? `: ${escapeHtml(item.detail)}` : ""}</li>`).join("")}</ul><p>This transcript checks selected words, forms, and response length. Pronunciation quality is outside this check.</p>${model}`;
   $("#speakingActions").hidden = ratio < 1;
+  if (ratio === 1) showSpeakingFollowUp(module, true);
+}
+
+function speakingFollowUpPrompt(module) {
+  const authored = module.task.speakingPromptVariants || [];
+  if (authored.length) return authored[hashVariationSeed(module.id) % authored.length];
+  const prompts = {
+    A0: [
+      "Continue the same situation. Add one new sentence and ask one related question.",
+      "Give one more personal detail, then ask a simple question about the same topic.",
+      "Add a short statement that fits the situation. Follow it with one related question."
+    ],
+    A1: [
+      "Continue the exchange with one useful detail and one related question.",
+      "Add a practical detail, then ask the other person one question about the same topic.",
+      "Say one more thing that fits the situation and finish with a related question."
+    ],
+    A2: [
+      "Continue with a reason using weil, denn, deshalb, or darum. Add one concrete detail.",
+      "Explain one reason with weil, denn, deshalb, or darum, then give a specific detail.",
+      "Extend your answer with a reason connector and one concrete fact from the situation."
+    ],
+    B1: [
+      "Give a concrete example, explain the reason, and suggest a practical next step.",
+      "Support your point with an example and a reason. Finish with one realistic next action.",
+      "Add an example, explain why it matters, and state what should happen next."
+    ],
+    B2: [
+      "Qualify one point, support it with an example, and explain one consequence.",
+      "Add a nuanced qualification and a concrete example. Then state a likely consequence.",
+      "Refine your position with a qualification, an example, and a clear consequence."
+    ]
+  }[module.level];
+  return prompts[hashVariationSeed(module.id) % prompts.length];
+}
+
+function speakingFollowUpMinimum(module) {
+  return Math.max(4, Math.ceil(speakingMinimumWords(module) / 2));
+}
+
+function speakingFollowUpChecks(module, text) {
+  const folded = foldSpelling(stripPunctuation(text)).toLowerCase();
+  const raw = String(text || "");
+  const prompt = speakingFollowUpPrompt(module).toLowerCase();
+  const checks = [{ label: `At least ${speakingFollowUpMinimum(module)} words`, met: countWords(text) >= speakingFollowUpMinimum(module) }];
+  const add = (label, pattern) => checks.push({ label, met: pattern.test(folded) || pattern.test(raw) });
+  if (/question/.test(prompt)) add("A related question", /\?|\b(?:wer|wie|was|wo|wann|warum|welch|kannst|hast|bist|möchtest|moechtest)\b/iu);
+  if (/\bweil\b/.test(prompt)) add("A clause with weil", /\bweil\b/iu);
+  if (/zuerst/.test(prompt)) add("The sequence word zuerst", /\bzuerst\b/iu);
+  if (/danach/.test(prompt)) add("The sequence word danach", /\bdanach\b/iu);
+  if (/definite article/.test(prompt)) add("The forms der, die, and das", /\bder\b.*\bdie\b.*\bdas\b|\bder\b.*\bdas\b.*\bdie\b|\bdie\b.*\bder\b.*\bdas\b|\bdie\b.*\bdas\b.*\bder\b|\bdas\b.*\bder\b.*\bdie\b|\bdas\b.*\bdie\b.*\bder\b/iu);
+  if (/indefinite form/.test(prompt)) add("The forms ein and eine", /\bein\b.*\beine\b|\beine\b.*\bein\b/iu);
+  if (/accusative/.test(prompt)) add("A masculine accusative form", /\b(?:den|einen|meinen|deinen|keinen|ihn)\b/iu);
+  if (/object pronoun/.test(prompt)) add("An object pronoun", /\b(?:ihn|sie|es|mich|dich|uns|euch)\b/iu);
+  if (/\bwegen\b/.test(prompt)) add("The preposition wegen", /\bwegen\b/iu);
+  if (/fixed dative/.test(prompt)) add("A fixed dative phrase", /\b(?:am|im|beim|zum|zur|mit|nach|aus|von)\b/iu);
+  if (/recipient/.test(prompt)) add("A recipient in the dative", /\b(?:mir|dir|ihm|ihr|uns|euch|dem|einem|einer)\b/iu);
+  if (/prepositional phrase/.test(prompt)) {
+    const prepositions = folded.match(/\b(?:an|auf|aus|bei|für|fuer|in|mit|nach|über|ueber|um|von|vor|zu)\b/giu) || [];
+    checks.push({ label: "Two prepositional phrases", met: prepositions.length >= 2 });
+  }
+  if (/dative-governing verb/.test(prompt)) add("A dative-governing verb", /\b(?:helf|dank|gefall|gehör|gehoer|folg|antwort)\w*/iu);
+  if (/logical relation/.test(prompt)) add("Clear logical connectors", /\b(?:weil|denn|deshalb|darum|danach|außerdem|ausserdem|jedoch|obwohl|während|waehrend)\b/iu);
+  if (/two time-first statements/.test(prompt)) {
+    const timeCue = /^(?:heute|morgen|gestern|jetzt|dann|danach|zuerst|später|spaeter|am\s+\w+|um\s+\d{1,2}(?::\d{2})?)\b/iu;
+    const markedStatements = raw
+      .replace(/\bund\s+(?=(?:heute|morgen|gestern|jetzt|dann|danach|zuerst|später|spaeter|am\s+\w+|um\s+\d))/giu, ". ")
+      .split(/[.!?;\n]+/u)
+      .map(statement => foldSpelling(statement).trim())
+      .filter(Boolean);
+    const markedCount = markedStatements.filter(statement => timeCue.test(statement)).length;
+    const foldedWords = folded.trim().split(/\s+/u);
+    const cuePositions = foldedWords.map((word, index) => /^(?:heute|morgen|gestern|jetzt|dann|danach|zuerst|später|spaeter)$/iu.test(word) ? index : -1).filter(index => index >= 0);
+    const spokenFallback = cuePositions[0] === 0 && cuePositions.some(index => index >= 4);
+    checks.push({ label: "Two statements that begin with time information", met: markedCount >= 2 || spokenFallback });
+  }
+  if (/two different question patterns/.test(prompt)) {
+    const questions = raw.split("?").slice(0, -1).map(part => part.split(/[.!]\s*/u).at(-1).trim()).filter(Boolean);
+    const markedOpenings = questions.map(question => foldSpelling(stripPunctuation(question)).trim().toLowerCase().split(/\s+/u)[0]).filter(Boolean);
+    const markedOpeningSet = new Set(markedOpenings);
+    const tokens = folded.match(/[\p{L}\p{M}]+/gu) || [];
+    const whWords = /^(?:wer|wie|was|wo|wann|warum|welch\w*)$/iu;
+    const finiteOpeners = /^(?:können|koennen|habt|seid|ist|sind|möchtest|moechtest|wollen|[\p{L}\p{M}]+st)$/iu;
+    const fallbackOpenings = [];
+    let recentWhIndex = -10;
+    tokens.forEach((token, index) => {
+      if (whWords.test(token)) {
+        fallbackOpenings.push(token.toLowerCase());
+        recentWhIndex = index;
+      } else if (finiteOpeners.test(token)
+        && !/^(?:zuerst|sonst)$/iu.test(token)
+        && /^(?:du|ihr|sie|er|es|man|der|die|das|ein|eine|wir)$/iu.test(tokens[index + 1] || "")
+        && index - recentWhIndex > 2) fallbackOpenings.push(token.toLowerCase());
+    });
+    const fallbackOpeningSet = new Set(fallbackOpenings);
+    const markedPass = questions.length >= 2 && markedOpeningSet.size >= 2;
+    const spokenPass = fallbackOpeningSet.size >= 2;
+    checks.push({ label: "Two questions with different openings", met: markedPass || spokenPass });
+  }
+  if (/two fixed dative phrases/.test(prompt)) {
+    const fixedDativePhrases = folded.match(/\b(?:am|im|beim|zum|zur|vom|mit\s+(?:dem|der|einem|einer)|nach\s+\w+|aus\s+(?:dem|der|einem|einer)|von\s+(?:dem|der|einem|einer))\b/giu) || [];
+    checks.push({ label: "Two fixed dative phrases", met: fixedDativePhrases.length >= 2 });
+  }
+  if (/varied adjective endings/.test(prompt)) {
+    const adjectiveEndings = new Set((folded.match(/\b(?:der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines|mein\w*|dein\w*|kein\w*)\s+[a-zäöüß]+(e|en|em|er|es)\b/giu) || [])
+      .map(phrase => phrase.match(/(e|en|em|er|es)$/iu)?.[1]).filter(Boolean));
+    checks.push({ label: "At least two adjective ending forms", met: adjectiveEndings.size >= 2 });
+  }
+  if (/connect every step/.test(prompt)) {
+    const logicalConnectors = folded.match(/\b(?:zuerst|dann|danach|anschließend|anschliessend|weil|denn|deshalb|darum|außerdem|ausserdem|jedoch|obwohl|während|waehrend|schließlich|schliesslich)\b/giu) || [];
+    checks.push({ label: "At least two process connectors", met: new Set(logicalConnectors).size >= 2 });
+  }
+
+  if (!module.task.speakingPromptVariants?.length) {
+    if (module.level === "A0" || module.level === "A1") add("A related question", /\?|\b(?:wer|wie|was|wo|wann|warum|welch|kannst|hast|bist|möchtest|moechtest)\b/iu);
+    if (module.level === "A2") add("A reason with weil, denn, or deshalb", /\b(?:weil|denn|deshalb|darum)\b/iu);
+    if (module.level === "B1") {
+      add("A concrete example", /\b(?:zum beispiel|beispielsweise|etwa)\b/iu);
+      add("A reason", /\b(?:weil|denn|deshalb|darum|aus diesem grund)\b/iu);
+      add("A practical next step", /\b(?:danach|anschließend|anschliessend|als nächstes|als naechstes|werde|könnte|koennte|sollte|möchte|moechte)\b/iu);
+    }
+    if (module.level === "B2") {
+      add("A qualified point", /\b(?:allerdings|jedoch|einerseits|andererseits|obwohl|zwar)\b/iu);
+      add("A concrete example", /\b(?:zum beispiel|beispielsweise|etwa)\b/iu);
+      add("A consequence", /\b(?:deshalb|daher|dadurch|folglich|somit|führt|fuehrt)\b/iu);
+    }
+  }
+  return checks;
+}
+
+function showSpeakingFollowUp(module, focus = false) {
+  const panel = $("#speakingFollowUp");
+  const savedDraft = draftText("speakingFollowUp", module.id);
+  const completedAt = moduleRecord(module.id).activities.speaking.followUpAt;
+  panel.hidden = false;
+  $("#speakingFollowUpPrompt").textContent = speakingFollowUpPrompt(module);
+  $("#speakingFollowUpMinimum").textContent = `Use at least ${speakingFollowUpMinimum(module)} words. Focus this transcript box before using either microphone.`;
+  $("#speakingFollowUpTranscript").value = savedDraft;
+  setDraftStatus("speakingFollowUp", savedDraft ? "Follow-up draft restored from this device." : "This follow-up draft saves on this device.");
+  $("#speakingFollowUpFeedback").hidden = !completedAt;
+  if (completedAt) $("#speakingFollowUpFeedback").innerHTML = "<h3>Follow-up rehearsal recorded.</h3><p>You can revise it and rehearse again whenever you want.</p>";
+  if (focus) {
+    activeSpeechDraftKind = "speakingFollowUp";
+    $("#speakingFollowUpTranscript").focus();
+  }
+}
+
+function checkSpeakingFollowUp() {
+  cancelActiveSpeechRecognition();
+  const module = activeModule();
+  const text = $("#speakingFollowUpTranscript").value;
+  const feedback = $("#speakingFollowUpFeedback");
+  if (!text.trim()) return;
+  updateDraft("speakingFollowUp", module.id, text);
+  flushDrafts();
+  const checks = speakingFollowUpChecks(module, text);
+  const complete = checks.every(check => check.met);
+  feedback.hidden = false;
+  feedback.className = `task-feedback ${complete ? "success" : "repair"}`;
+  if (!complete) {
+    feedback.innerHTML = `<h3>One more rehearsal will complete this round.</h3><ul>${checks.map(check => `<li>${check.met ? "✓" : "○"} ${escapeHtml(check.label)}</li>`).join("")}</ul>`;
+    return;
+  }
+  const activity = moduleRecord(module.id).activities.speaking;
+  const firstCompletion = !activity.followUpAt;
+  activity.followUpAt = new Date().toISOString();
+  saveState();
+  feedback.innerHTML = `<h3>Follow-up rehearsal recorded.</h3><ul>${checks.map(check => `<li>✓ ${escapeHtml(check.label)}</li>`).join("")}</ul><p>Pronunciation quality remains unscored.</p>`;
+  if (firstCompletion) claimReward(`speaking-followup:${module.id}`, "Follow-up completed.", "You extended the speaking response with a second round.", { category: "speaking", kind: "personal", label: "SPEAKING PRACTICE" });
 }
 
 function retrySpeaking() {
@@ -3715,7 +4488,7 @@ function renderGrammar() {
   const module = activeModule();
   syncModuleControls();
   const cards = module.level === "A0" ? module.grammar.filter(item => !item.supplemental) : module.grammar;
-  $("#grammarCards").innerHTML = cards.map((item, index) => `<article class="grammar-card"><span>${module.code} · ${String(index + 1).padStart(2, "0")}</span><h2>${escapeHtml(item.title)}</h2><p>${escapeHtml(item.rule)}</p><div class="grammar-example"><strong>${escapeHtml(item.example)}</strong><small>${escapeHtml(item.translation)}</small></div></article>`).join("");
+  $("#grammarCards").innerHTML = cards.map((item, index) => `<article class="grammar-card"><span>${module.code} · ${String(index + 1).padStart(2, "0")}</span><h2>${escapeHtml(item.title)}</h2><p>${escapeHtml(item.rule)}</p><div class="grammar-example"><strong lang="de-DE">${escapeHtml(item.example)}</strong><small lang="en-US">${escapeHtml(item.translation)}</small></div></article>`).join("");
   $("#caseDesk").hidden = module.level === "A0";
 }
 
@@ -3744,7 +4517,7 @@ function renderVocabulary() {
     const tier = tierFor(record);
     const due = record?.nextReview && record.nextReview <= now();
     const module = moduleById(word.moduleId);
-    return `<tr><td><strong>${escapeHtml(word.de)}</strong><small>${escapeHtml(word.bundle)}</small></td><td><span>${escapeHtml(word.en)}</span><small>${escapeHtml(word.example)}</small></td><td>${word.level}<small>${module.code}${word.supplemental ? " · expansion" : ""}</small></td><td><span class="tier-pill"><i class="tier-dot ${tier}"></i>${tierLabel(tier)}</span><div class="evidence-mini"><i style="width:${evidencePercent(record)}%"></i></div></td><td><button class="vocab-action" type="button" data-review-word="${word.globalId}">${due ? "Review due" : isIntroduced(word.globalId) ? "Review bundle" : "Meet word"}</button></td></tr>`;
+    return `<tr><td><strong lang="de-DE">${escapeHtml(word.de)}</strong><small lang="de-DE">${escapeHtml(word.bundle)}</small></td><td><span lang="en-US">${escapeHtml(word.en)}</span><small lang="de-DE">${escapeHtml(word.example)}</small></td><td>${word.level}<small>${module.code}${word.supplemental ? " · expansion" : ""}</small></td><td><span class="tier-pill"><i class="tier-dot ${tier}"></i>${tierLabel(tier)}</span><div class="evidence-mini"><i style="width:${evidencePercent(record)}%"></i></div></td><td><button class="vocab-action" type="button" data-review-word="${word.globalId}">${due ? "Review due" : isIntroduced(word.globalId) ? "Review bundle" : "Meet word"}</button></td></tr>`;
   }).join("");
   $$('[data-review-word]').forEach(button => button.addEventListener("click", () => {
     targetedWordId = button.dataset.reviewWord;
@@ -3806,6 +4579,10 @@ function renderProgress() {
   $("#progressModules").textContent = completed;
   $("#progressModulesDetail").textContent = `of ${modules.length} modules complete · ${started} started`;
   $("#progressDue").textContent = dueWords().length;
+  const restoreButton = $("#restoreProgress");
+  if (restoreButton) restoreButton.hidden = !backupProgressAvailable();
+  const discardBackupButton = $("#discardProgressBackup");
+  if (discardBackupButton) discardBackupButton.hidden = !backupProgressAvailable();
   const skills = [
     { key: "vocabulary", label: "Typed core-word recall", value: Math.round(verifiedCore / coreTotal * 100), detail: `${verifiedCore} of ${coreTotal} core bundles recalled` },
     { key: "sentences", label: "Typed sentence production", value: Math.round(Object.values(state.modules).reduce((sum, item) => sum + Object.keys(item.completedPrompts || {}).length, 0) / allQuestions.length * 100), detail: `${state.quiz.attempts} first-pass attempts` },
@@ -3904,16 +4681,51 @@ function bindEvents() {
   $("#learnToPractice").addEventListener("click", () => go("practice"));
   $("#practiceLearnFirst").addEventListener("click", () => go("learn"));
   $$('[data-practice-mode]').forEach(button => button.addEventListener("click", () => openPracticeMode(button.dataset.practiceMode)));
-  $("#activityBack").addEventListener("click", renderPracticeMenu);
+  $("#activityBack").addEventListener("click", () => {
+    if (quiz?.assessment && !quiz.completed) persistAssessmentSession();
+    renderPracticeMenu();
+  });
   $("#quizForm").addEventListener("submit", submitQuizAnswer);
+  $("#quizInput").addEventListener("input", event => scheduleAssessmentSessionSave(event.target.value));
+  $("#quizLongInput").addEventListener("input", event => scheduleAssessmentSessionSave(event.target.value));
   $("#quizTryAgain").addEventListener("click", retryCurrentQuizAnswer);
   $("#quizNext").addEventListener("click", nextQuizQuestion);
+  $("#quizAudio").addEventListener("error", () => {
+    if ($("#quizAudioWrap").hidden) return;
+    $("#quizAudioNote").textContent = "The audio could not load. Your saved assessment can be resumed after you reload the page.";
+  });
   $("#retryMissed").addEventListener("click", retryMissedQuestions);
   $("#retakeAssessment").addEventListener("click", retakeModuleAssessment);
   $("#beginAssessment").addEventListener("click", beginModuleAssessment);
+  const discardAssessmentButton = document.createElement("button");
+  discardAssessmentButton.className = "quiet-button";
+  discardAssessmentButton.id = "discardAssessment";
+  discardAssessmentButton.type = "button";
+  discardAssessmentButton.hidden = true;
+  discardAssessmentButton.textContent = "Discard saved assessment";
+  $("#beginAssessment").after(discardAssessmentButton);
+  discardAssessmentButton.addEventListener("click", discardAssessmentSession);
   $("#nextModule").addEventListener("click", continueToNextModule);
   $("#finishQuiz").addEventListener("click", renderPracticeMenu);
   $("#listeningForm").addEventListener("submit", submitListening);
+  const listeningTranscriptButton = document.createElement("button");
+  listeningTranscriptButton.className = "quiet-button listening-transcript-help";
+  listeningTranscriptButton.id = "listeningTranscriptHelp";
+  listeningTranscriptButton.type = "button";
+  listeningTranscriptButton.textContent = "Show transcript support";
+  const listeningTextSupport = document.createElement("div");
+  listeningTextSupport.id = "listeningTextSupport";
+  listeningTextSupport.tabIndex = -1;
+  listeningTextSupport.setAttribute("role", "region");
+  listeningTextSupport.setAttribute("aria-label", "Listening transcript support");
+  listeningTextSupport.hidden = true;
+  $("#listeningNote").after(listeningTranscriptButton, listeningTextSupport);
+  listeningTranscriptButton.addEventListener("click", revealListeningTranscript);
+  $("#listeningAudio").addEventListener("error", () => {
+    if ($("#listeningTask").hidden) return;
+    $("#listeningNote").textContent = "The audio could not be played. Open transcript support to complete this activity.";
+    listeningTranscriptButton.hidden = false;
+  });
   $("#listeningRetry").addEventListener("click", retryListening);
   $("#listeningContinue").addEventListener("click", renderPracticeMenu);
   $("#listeningSpeed").addEventListener("change", event => {
@@ -3922,17 +4734,31 @@ function bindEvents() {
   $("#readingForm").addEventListener("submit", submitReading);
   $("#readingRetry").addEventListener("click", retryReading);
   $("#readingContinue").addEventListener("click", renderPracticeMenu);
-  $("#writingInput").addEventListener("input", event => { $("#writingCount").textContent = `${countWords(event.target.value)} words · target ${writingTargetLabel(activeModule().task)}`; });
+  $("#writingInput").addEventListener("input", event => {
+    const module = activeModule();
+    $("#writingCount").textContent = `${countWords(event.target.value)} words · target ${writingTargetLabel(module.task)}`;
+    updateDraft("writing", module.id, event.target.value);
+  });
   $("#checkWriting").addEventListener("click", checkWriting);
   $("#writingRetry").addEventListener("click", retryWriting);
   $("#writingContinue").addEventListener("click", renderPracticeMenu);
   $("#startRecognition").addEventListener("click", startRecognition);
   $("#localTranscription").addEventListener("click", useLocalTranscription);
-  window.addEventListener("pagehide", () => cancelActiveSpeechRecognition({ clearPlayback: true }));
+  $("#speakingTranscript").addEventListener("focus", () => { activeSpeechDraftKind = "speaking"; });
+  $("#speakingTranscript").addEventListener("input", event => updateDraft("speaking", activeModule().id, event.target.value));
+  $("#speakingFollowUpTranscript").addEventListener("focus", () => { activeSpeechDraftKind = "speakingFollowUp"; });
+  $("#speakingFollowUpTranscript").addEventListener("input", event => updateDraft("speakingFollowUp", activeModule().id, event.target.value));
+  window.addEventListener("pagehide", () => {
+    if (suppressPagehidePersistence) return;
+    flushDrafts();
+    if (quiz?.assessment) persistAssessmentSession();
+    cancelActiveSpeechRecognition({ clearPlayback: true });
+  });
   window.addEventListener("pageshow", event => {
     if (event.persisted) cancelActiveSpeechRecognition({ forceReset: true, label: "Start microphone", message: speakingStatusDefault });
   });
   $("#checkSpeaking").addEventListener("click", checkSpeaking);
+  $("#checkSpeakingFollowUp").addEventListener("click", checkSpeakingFollowUp);
   $("#speakingRetry").addEventListener("click", retrySpeaking);
   $("#speakingContinue").addEventListener("click", renderPracticeMenu);
   ["#vocabScope", "#vocabLevel"].forEach(selector => $(selector).addEventListener("change", resetVocabularyWindow));
@@ -3943,9 +4769,34 @@ function bindEvents() {
     $$('[data-tier]').forEach(item => item.classList.toggle("active", item === button));
     resetVocabularyWindow();
   }));
+  $("#exportProgress").addEventListener("click", exportProgress);
+  $("#importProgress").addEventListener("click", () => $("#importProgressFile").click());
+  const restoreProgressButton = document.createElement("button");
+  restoreProgressButton.className = "quiet-button";
+  restoreProgressButton.id = "restoreProgress";
+  restoreProgressButton.type = "button";
+  restoreProgressButton.hidden = !backupProgressAvailable();
+  restoreProgressButton.textContent = "Restore previous copy";
+  $("#importProgress").after(restoreProgressButton);
+  restoreProgressButton.addEventListener("click", restorePreviousProgress);
+  const discardProgressBackupButton = document.createElement("button");
+  discardProgressBackupButton.className = "quiet-button";
+  discardProgressBackupButton.id = "discardProgressBackup";
+  discardProgressBackupButton.type = "button";
+  discardProgressBackupButton.hidden = !backupProgressAvailable();
+  discardProgressBackupButton.textContent = "Remove recovery copy";
+  restoreProgressButton.after(discardProgressBackupButton);
+  discardProgressBackupButton.addEventListener("click", discardPreviousProgress);
+  $("#importProgressFile").addEventListener("change", async event => {
+    const [file] = event.target.files || [];
+    await importProgressFile(file);
+    event.target.value = "";
+  });
   $("#resetProgress").addEventListener("click", () => $("#resetDialog").showModal());
   $("#confirmReset").addEventListener("click", () => {
+    suppressPagehidePersistence = true;
     localStorage.removeItem(storageKey);
+    localStorage.removeItem(backupStorageKey);
     window.location.reload();
   });
 }
@@ -3956,3 +4807,4 @@ bindEvents();
 syncModuleControls();
 renderHome();
 registerModelTools();
+if (storageNotice) window.setTimeout(() => announceMessage(storageNotice), 100);

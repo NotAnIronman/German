@@ -365,7 +365,7 @@
       answers: ["Die Eingangsbestätigung vom 12. Februar. Sie soll sie dem Widerspruch beilegen.", "Eingangsbestätigung P-8841 beilegen", "attach the February 12 submission confirmation to the appeal", "the receipt confirmation, which she should include with the appeal"],
       requirements: [
         { label: "the submission confirmation", patterns: ["Eingangsbestätigung|Eingangsbestaetigung|submission confirmation|receipt confirmation"] },
-        { label: "attaching it to the appeal", patterns: ["(?:Widerspruch.*(?:beileg|anhäng|anhaeng)|(?:beileg|anhäng|anhaeng).*Widerspruch|appeal.*(?:attach|include)|(?:attach|include).*appeal)"] }
+        { label: "attaching it to the appeal", patterns: ["(?:Widerspruch.*(?:beileg|anhäng|anhaeng)|(?:beileg|anhäng|anhaeng).*Widerspruch|leg\\w*.*Widerspruch.*bei|(?:häng|haeng)\\w*.*Widerspruch.*an|appeal.*(?:attach|include)|(?:attach|include).*appeal)"] }
       ],
       evidence: "Ich habe die Eingangsbestätigung vom zwölften Februar mit der Vorgangsnummer P-8841. Dann legen Sie die Bestätigung Ihrem Widerspruch bei und senden Sie den Mietvertrag vorsichtshalber noch einmal.",
       culture: "A contestable written or electronic Bescheid includes a Rechtsbehelfsbelehrung naming the remedy, where to file it, and the deadline. Read it carefully.",
@@ -417,6 +417,434 @@
       ],
       evidence: "Wir können den Haupteingang benutzen und jede Probe um zwanzig Uhr fünfundvierzig beenden. Die Termine sollten zwei Wochen vorher veröffentlicht werden. Nach vier Wochen ziehen wir gemeinsam Bilanz.",
       tip: "A time-limited agreement with a scheduled review gives both sides a clear point for changes."
+    },
+    {
+      id: "lst-a0-005-personal-details",
+      moduleId: "a0-personal-details",
+      level: "A0",
+      title: "Name and hometown",
+      context: "Two learners exchange a few personal details before class.",
+      goal: "Recognize a first name and a hometown.",
+      turns: [
+        { speaker: "Nina", voice: "female", text: "Hallo. Ich bin Nina. Wie heißt du?" },
+        { speaker: "Sam", voice: "male", text: "Ich heiße Sam." },
+        { speaker: "Nina", voice: "female", text: "Woher kommst du?" },
+        { speaker: "Sam", voice: "male", text: "Ich komme aus Chicago. Und du?" },
+        { speaker: "Nina", voice: "female", text: "Ich komme aus Bonn." }
+      ],
+      prompt: "What is the man's name, and where does he come from?",
+      answers: ["Sam, aus Chicago", "Sam kommt aus Chicago", "His name is Sam and he comes from Chicago", "Sam from Chicago"],
+      requirements: [
+        { label: "the name Sam", patterns: ["Sam"] },
+        { label: "Chicago", patterns: ["Chicago"] }
+      ],
+      evidence: "Ich heiße Sam. Ich komme aus Chicago."
+    },
+    {
+      id: "lst-a0-006-everyday-things",
+      moduleId: "a0-everyday-things",
+      level: "A0",
+      title: "Things for the lesson",
+      context: "A teacher checks which classroom objects a learner has.",
+      goal: "Recognize which classroom object a learner still needs.",
+      turns: [
+        { speaker: "Frau Roth", voice: "female", text: "Hast du ein Buch?" },
+        { speaker: "Daniel", voice: "male", text: "Ja, hier ist das Buch." },
+        { speaker: "Frau Roth", voice: "female", text: "Und hast du einen Stift?" },
+        { speaker: "Daniel", voice: "male", text: "Nein. Ich brauche einen Stift." }
+      ],
+      prompt: "Which object does Daniel need?",
+      answers: ["einen Stift", "Stift", "a pen", "pen"],
+      evidence: "Ich brauche einen Stift."
+    },
+    {
+      id: "lst-a0-007-conversation-repair",
+      moduleId: "a0-conversation-repair",
+      level: "A0",
+      title: "Please say that again",
+      context: "A learner asks the teacher to repeat a room number.",
+      goal: "Recognize a request for repetition and the corrected number.",
+      turns: [
+        { speaker: "Frau Becker", voice: "female", text: "Der Kurs ist in Raum vierzehn." },
+        { speaker: "Amir", voice: "male", text: "Entschuldigung. Noch einmal, bitte." },
+        { speaker: "Frau Becker", voice: "female", text: "Raum vierzehn." },
+        { speaker: "Amir", voice: "male", text: "Vierzehn?" },
+        { speaker: "Frau Becker", voice: "female", text: "Ja, richtig." }
+      ],
+      prompt: "Which room is the course in?",
+      answers: ["Raum vierzehn", "vierzehn", "room 14", "14"],
+      evidence: "Der Kurs ist in Raum vierzehn."
+    },
+    {
+      id: "lst-a0-008-follow-lesson",
+      moduleId: "a0-follow-lesson",
+      level: "A0",
+      title: "Open the book",
+      context: "A teacher gives two short instructions. Before you listen, Seite means page and Aufgabe means exercise.",
+      goal: "Follow a page number and a classroom action.",
+      turns: [
+        { speaker: "Frau Keller", voice: "female", text: "Öffnen Sie bitte das Buch." },
+        { speaker: "Leon", voice: "male", text: "Welche Seite?" },
+        { speaker: "Frau Keller", voice: "female", text: "Seite acht. Lesen Sie Aufgabe zwei." },
+        { speaker: "Leon", voice: "male", text: "Seite acht, Aufgabe zwei. Danke." }
+      ],
+      prompt: "Which page and exercise should Leon use?",
+      answers: ["Seite acht, Aufgabe zwei", "page 8, exercise 2", "8 and 2", "Seite 8 Aufgabe 2"],
+      requirements: [
+        { label: "page eight", patterns: ["Seite (?:acht|8)|page (?:eight|8)|(?:^|\\D)8(?:\\D|$)"] },
+        { label: "exercise two", patterns: ["Aufgabe (?:zwei|2)|exercise (?:two|2)|(?:^|\\D)2(?:\\D|$)"] }
+      ],
+      evidence: "Seite acht. Lesen Sie Aufgabe zwei.",
+      tip: "Listen for the noun before each number. Seite identifies the page, and Aufgabe identifies the exercise."
+    },
+    {
+      id: "lst-a1-005-food-shopping",
+      moduleId: "a1-food-shopping",
+      level: "A1",
+      title: "At the fruit stand",
+      context: "A customer buys fruit and checks the total. Before you listen, Birnen means pears.",
+      goal: "Understand two quantities and identify the foods in an order.",
+      turns: [
+        { speaker: "Frau Wagner", voice: "female", text: "Guten Morgen. Was darf es sein?" },
+        { speaker: "Jonas", voice: "male", text: "Ein Kilo Äpfel und drei Birnen, bitte." },
+        { speaker: "Frau Wagner", voice: "female", text: "Sonst noch etwas?" },
+        { speaker: "Jonas", voice: "male", text: "Nein, danke. Was kostet das zusammen?" },
+        { speaker: "Frau Wagner", voice: "female", text: "Fünf Euro achtzig, bitte." }
+      ],
+      prompt: "What does Jonas buy?",
+      answers: ["ein Kilo Äpfel und drei Birnen", "Äpfel und Birnen", "one kilo of apples and three pears", "apples and pears"],
+      requirements: [
+        { label: "one kilo of apples", patterns: ["(?:ein Kilo )?(?:Äpfel|Aepfel)|(?:one kilo of )?apples"] },
+        { label: "three pears", patterns: ["(?:drei )?Birnen|(?:three )?pears"] }
+      ],
+      evidence: "Ein Kilo Äpfel und drei Birnen, bitte.",
+      tip: "Quantity words come directly before the food. Listen for ein Kilo and drei."
+    },
+    {
+      id: "lst-a1-006-platform-change",
+      moduleId: "a1-public-transport-tickets",
+      level: "A1",
+      title: "The train leaves from another platform",
+      context: "A traveler checks a station announcement with another passenger.",
+      goal: "Identify the new platform and departure time.",
+      turns: [
+        { speaker: "Frau Nguyen", voice: "female", text: "Entschuldigung, fährt der Zug nach Bonn von Gleis drei?" },
+        { speaker: "Herr Braun", voice: "male", text: "Nein. Der Zug fährt heute von Gleis sieben." },
+        { speaker: "Frau Nguyen", voice: "female", text: "Und wann fährt er ab?" },
+        { speaker: "Herr Braun", voice: "male", text: "Um vierzehn Uhr zehn. Sie haben noch zehn Minuten." },
+        { speaker: "Frau Nguyen", voice: "female", text: "Danke für die Hilfe." }
+      ],
+      prompt: "From which platform does the train leave, and at what time?",
+      answers: ["Gleis sieben, um vierzehn Uhr zehn", "platform 7 at 14:10", "Gleis 7 um 14.10 Uhr", "7, 14:10"],
+      requirements: [
+        { label: "platform seven", patterns: ["Gleis (?:sieben|7)|platform (?:seven|7)|(?:^|\\D)7(?:\\D|$)"] },
+        { label: "14:10", patterns: ["14[.:]10|vierzehn Uhr zehn|2:10\\s*p\\.?m\\.?"] }
+      ],
+      evidence: "Der Zug fährt heute von Gleis sieben. Um vierzehn Uhr zehn.",
+      tip: "The first platform appears in the question. The correction after Nein gives the departure platform."
+    },
+    {
+      id: "lst-a1-007-phone-message",
+      moduleId: "a1-phone-calls",
+      level: "A1",
+      title: "A message for the doctor",
+      context: "A patient leaves a short message with a medical receptionist.",
+      goal: "Understand a callback request in a phone message.",
+      turns: [
+        { speaker: "Frau Stein", voice: "female", text: "Praxis Doktor Weber, guten Tag." },
+        { speaker: "Marek", voice: "male", text: "Guten Tag. Hier ist Marek Nowak. Kann Frau Doktor Weber mich bitte zurückrufen?" },
+        { speaker: "Frau Stein", voice: "female", text: "Ja. Wie ist Ihre Telefonnummer?" },
+        { speaker: "Marek", voice: "male", text: "Null eins sieben sechs, vier zwei acht, neun fünf drei." },
+        { speaker: "Frau Stein", voice: "female", text: "Danke. Ich gebe die Nachricht weiter." }
+      ],
+      prompt: "What does Marek ask the doctor to do?",
+      answers: ["ihn zurückrufen", "Marek zurückrufen", "call him back", "return his call"],
+      evidence: "Kann Frau Doktor Weber mich bitte zurückrufen?"
+    },
+    {
+      id: "lst-a1-008-visiting-hosting",
+      moduleId: "a1-visiting-hosting",
+      level: "A1",
+      title: "Tea at a friend's home",
+      context: "A guest arrives and accepts one drink.",
+      goal: "Follow a welcome and identify the chosen drink.",
+      turns: [
+        { speaker: "Aylin", voice: "female", text: "Hallo, Daniel. Komm rein. Schön, dass du da bist." },
+        { speaker: "Daniel", voice: "male", text: "Danke für die Einladung." },
+        { speaker: "Aylin", voice: "female", text: "Möchtest du Kaffee oder Tee?" },
+        { speaker: "Daniel", voice: "male", text: "Tee, bitte. Kaffee trinke ich am Abend lieber nicht." },
+        { speaker: "Aylin", voice: "female", text: "Gern. Der Tee ist gleich fertig." }
+      ],
+      prompt: "Which drink does Daniel choose?",
+      answers: ["Tee", "tea", "einen Tee"],
+      evidence: "Tee, bitte."
+    },
+    {
+      id: "lst-a2-005-weekend-experience",
+      moduleId: "a2-erlebnisse",
+      level: "A2",
+      title: "A wet weekend trip",
+      context: "Two friends talk about a trip that changed because of the weather.",
+      goal: "Follow past events and identify the replacement activity.",
+      turns: [
+        { speaker: "Lea", voice: "female", text: "Wie war dein Wochenende in Hamburg?" },
+        { speaker: "Jonas", voice: "male", text: "Interessant, aber sehr nass. Am Samstag hat es den ganzen Tag geregnet." },
+        { speaker: "Lea", voice: "female", text: "Seid ihr trotzdem am Hafen spazieren gegangen?" },
+        { speaker: "Jonas", voice: "male", text: "Nein. Wir haben stattdessen das Maritime Museum besucht." },
+        { speaker: "Lea", voice: "female", text: "Hat es euch gefallen?" },
+        { speaker: "Jonas", voice: "male", text: "Ja. Wir sind fast vier Stunden dort geblieben." }
+      ],
+      prompt: "What did Jonas and his companions do instead of walking by the harbor?",
+      answers: ["das Maritime Museum besucht", "sie besuchten das Maritime Museum", "visited the Maritime Museum", "went to the Maritime Museum"],
+      evidence: "Wir haben stattdessen das Maritime Museum besucht."
+    },
+    {
+      id: "lst-a2-006-market-substitution",
+      moduleId: "a2-market-checkout",
+      level: "A2",
+      title: "A different kind of cheese",
+      context: "A market seller offers an alternative when one product is sold out.",
+      goal: "Understand the missing product and the accepted substitute.",
+      turns: [
+        { speaker: "Frau Yilmaz", voice: "female", text: "Ich hätte gern zweihundert Gramm jungen Gouda." },
+        { speaker: "Herr König", voice: "male", text: "Der junge Gouda ist leider ausverkauft. Wir haben noch mittelalten Gouda." },
+        { speaker: "Frau Yilmaz", voice: "female", text: "Ist er viel kräftiger?" },
+        { speaker: "Herr König", voice: "male", text: "Ein wenig. Sie können ihn gern probieren." },
+        { speaker: "Frau Yilmaz", voice: "female", text: "Der schmeckt gut. Dann nehme ich davon zweihundert Gramm." }
+      ],
+      prompt: "Which cheese does Frau Yilmaz buy in the end?",
+      answers: ["mittelalten Gouda", "mittelalter Gouda", "the medium-aged Gouda", "medium-aged Gouda"],
+      evidence: "Wir haben noch mittelalten Gouda. Dann nehme ich davon zweihundert Gramm."
+    },
+    {
+      id: "lst-a2-007-router-support",
+      moduleId: "a2-phone-internet-support",
+      level: "A2",
+      title: "Restarting the router",
+      context: "A support agent guides a customer through a short restart sequence.",
+      goal: "Follow the sequence and identify the wait time.",
+      turns: [
+        { speaker: "Frau Sommer", voice: "female", text: "Seit heute Morgen habe ich kein Internet." },
+        { speaker: "Herr Vogt", voice: "male", text: "Leuchtet am Router eine rote Lampe?" },
+        { speaker: "Frau Sommer", voice: "female", text: "Ja, die Lampe blinkt rot." },
+        { speaker: "Herr Vogt", voice: "male", text: "Ziehen Sie bitte den Stecker, warten Sie dreißig Sekunden und stecken Sie ihn wieder ein." },
+        { speaker: "Frau Sommer", voice: "female", text: "Jetzt leuchtet die Lampe grün. Das Internet funktioniert wieder." },
+        { speaker: "Herr Vogt", voice: "male", text: "Sehr gut. Dann ist kein Technikertermin nötig." }
+      ],
+      prompt: "What must Frau Sommer do before plugging the router back in?",
+      answers: ["dreißig Sekunden warten", "30 Sekunden warten", "wait thirty seconds", "wait 30 seconds"],
+      evidence: "Ziehen Sie bitte den Stecker, warten Sie dreißig Sekunden und stecken Sie ihn wieder ein."
+    },
+    {
+      id: "lst-a2-008-weather-plan",
+      moduleId: "a2-weather-plan",
+      level: "A2",
+      title: "Changing the picnic plan",
+      context: "Two friends adjust their Sunday plans after checking the forecast.",
+      goal: "Understand a weather condition and the new meeting plan.",
+      turns: [
+        { speaker: "Mia", voice: "female", text: "Für Sonntag ist starker Regen angekündigt. Sollen wir das Picknick verschieben?" },
+        { speaker: "Leon", voice: "male", text: "Nächste Woche kann ich leider nicht. Wir könnten uns im Café am Park treffen." },
+        { speaker: "Mia", voice: "female", text: "Gute Idee. Bleibt es bei zwölf Uhr?" },
+        { speaker: "Leon", voice: "male", text: "Lieber um dreizehn Uhr. Das Café öffnet erst um halb eins." },
+        { speaker: "Mia", voice: "female", text: "Einverstanden. Dann treffen wir uns um dreizehn Uhr im Café." }
+      ],
+      prompt: "Where and when will Mia and Leon meet?",
+      answers: ["um dreizehn Uhr im Café am Park", "at the cafe by the park at 1 p.m.", "Café am Park, 13 Uhr", "13:00 im Café"],
+      requirements: [
+        { label: "the cafe", patterns: ["Caf(?:é|e)|cafe"] },
+        { label: "13:00", patterns: ["13(?::00)?|dreizehn Uhr|1 p\.?m\.?|one p\.?m\."] }
+      ],
+      evidence: "Dann treffen wir uns um dreizehn Uhr im Café."
+    },
+    {
+      id: "lst-b1-005-cultural-review",
+      moduleId: "b1-cultural-review",
+      level: "B1",
+      title: "After the open-air concert",
+      context: "Two friends compare their impressions of a concert.",
+      goal: "Follow contrasting reactions and identify Daniel's preference for next time.",
+      turns: [
+        { speaker: "Aylin", voice: "female", text: "Wie hat dir das Konzert gestern gefallen?" },
+        { speaker: "Daniel", voice: "male", text: "Die Band war großartig. Besonders die ruhigeren Stücke haben mich überrascht." },
+        { speaker: "Aylin", voice: "female", text: "Ich fand die Musik auch gut, aber der Ton war am Anfang viel zu laut." },
+        { speaker: "Daniel", voice: "male", text: "Das stimmt. Nach dem dritten Lied wurde es besser." },
+        { speaker: "Aylin", voice: "female", text: "Außerdem mussten wir fast eine Stunde am Eingang warten." },
+        { speaker: "Daniel", voice: "male", text: "Trotzdem würde ich die Band noch einmal sehen. Beim nächsten Mal lieber in einer kleineren Halle." }
+      ],
+      prompt: "What does Daniel want to change if he sees the band again?",
+      answers: ["Er möchte sie in einer kleineren Halle sehen.", "eine kleinere Halle", "see them in a smaller venue", "a smaller venue"],
+      evidence: "Beim nächsten Mal lieber in einer kleineren Halle.",
+      tip: "Listen for the final concession after trotzdem."
+    },
+    {
+      id: "lst-b1-006-digital-privacy",
+      moduleId: "b1-digital-privacy",
+      level: "B1",
+      title: "A suspicious account message",
+      context: "A colleague asks for help after receiving a message about an account.",
+      goal: "Follow security advice and identify the safest next steps.",
+      turns: [
+        { speaker: "Sara", voice: "female", text: "Ich habe eine Nachricht bekommen, dass mein Konto heute gesperrt wird. Ich soll sofort auf einen Link klicken." },
+        { speaker: "Marek", voice: "male", text: "Klick den Link nicht an. Kennst du die Absenderadresse?" },
+        { speaker: "Sara", voice: "female", text: "Nein. Die Adresse sieht fast richtig aus, aber ein Buchstabe fehlt." },
+        { speaker: "Marek", voice: "male", text: "Dann melde dich direkt über die offizielle Webseite an. Dort kannst du prüfen, ob wirklich eine Warnung vorliegt." },
+        { speaker: "Sara", voice: "female", text: "Auf der Webseite steht nichts. Soll ich die Nachricht löschen?" },
+        { speaker: "Marek", voice: "male", text: "Melde sie zuerst als Betrugsversuch und lösche sie anschließend." }
+      ],
+      prompt: "Which two actions should Sara take with the suspicious message?",
+      answers: ["als Betrugsversuch melden und anschließend löschen", "report it as fraud and then delete it", "melden und löschen", "report and delete it"],
+      requirements: [
+        { label: "reporting the message", patterns: ["meld|report"] },
+        { label: "deleting the message", patterns: ["lösch|loesch|delet"] }
+      ],
+      evidence: "Melde sie zuerst als Betrugsversuch und lösche sie anschließend."
+    },
+    {
+      id: "lst-b1-007-constructive-feedback",
+      moduleId: "b1-constructive-feedback",
+      level: "B1",
+      title: "Clearer weekly reports",
+      context: "A team lead gives specific feedback and agrees on support.",
+      goal: "Separate the problem, its effect, and the agreed solution.",
+      turns: [
+        { speaker: "Frau Keller", voice: "female", text: "Deine Berichte enthalten alle wichtigen Zahlen. Mir fehlt jedoch oft eine kurze Erklärung der Abweichungen." },
+        { speaker: "Jonas", voice: "male", text: "Ich dachte, die Tabelle wäre selbsterklärend. Welche Angaben brauchst du zusätzlich?" },
+        { speaker: "Frau Keller", voice: "female", text: "Bitte nenne bei größeren Änderungen jeweils den Grund und die erwartete Folge. Dann kann das Team schneller entscheiden." },
+        { speaker: "Jonas", voice: "male", text: "Verstanden. Für den nächsten Bericht ergänze ich unter jeder Abweichung zwei kurze Sätze." },
+        { speaker: "Frau Keller", voice: "female", text: "Gut. Ich schicke dir heute ein Beispiel. Am Freitag sehen wir uns den neuen Bericht gemeinsam an." },
+        { speaker: "Jonas", voice: "male", text: "Das hilft mir. Danke für die konkrete Rückmeldung." }
+      ],
+      prompt: "What will Jonas add to the next report, and how will Frau Keller support him?",
+      answers: ["Er ergänzt Gründe und erwartete Folgen. Frau Keller schickt ein Beispiel.", "two explanatory sentences for each deviation, and she will send an example", "Gründe und Folgen; ein Beispiel", "reasons and expected effects plus an example from Frau Keller"],
+      requirements: [
+        { label: "reasons and expected effects", patterns: ["Gr(?:u|ü|ue)nd.*(?:Folge|Auswirkung)|(?:Folge|Auswirkung).*Gr(?:u|ü|ue)nd|reason.*(?:effect|consequence)|(?:effect|consequence).*reason|zwei (?:kurze )?Sätze.*Abweich|two (?:short |explanatory )*(?:sentences|explanations).*deviation"] },
+        { label: "an example from Frau Keller", patterns: ["Beispiel|example"] }
+      ],
+      evidence: "Bitte nenne bei größeren Änderungen jeweils den Grund und die erwartete Folge. Ich schicke dir heute ein Beispiel.",
+      tip: "Separate the two speakers' commitments. Jonas adds reasons and effects. Frau Keller sends an example."
+    },
+    {
+      id: "lst-b1-008-mental-health-support",
+      moduleId: "b1-mental-health-support",
+      level: "B1",
+      title: "Asking for support",
+      context: "A student describes ongoing stress and arranges a first appointment.",
+      goal: "Understand the duration and impact of Amir's difficulties.",
+      turns: [
+        { speaker: "Frau Sommer", voice: "female", text: "Beratungsstelle der Hochschule, guten Tag. Wie kann ich Ihnen helfen?" },
+        { speaker: "Amir", voice: "male", text: "Ich schlafe seit mehreren Wochen schlecht und kann mich im Studium kaum konzentrieren." },
+        { speaker: "Frau Sommer", voice: "female", text: "Das klingt belastend. Möchten Sie einen Termin für ein vertrauliches Erstgespräch?" },
+        { speaker: "Amir", voice: "male", text: "Ja, gern. Ich habe am Mittwochvormittag Zeit." },
+        { speaker: "Frau Sommer", voice: "female", text: "Am Mittwoch ist um zehn Uhr ein Termin frei. Das Gespräch dauert ungefähr fünfzig Minuten." },
+        { speaker: "Amir", voice: "male", text: "Der Termin passt. Vielen Dank." }
+      ],
+      prompt: "What problems has Amir had, and for how long?",
+      answers: ["Seit mehreren Wochen schläft er schlecht und kann sich kaum konzentrieren.", "poor sleep and difficulty concentrating for several weeks", "Schlafprobleme und Konzentrationsprobleme seit mehreren Wochen", "several weeks of poor sleep and concentration"],
+      requirements: [
+        { label: "poor sleep", patterns: ["schl(?:a|ä)f.*(?:schlecht|kaum|wenig)|Schlaf(?:problem|störung|stoerung|mangel)?|poor sleep|sleep(?:ing)? (?:badly|poorly)"] },
+        { label: "difficulty concentrating", patterns: ["konzentrier|Konzentration|concentrat"] },
+        { label: "several weeks", patterns: ["mehrere(?:n)? Wochen|seit (?:einigen|mehreren) Wochen|wochenlang|several weeks|for weeks"] }
+      ],
+      evidence: "Ich schlafe seit mehreren Wochen schlecht und kann mich im Studium kaum konzentrieren."
+    },
+    {
+      id: "lst-b2-005-live-debate",
+      moduleId: "b2-live-debate",
+      level: "B2",
+      title: "Should the city center become car-free?",
+      context: "Two participants refine their positions during a public debate.",
+      goal: "Track claims, concessions, and a proposed compromise.",
+      turns: [
+        { speaker: "Frau Lorenz", voice: "female", text: "Eine weitgehend autofreie Innenstadt würde die Luftqualität verbessern und mehr Raum für Fußgänger schaffen." },
+        { speaker: "Herr Braun", voice: "male", text: "Das Ziel unterstütze ich. Viele Betriebe befürchten allerdings, dass Kunden und Lieferanten sie schlechter erreichen." },
+        { speaker: "Frau Lorenz", voice: "female", text: "Lieferverkehr könnte morgens bis zehn Uhr zugelassen bleiben. Zusätzlich brauchen wir günstigere Parkplätze an den Haltestellen außerhalb des Zentrums." },
+        { speaker: "Herr Braun", voice: "male", text: "Damit wäre ein Teil des Problems gelöst. Für Menschen mit eingeschränkter Mobilität müssten weiterhin Ausnahmen gelten." },
+        { speaker: "Frau Lorenz", voice: "female", text: "Einverstanden. Ich schlage außerdem eine sechsmonatige Testphase vor, während der wir Besucherzahlen und Umsätze auswerten." },
+        { speaker: "Herr Braun", voice: "male", text: "Unter diesen Bedingungen kann ich dem Versuch zustimmen. Vor einer dauerhaften Regelung sollten die Ergebnisse öffentlich beraten werden." }
+      ],
+      prompt: "Which safeguards lead Herr Braun to support a trial?",
+      answers: ["Morgendlicher Lieferverkehr, Parkplätze am Stadtrand, Ausnahmen für Menschen mit eingeschränkter Mobilität und eine sechsmonatige Auswertung.", "morning deliveries, outer parking, mobility exemptions, and a six-month evaluation", "Lieferverkehr, Parkplätze, Ausnahmen und Testphase", "delivery access, accessible exemptions, parking, and a measured trial"],
+      requirements: [
+        { label: "morning delivery access", patterns: ["Liefer|deliver"] },
+        { label: "parking outside the center", patterns: ["Parkplatz|Parkplätze|Parkplaetze|parking"] },
+        { label: "mobility exemptions", patterns: ["Ausnahme|Mobilität|Mobilitaet|exemption|mobility"] },
+        { label: "a six-month trial and evaluation", patterns: ["sechsmonat|sechs Monat|six.month|Testphase|trial|Auswertung|evaluation"] }
+      ],
+      evidence: "Lieferverkehr könnte morgens bis zehn Uhr zugelassen bleiben. Zusätzlich brauchen wir günstigere Parkplätze an den Haltestellen außerhalb des Zentrums. Für Menschen mit eingeschränkter Mobilität müssten weiterhin Ausnahmen gelten. Ich schlage außerdem eine sechsmonatige Testphase vor, während der wir Besucherzahlen und Umsätze auswerten."
+    },
+    {
+      id: "lst-b2-006-critical-statistics",
+      moduleId: "b2-critical-statistics",
+      level: "B2",
+      title: "Reading a satisfaction survey carefully",
+      context: "Two colleagues examine whether a headline matches the underlying survey.",
+      goal: "Recognize sampling limits and distinguish percentages from percentage points.",
+      turns: [
+        { speaker: "Dr. Neumann", voice: "female", text: "Die Überschrift behauptet, die Zufriedenheit sei um zwanzig Prozent gestiegen. In der Grafik steigt der Wert jedoch von fünfzig auf sechzig Prozent." },
+        { speaker: "Herr Stein", voice: "male", text: "Das sind zehn Prozentpunkte. Relativ betrachtet entspricht das zwar einem Anstieg um zwanzig Prozent, aber die Formulierung bleibt missverständlich." },
+        { speaker: "Dr. Neumann", voice: "female", text: "Außerdem haben nur zweihundert von zweitausend angeschriebenen Personen geantwortet." },
+        { speaker: "Herr Stein", voice: "male", text: "Dann könnte eine Selbstselektion vorliegen. Besonders zufriedene oder unzufriedene Personen antworten möglicherweise häufiger." },
+        { speaker: "Dr. Neumann", voice: "female", text: "Wir sollten deshalb die Rücklaufquote nennen und erklären, wie die Befragten ausgewählt wurden." },
+        { speaker: "Herr Stein", voice: "male", text: "Und wir sollten von den Antworten der Teilnehmenden sprechen, statt das Ergebnis auf alle Kunden zu übertragen." }
+      ],
+      prompt: "Which two issues make the headline potentially misleading?",
+      answers: ["Der Unterschied zwischen Prozent und Prozentpunkten sowie die niedrige, möglicherweise selbstselektierte Rücklaufquote.", "percentage versus percentage points and a low, possibly self-selected response rate", "zehn Prozentpunkte und nur zweihundert Antworten", "ambiguous percentage wording and possible self-selection"],
+      requirements: [
+        { label: "percentage versus percentage points", patterns: ["Prozentpunkt|percentage point|Prozent.*missverständlich|missverständlich.*Prozent|percent.*mislead|mislead.*percent|ambiguous percentage|missverständliche Prozentangabe"] },
+        { label: "the low or self-selected response", patterns: ["Selbstselektion|Rücklauf|Ruecklauf|zweihundert|self.select|response rate|200"] }
+      ],
+      evidence: "Das sind zehn Prozentpunkte. Relativ betrachtet entspricht das zwar einem Anstieg um zwanzig Prozent, aber die Formulierung bleibt missverständlich. Außerdem haben nur zweihundert von zweitausend angeschriebenen Personen geantwortet.",
+      tip: "Compare the two reported values, then check who answered and how many people responded."
+    },
+    {
+      id: "lst-b2-007-professional-repair",
+      moduleId: "b2-professional-relationships",
+      level: "B2",
+      title: "Repairing a strained working relationship",
+      context: "Two colleagues discuss a breakdown in communication after a missed deadline.",
+      goal: "Understand each perspective and the concrete agreement they reach.",
+      turns: [
+        { speaker: "Mia", voice: "female", text: "Als du den Termin beim Kunden verschoben hast, ohne mich zu informieren, stand ich im Gespräch völlig unvorbereitet da." },
+        { speaker: "Leon", voice: "male", text: "Ich verstehe, warum dich das geärgert hat. Der Kunde hatte mich kurz vorher angerufen, und ich wollte schnell reagieren." },
+        { speaker: "Mia", voice: "female", text: "Eine schnelle Reaktion war sinnvoll. Eine kurze Nachricht hätte trotzdem gereicht, damit ich meine Unterlagen anpassen kann." },
+        { speaker: "Leon", voice: "male", text: "Da hast du recht. Künftig bestätige ich jede Terminänderung sofort in unserem gemeinsamen Kanal." },
+        { speaker: "Mia", voice: "female", text: "Im Gegenzug hinterlege ich dort, welche Unterlagen bereits fertig sind. Dann siehst du, wie viel Vorlauf ich brauche." },
+        { speaker: "Leon", voice: "male", text: "Gut. Wenn es besonders dringend ist, rufe ich dich zusätzlich an." },
+        { speaker: "Mia", voice: "female", text: "Damit kann ich gut arbeiten. Lass uns nach den nächsten zwei Kundenterminen prüfen, ob die Regel funktioniert." }
+      ],
+      prompt: "What communication routine do Mia and Leon agree to test?",
+      answers: ["Leon bestätigt Änderungen im gemeinsamen Kanal und ruft bei Dringlichkeit an; Mia dokumentiert den Stand der Unterlagen.", "Leon posts schedule changes in the shared channel and calls when urgent, while Mia records document status", "Änderungen im Kanal, Anruf bei Dringlichkeit, Stand der Unterlagen", "shared-channel updates, urgent calls, and document-status updates"],
+      requirements: [
+        { label: "posting schedule changes", patterns: ["(?:Termin(?:änder|aender)|Änderung|Aenderung|schedule change|change|update).*(?:Kanal|channel)|(?:Kanal|channel).*(?:Termin(?:änder|aender)|Änderung|Aenderung|schedule change|change|update)"] },
+        { label: "calling when urgent", patterns: ["(?:dringend|Dringlichkeit|urgent).*(?:ruf|anruf|call)|(?:ruf|anruf|call).*(?:dringend|Dringlichkeit|urgent)"] },
+        { label: "recording document status", patterns: ["Unterlagen|Dokument(?:en)?stand|document.*status|status.*document"] }
+      ],
+      evidence: "Künftig bestätige ich jede Terminänderung sofort in unserem gemeinsamen Kanal. Im Gegenzug hinterlege ich dort, welche Unterlagen bereits fertig sind. Wenn es besonders dringend ist, rufe ich dich zusätzlich an."
+    },
+    {
+      id: "lst-b2-008-public-consultation",
+      moduleId: "b2-public-consultation",
+      level: "B2",
+      title: "A safer route to school",
+      context: "A resident questions a traffic proposal during a public consultation.",
+      goal: "Follow competing concerns, evidence, and a revised trial proposal.",
+      turns: [
+        { speaker: "Frau Hansen", voice: "female", text: "Die geplante Einbahnstraße könnte den Schulweg sicherer machen. Ich befürchte jedoch, dass der Verkehr dann durch die Lindenstraße fährt." },
+        { speaker: "Herr Vogt", voice: "male", text: "Die Simulation zeigt dort während der morgendlichen Spitzenzeit etwa achtzig zusätzliche Fahrzeuge. Deshalb ist gleichzeitig eine Geschwindigkeitsbegrenzung vorgesehen." },
+        { speaker: "Frau Hansen", voice: "female", text: "Eine Begrenzung allein verhindert keinen Umwegverkehr. Könnte die Stadt vor und nach der Änderung tatsächliche Verkehrszahlen erheben?" },
+        { speaker: "Herr Vogt", voice: "male", text: "Ja. Wir können vier Wochen vor Beginn zählen und die Messung nach drei Monaten wiederholen." },
+        { speaker: "Frau Hansen", voice: "female", text: "Dann sollten auch Lärm und sichere Querungsmöglichkeiten geprüft werden, besonders am Seniorenheim." },
+        { speaker: "Herr Vogt", voice: "male", text: "Das nehmen wir in den Prüfauftrag auf. Falls die Belastung deutlich steigt, wird die Verkehrsführung angepasst." },
+        { speaker: "Frau Hansen", voice: "female", text: "Mit dieser verbindlichen Überprüfung halte ich einen befristeten Versuch für vertretbar." }
+      ],
+      prompt: "Why does Frau Hansen finally consider the trial acceptable?",
+      answers: ["Weil Verkehr, Lärm und Querungen überprüft werden und die Verkehrsführung bei höherer Belastung angepasst wird.", "because traffic, noise, and crossings will be measured and the plan changed if the burden rises", "verbindliche Messung und Anpassung bei steigender Belastung", "binding monitoring with changes if impacts increase"],
+      requirements: [
+        { label: "monitoring the effects", patterns: ["(?:Verkehr|Lärm|Laerm|Querung|Belastung).*(?:prüf|pruef|mess|zähl|zaehl)|(?:prüf|pruef|mess|zähl|zaehl|Überprüfung|Ueberpruefung).*(?:Verkehr|Lärm|Laerm|Querung|Belastung)|monitor|measur|count"] },
+        { label: "changing the plan if impacts rise", patterns: ["angepasst|anpassen|Anpassung|change|adjust|Belastung.*steig|steig.*Belastung"] }
+      ],
+      evidence: "Das nehmen wir in den Prüfauftrag auf. Falls die Belastung deutlich steigt, wird die Verkehrsführung angepasst. Mit dieser verbindlichen Überprüfung halte ich einen befristeten Versuch für vertretbar."
     }
   ].map(item => ({
     ...item,

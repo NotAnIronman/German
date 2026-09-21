@@ -7,6 +7,11 @@
   state.readings ||= {};
   state.readingLibrary = { level: "A0", genre: "all", selectedId: readings[0]?.id || null, ...(state.readingLibrary || {}) };
   if (!readingLevels.includes(state.readingLibrary.level)) state.readingLibrary.level = "A0";
+  state.readingLibrary.sessions = state.readingLibrary.sessions && typeof state.readingLibrary.sessions === "object" ? state.readingLibrary.sessions : {};
+  if (state.readingLibrary.activeSession?.itemId && !state.readingLibrary.sessions[state.readingLibrary.activeSession.itemId]) {
+    state.readingLibrary.sessions[state.readingLibrary.activeSession.itemId] = state.readingLibrary.activeSession;
+  }
+  delete state.readingLibrary.activeSession;
 
   const audioVersion = audioStudy.version || 1;
   const previousAudioStudy = state.audioStudy;
@@ -24,6 +29,92 @@
   }
 
   let readingSession = null;
+  let readingDraftSaveTimer = 0;
+  let readingAnnouncementTimer = 0;
+
+  function announceReading(message) {
+    const region = $("#readingAnnouncement");
+    if (!region) return;
+    clearTimeout(readingAnnouncementTimer);
+    region.textContent = "";
+    readingAnnouncementTimer = setTimeout(() => {
+      region.textContent = message;
+      readingAnnouncementTimer = 0;
+    }, 20);
+  }
+
+  function readingOptionOrders(item, seed = Date.now()) {
+    const random = seededVariationRandom(`graded-reading:${item.id}:${seed}`);
+    return item.questions.map(question => question.type === "choice" ? shuffledCopy(question.options, random) : null);
+  }
+
+  function createReadingSession(item) {
+    const startedAt = Date.now();
+    return {
+      itemId: item.id,
+      version: item.version,
+      index: 0,
+      responses: Array(item.questions.length).fill(""),
+      optionOrders: readingOptionOrders(item, `${startedAt}:${Math.random()}`),
+      startedAt,
+      finished: false
+    };
+  }
+
+  function savedReadingSession(item) {
+    const saved = state.readingLibrary.sessions[item.id];
+    if (!saved || saved.itemId !== item.id || saved.version !== item.version) return null;
+    if (!Number.isInteger(saved.index) || saved.index < 0 || saved.index >= item.questions.length) return null;
+    if (!Array.isArray(saved.responses) || saved.responses.length !== item.questions.length) return null;
+    const validOrders = Array.isArray(saved.optionOrders) && saved.optionOrders.length === item.questions.length;
+    return {
+      itemId: item.id,
+      version: item.version,
+      index: saved.index,
+      responses: saved.responses.map(response => String(response || "")),
+      optionOrders: validOrders ? saved.optionOrders.map((order, index) => {
+        const source = item.questions[index].options;
+        return source && Array.isArray(order) && order.length === source.length && source.every(option => order.includes(option)) ? [...order] : source ? [...source] : null;
+      }) : readingOptionOrders(item, saved.startedAt),
+      startedAt: Number(saved.startedAt) || Date.now(),
+      finished: false
+    };
+  }
+
+  function persistReadingSession() {
+    clearTimeout(readingDraftSaveTimer);
+    readingDraftSaveTimer = 0;
+    if (!readingSession || readingSession.finished) {
+      if (readingSession?.itemId) delete state.readingLibrary.sessions[readingSession.itemId];
+    } else {
+      state.readingLibrary.sessions[readingSession.itemId] = {
+        itemId: readingSession.itemId,
+        version: readingSession.version,
+        index: readingSession.index,
+        responses: [...readingSession.responses],
+        optionOrders: readingSession.optionOrders.map(order => order ? [...order] : null),
+        startedAt: readingSession.startedAt
+      };
+    }
+    saveState();
+  }
+
+  function scheduleReadingSessionSave() {
+    clearTimeout(readingDraftSaveTimer);
+    readingDraftSaveTimer = setTimeout(() => {
+      readingDraftSaveTimer = 0;
+      if (readingSession && !readingSession.finished) persistReadingSession();
+    }, 350);
+  }
+
+  function pauseReadingSession() {
+    if (!readingSession) return;
+    const item = readings.find(entry => entry.id === readingSession.itemId);
+    const question = item?.questions?.[readingSession.index];
+    if (question && $("#readingQuestionForm")) captureReadingResponse(question);
+    persistReadingSession();
+    readingSession = null;
+  }
 
   function readingRecord(item) {
     if (!state.readings[item.id] || state.readings[item.id].version !== item.version) {
@@ -59,6 +150,8 @@
     const record = state.readings[item.id];
     if (record?.version !== item.version) return "Unread";
     if (record?.passedAt) return `Passed · ${Math.round((record.bestScore || 0) * 100)}%`;
+    const paused = savedReadingSession(item);
+    if (paused) return `Paused · question ${paused.index + 1} of ${item.questions.length}`;
     if (record?.attempts?.length) return `Attempted · ${Math.round((record.bestScore || 0) * 100)}% best`;
     return "Unread";
   }
@@ -90,6 +183,7 @@
     }
 
     $$('[data-reading-level]').forEach(button => button.addEventListener("click", () => {
+      pauseReadingSession();
       state.readingLibrary.level = button.dataset.readingLevel;
       state.readingLibrary.genre = "all";
       state.readingLibrary.selectedId = readings.find(item => item.level === button.dataset.readingLevel)?.id;
@@ -98,12 +192,14 @@
       renderReadingLibrary();
     }));
     $$('[data-reading-id]').forEach(button => button.addEventListener("click", () => {
+      pauseReadingSession();
       state.readingLibrary.selectedId = button.dataset.readingId;
       readingSession = null;
       saveState();
       renderReadingLibrary();
     }));
     $("#readingGenreFilter").onchange = event => {
+      pauseReadingSession();
       state.readingLibrary.genre = event.target.value;
       readingSession = null;
       saveState();
@@ -114,7 +210,7 @@
 
   function readingGlossary(item, open = false) {
     if (!item.glossary?.length) return "";
-    return `<details class="reading-glossary" ${open ? "open" : ""}><summary>Language help · ${item.glossary.length} items</summary><div>${item.glossary.map(([de, en]) => `<p><strong>${escapeHtml(de)}</strong><span>${escapeHtml(en)}</span></p>`).join("")}</div></details>`;
+    return `<details class="reading-glossary" ${open ? "open" : ""}><summary>Language help · ${item.glossary.length} items</summary><div>${item.glossary.map(([de, en]) => `<p><strong lang="de-DE">${escapeHtml(de)}</strong><span>${escapeHtml(en)}</span></p>`).join("")}</div></details>`;
   }
 
   function renderReadingWorkspace(item) {
@@ -123,41 +219,77 @@
     if (readingSession?.itemId === item.id) return renderReadingAttempt(item);
     const record = readingRecord(item);
     const prior = record.attempts.length ? `<div class="reading-prior"><strong>Previous work</strong><span>${record.attempts.length} attempt${record.attempts.length === 1 ? "" : "s"} · first ${Math.round((record.firstAttemptScore || 0) * 100)}% · latest ${Math.round((record.latestScore || 0) * 100)}% · best ${Math.round((record.bestScore || 0) * 100)}%</span></div>` : "";
-    $("#readingWorkspace").innerHTML = `<div class="reading-cover"><span class="eyebrow">${item.level} · ${escapeHtml(modeLabel(item.mode))}</span><h2>${escapeHtml(item.title)}</h2><p>${escapeHtml(item.intro)}</p><div class="reading-meta"><span>${escapeHtml(item.genre)}</span><span>${item.wordCount} words</span><span>about ${item.estimatedMinutes} min</span><span>${item.questions.length} questions</span></div>${item.level === "A0" || item.level === "A1" || item.mode === "guided" ? readingGlossary(item, true) : readingGlossary(item, false)}${prior}<div class="reading-rules"><strong>Attempt rules</strong><ul><li>Answers and evidence appear after the complete attempt.</li><li>Keyboard forms such as ae, oe, ue, and ss are accepted.</li><li>A score of ${Math.round(item.passScore * 100)}% passes this text.</li></ul></div><button class="primary-button" id="startReadingAttempt" type="button">Read and begin <span>→</span></button></div>`;
+    const saved = savedReadingSession(item);
+    const savedNote = saved ? `<div class="reading-prior"><strong>Attempt saved</strong><span>Continue at question ${saved.index + 1} of ${item.questions.length}. Your earlier answers are waiting.</span></div>` : "";
+    $("#readingWorkspace").innerHTML = `<div class="reading-cover"><span class="eyebrow">${item.level} · ${escapeHtml(modeLabel(item.mode))}</span><h2>${escapeHtml(item.title)}</h2><p>${escapeHtml(item.intro)}</p><div class="reading-meta"><span>${escapeHtml(item.genre)}</span><span>${item.wordCount} words</span><span>about ${item.estimatedMinutes} min</span><span>${item.questions.length} questions</span></div>${item.level === "A0" || item.level === "A1" || item.mode === "guided" ? readingGlossary(item, true) : readingGlossary(item, false)}${savedNote}${prior}<div class="reading-rules"><strong>Attempt rules</strong><ul><li>Answers and evidence appear after the complete attempt.</li><li>Keyboard forms such as ae, oe, ue, and ss are accepted.</li><li>Choice order changes with each new attempt.</li><li>A score of ${Math.round(item.passScore * 100)}% passes this text.</li></ul></div><div class="reading-result-actions"><button class="primary-button" id="startReadingAttempt" type="button">${saved ? "Resume saved attempt" : "Read and begin"} <span>→</span></button>${saved ? '<button class="quiet-button" id="discardReadingAttempt" type="button">Discard saved attempt</button>' : ""}</div></div>`;
     $("#startReadingAttempt").addEventListener("click", () => {
-      readingSession = { itemId: item.id, index: 0, responses: Array(item.questions.length).fill(""), startedAt: Date.now(), finished: false };
+      readingSession = saved || createReadingSession(item);
+      persistReadingSession();
       renderReadingAttempt(item);
+    });
+    $("#discardReadingAttempt")?.addEventListener("click", () => {
+      if (!window.confirm("Discard this saved reading attempt and its answers?")) return;
+      delete state.readingLibrary.sessions[item.id];
+      saveState();
+      renderReadingLibrary();
     });
   }
 
   function renderReadingAttempt(item) {
     const question = item.questions[readingSession.index];
     const response = readingSession.responses[readingSession.index] || "";
+    const options = readingSession.optionOrders?.[readingSession.index] || question.options || [];
     const supportOpen = item.level === "A0" || item.level === "A1" || item.mode === "guided";
     const answerControl = question.type === "choice"
-      ? `<div class="reading-options">${question.options.map((option, index) => `<label><input type="radio" name="reading-answer" value="${escapeHtml(option)}" ${response === option ? "checked" : ""}/><span>${String.fromCharCode(65 + index)}</span>${escapeHtml(option)}</label>`).join("")}</div>`
-      : `<label class="reading-text-answer" for="readingLibraryAnswer">Answer in your own words<input id="readingLibraryAnswer" type="text" lang="de-DE" spellcheck="false" value="${escapeHtml(response)}" /></label>`;
+      ? `<div class="reading-options" role="radiogroup" aria-labelledby="readingQuestionHeading" aria-describedby="readingAnswerWarning">${options.map((option, index) => `<label><input type="radio" name="reading-answer" value="${escapeHtml(option)}" ${response === option ? "checked" : ""}/><span>${String.fromCharCode(65 + index)}</span>${escapeHtml(option)}</label>`).join("")}</div>`
+      : `<label class="reading-text-answer" for="readingLibraryAnswer">Answer in your own words<input id="readingLibraryAnswer" type="text" lang="de-DE" spellcheck="false" aria-describedby="readingAnswerWarning" value="${escapeHtml(response)}" /></label>`;
     $("#readingWorkspace").innerHTML = `<div class="reading-attempt"><div class="reading-attempt-top"><button class="back-button" id="leaveReadingAttempt" type="button">← Reading catalog</button><span>QUESTION ${readingSession.index + 1} OF ${item.questions.length}</span></div><h2>${escapeHtml(item.title)}</h2>${readingGlossary(item, supportOpen)}<div class="library-passage" lang="de-DE">${item.sections.map(section => `<p>${escapeHtml(section)}</p>`).join("")}</div>${item.culture ? `<aside class="reading-culture"><strong>Context</strong><p>${escapeHtml(item.culture)}</p></aside>` : ""}<form class="reading-question" id="readingQuestionForm"><span>${escapeHtml(question.skill.toUpperCase())}</span><h3 id="readingQuestionHeading" tabindex="-1">${escapeHtml(question.prompt)}</h3>${answerControl}<div class="reading-question-actions"><button class="quiet-button" id="previousReadingQuestion" type="button" ${readingSession.index === 0 ? "disabled" : ""}>Previous</button><button class="primary-button" id="nextReadingQuestion" type="submit">${readingSession.index === item.questions.length - 1 ? "Submit attempt" : "Save and continue"} <span>→</span></button></div><p class="reading-answer-warning" id="readingAnswerWarning" hidden>Choose or type an answer before continuing.</p></form></div>`;
-    $("#leaveReadingAttempt").addEventListener("click", () => { readingSession = null; renderReadingWorkspace(item); });
+    $("#leaveReadingAttempt").addEventListener("click", () => {
+      captureReadingResponse(question);
+      persistReadingSession();
+      readingSession = null;
+      renderReadingLibrary();
+    });
     $("#previousReadingQuestion").addEventListener("click", () => {
       captureReadingResponse(question);
       readingSession.index -= 1;
+      persistReadingSession();
       renderReadingAttempt(item);
     });
     $("#readingQuestionForm").addEventListener("submit", event => {
       event.preventDefault();
       const value = captureReadingResponse(question);
       if (!String(value).trim()) {
-        $("#readingAnswerWarning").hidden = false;
+        const warning = $("#readingAnswerWarning");
+        const message = question.type === "choice" ? "Choose an answer before continuing." : "Type an answer before continuing.";
+        warning.textContent = message;
+        warning.hidden = false;
+        const answerInput = question.type === "choice" ? $('input[name="reading-answer"]') : $("#readingLibraryAnswer");
+        (question.type === "choice" ? $(".reading-options") : answerInput)?.setAttribute("aria-invalid", "true");
+        answerInput?.focus();
+        announceReading(`${message} Question ${readingSession.index + 1} of ${item.questions.length} is still open.`);
         return;
       }
       if (readingSession.index < item.questions.length - 1) {
         readingSession.index += 1;
+        persistReadingSession();
         renderReadingAttempt(item);
       } else finishReadingAttempt(item);
     });
+    $$('input[name="reading-answer"]').forEach(input => input.addEventListener("change", () => {
+      $("#readingAnswerWarning").hidden = true;
+      $(".reading-options").removeAttribute("aria-invalid");
+      captureReadingResponse(question);
+      persistReadingSession();
+    }));
+    $("#readingLibraryAnswer")?.addEventListener("input", () => {
+      $("#readingAnswerWarning").hidden = true;
+      $("#readingLibraryAnswer").removeAttribute("aria-invalid");
+      captureReadingResponse(question);
+      scheduleReadingSessionSave();
+    });
     $("#readingQuestionHeading").focus({ preventScroll: true });
-    $("#readingAnnouncement").textContent = `Question ${readingSession.index + 1} of ${item.questions.length}: ${question.prompt}`;
+    announceReading(`Question ${readingSession.index + 1} of ${item.questions.length}: ${question.prompt}`);
   }
 
   function captureReadingResponse(question) {
@@ -191,6 +323,8 @@
   }
 
   function finishReadingAttempt(item) {
+    clearTimeout(readingDraftSaveTimer);
+    readingDraftSaveTimer = 0;
     const results = item.questions.map((question, index) => ({ ...gradeReadingQuestion(question, readingSession.responses[index]), question, response: readingSession.responses[index] }));
     const correct = results.filter(result => result.correct).length;
     const score = correct / item.questions.length;
@@ -214,6 +348,7 @@
     readingSession.personalBest = personalBest;
     readingSession.improvement = improvement;
     readingSession.finished = true;
+    delete state.readingLibrary.sessions[item.id];
     if (firstPass) {
       const passedCount = readings.filter(reading => state.readings[reading.id]?.version === reading.version && state.readings[reading.id]?.passedAt).length;
       claimReward(`reading:${item.id}`, `${item.title} passed.`, `${passedCount} of ${readings.length} graded texts are complete.`, { category: "graded-reading", label: "READING LANDMARK" });
@@ -238,12 +373,16 @@
         : passed
           ? "You reached the passing standard again."
           : `Review the evidence below. ${Math.ceil(item.passScore * item.questions.length)} correct answers are required to pass.`;
-    $("#readingWorkspace").innerHTML = `<div class="reading-result ${passed ? "passed" : ""}"><span class="eyebrow">${eyebrow}</span><h2>${Math.round(readingSession.score * 100)}% · ${correct} of ${item.questions.length}</h2><p>${resultCopy}</p><div class="reading-review">${readingSession.results.map((result, index) => `<article class="${result.correct ? "correct" : "missed"}"><span>${result.correct ? "✓" : "○"} ${escapeHtml(result.question.skill)} · ${index + 1}</span><h3>${escapeHtml(result.question.prompt)}</h3><p><strong>Your answer:</strong> ${escapeHtml(result.response)}</p>${result.correct ? "" : `<p><strong>Accepted answer:</strong> ${escapeHtml(result.expected)}</p>`}<blockquote lang="de-DE">${escapeHtml(result.question.evidence)}</blockquote><p>${escapeHtml(result.question.explanation)}</p></article>`).join("")}</div><div class="reading-result-actions"><button class="quiet-button" id="readingResultCatalog" type="button">Return to catalog</button><button class="primary-button" id="readingResultRetry" type="button">Try a new attempt <span>→</span></button></div></div>`;
+    const scorePoints = Math.round(readingSession.score * 100);
+    $("#readingWorkspace").innerHTML = `<div class="reading-result ${passed ? "passed" : ""}"><span class="eyebrow">${eyebrow}</span><h2 id="readingResultHeading" tabindex="-1">${scorePoints}% · ${correct} of ${item.questions.length}</h2><p>${resultCopy}</p><div class="reading-review">${readingSession.results.map((result, index) => `<article class="${result.correct ? "correct" : "missed"}"><span>${result.correct ? "✓" : "○"} ${escapeHtml(result.question.skill)} · ${index + 1}</span><h3>${escapeHtml(result.question.prompt)}</h3><p><strong>Your answer:</strong> ${escapeHtml(result.response)}</p>${result.correct ? "" : `<p><strong>Accepted answer:</strong> ${escapeHtml(result.expected)}</p>`}<blockquote lang="de-DE">${escapeHtml(result.question.evidence)}</blockquote><p>${escapeHtml(result.question.explanation)}</p></article>`).join("")}</div><div class="reading-result-actions"><button class="quiet-button" id="readingResultCatalog" type="button">Return to catalog</button><button class="primary-button" id="readingResultRetry" type="button">Try a new attempt <span>→</span></button></div></div>`;
     $("#readingResultCatalog").addEventListener("click", () => { readingSession = null; renderReadingLibrary(); });
     $("#readingResultRetry").addEventListener("click", () => {
-      readingSession = { itemId: item.id, index: 0, responses: Array(item.questions.length).fill(""), startedAt: Date.now(), finished: false };
+      readingSession = createReadingSession(item);
+      persistReadingSession();
       renderReadingAttempt(item);
     });
+    $("#readingResultHeading").focus({ preventScroll: true });
+    announceReading(`${passed ? "Reading passed." : "Reading attempt complete."} Score: ${scorePoints} percent, ${correct} of ${item.questions.length} correct. ${resultCopy} ${passed ? "Return to the catalog or try a new attempt." : "Review the feedback, then try a new attempt when you are ready."}`);
   }
 
   function audioRatingKey(testId, candidateId) {
@@ -345,6 +484,14 @@
     renderAudioLab();
   });
   $("#exportAudioFeedback")?.addEventListener("click", exportAudioFeedback);
+  window.addEventListener("pagehide", () => {
+    if (typeof suppressPagehidePersistence !== "undefined" && suppressPagehidePersistence) return;
+    if (!readingSession || readingSession.finished) return;
+    const item = readings.find(entry => entry.id === readingSession.itemId);
+    const question = item?.questions?.[readingSession.index];
+    if (question && $("#readingQuestionForm")) captureReadingResponse(question);
+    persistReadingSession();
+  });
 
   window.SatzwerkExtensions = { renderReadingLibrary, renderAudioLab };
 })();

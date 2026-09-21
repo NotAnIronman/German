@@ -467,6 +467,303 @@
         text("synthesis", "Name four things the pilot will evaluate after nine months. Answer in German.", ["Besucherzahlen, Kosten, Beschwerden und Nachfrage", "die Besucherzahlen, die Kosten, die Beschwerden und die Nachfrage"], [["besucher"], ["kosten"], ["beschwer"], ["nachfrage"]], "Besucherzahlen, Kosten, Beschwerden und die Nachfrage", "The compromise defines four concrete evaluation categories.")
       ]
     }),
+    reading({
+      id: "a0-family-photo", level: "A0", mode: "guided", title: "Ein Foto von meiner Familie", genre: "Photo caption and message", domain: "People and family", region: "Germany", intro: "Mila sends a family photo. Use the names, ages, and family words to identify each person.",
+      glossary: [["die Familie", "family"], ["links", "on the left"], ["rechts", "on the right"], ["die Schwester", "sister"], ["der Bruder", "brother"], ["die Mutter", "mother"], ["der Vater", "father"], ["Jahre alt", "years old"]],
+      sections: [
+        "Hallo! Das ist meine Familie.",
+        "Links ist meine Mutter Eva. Sie ist 42 Jahre alt. Neben Eva ist mein Vater Tom. Er ist 44.",
+        "Ich bin Mila und bin 19. Mein Bruder Leo ist 16. Meine Schwester Nele ist 8.",
+        "Rechts ist unser Hund Max. Er ist drei Jahre alt."
+      ],
+      culture: "German nouns begin with a capital letter. Family words therefore appear as Mutter, Vater, Bruder, and Schwester.",
+      questions: [
+        choice("detail", "Who is 16 years old?", ["Leo", "Mila", "Nele"], "Leo", "Mein Bruder Leo ist 16.", "Leo is Mila's sixteen-year-old brother."),
+        choice("relationship", "Who is Eva?", ["Mila's mother", "Mila's sister", "Mila's dog"], "Mila's mother", "Links ist meine Mutter Eva.", "Mila introduces Eva as her mother."),
+        choice("position", "Who is on the right?", ["Max", "Tom", "Eva"], "Max", "Rechts ist unser Hund Max.", "The final sentence places Max on the right."),
+        text("detail", "Type the name of Mila's sister.", ["Nele"], [["nele"]], "Meine Schwester Nele ist 8.", "Nele is the sister named in the message.")
+      ]
+    }),
+    reading({
+      id: "a0-library-card", level: "A0", mode: "transfer", title: "Heute in der Bibliothek", genre: "Opening-hours notice", domain: "Public places", region: "Germany", intro: "A library sign gives opening times and simple rules. Find the information you need for a visit.",
+      glossary: [["geöffnet", "open"], ["geschlossen", "closed"], ["die Öffnungszeit", "opening time"], ["ausleihen", "borrow"], ["zurückgeben", "return"], ["der Automat", "machine"], ["vor der Tür", "outside the door"], ["kostenlos", "free"], ["der Ausweis", "identity card"]],
+      sections: [
+        "STADTBIBLIOTHEK AM MARKT",
+        "Montag: geschlossen",
+        "Dienstag bis Freitag: 10:00 bis 18:00 Uhr",
+        "Samstag: 10:00 bis 14:00 Uhr",
+        "Bücher zurückgeben: immer am Automaten vor der Tür.",
+        "Bibliothekskarte: kostenlos für Kinder. Erwachsene bringen bitte einen Ausweis mit."
+      ],
+      culture: "Many public libraries have an outside return machine. Books can often be returned there when the building is closed.",
+      questions: [
+        choice("scanning", "On which day is the library closed?", ["Monday", "Wednesday", "Saturday"], "Monday", "Montag: geschlossen", "Montag means Monday."),
+        choice("scanning", "When does the library close on Saturday?", ["At 14:00", "At 18:00", "At 10:00"], "At 14:00", "Samstag: 10:00 bis 14:00 Uhr", "The Saturday hours end at 14:00."),
+        choice("procedure", "Where can visitors return books when the library is closed?", ["At the machine outside", "At the market", "At the children's desk"], "At the machine outside", "am Automaten vor der Tür", "vor der Tür means outside the door."),
+        text("detail", "What should an adult bring? Answer in German.", ["einen Ausweis", "den Ausweis", "Ausweis"], [["ausweis"]], "Erwachsene bringen bitte einen Ausweis mit.", "Adults are asked to bring identification.")
+      ]
+    }),
+    reading({
+      id: "a0-courtyard-festival", level: "A0", mode: "checkpoint", title: "Musik im Hof", genre: "Event poster and chat", domain: "Culture and leisure", region: "Austria", intro: "A small poster announces a neighborhood music afternoon. Combine it with Pia and Aron's messages.",
+      glossary: [["das Hoffest", "courtyard festival"], ["der Eintritt", "admission"], ["frei", "free"], ["bei Regen", "if it rains"], ["stattfinden", "take place"], ["das Nachbarschaftshaus", "neighborhood center"], ["mitbringen", "bring along"], ["der Kuchen", "cake"]],
+      sections: [
+        "HOFFEST IN WIEN",
+        "Sonntag, 15. Juni, 15:00 bis 19:00 Uhr",
+        "Musik ab 16 Uhr. Kaffee und Kuchen im Hof. Eintritt frei.",
+        "Bei Regen findet das Fest im Nachbarschaftshaus statt.",
+        "Pia: Hallo Aron, kommst du zum Hoffest?",
+        "Aron: Ja. Ich komme um 15:30 Uhr und bringe Kuchen mit.",
+        "Pia: Super. Ich warte am Eingang."
+      ],
+      culture: "A Hoffest is a social gathering in a shared courtyard. Neighborhood associations often organize music, food, and activities there.",
+      questions: [
+        choice("scanning", "When does the music begin?", ["At 16:00", "At 15:00", "At 19:00"], "At 16:00", "Musik ab 16 Uhr.", "ab 16 Uhr means starting at four o'clock."),
+        choice("detail", "What will Aron bring?", ["Cake", "Coffee", "Music"], "Cake", "Ich ... bringe Kuchen mit.", "Aron says that he will bring cake."),
+        choice("condition", "Where will the festival take place if it rains?", ["In the neighborhood center", "At the entrance", "At Pia's home"], "In the neighborhood center", "Bei Regen findet das Fest im Nachbarschaftshaus statt.", "The rain location is the Nachbarschaftshaus."),
+        text("scanning", "How much is admission? Answer in German.", ["frei", "Eintritt frei", "Der Eintritt ist frei.", "kostenlos"], [["frei", "kostenlos"]], "Eintritt frei.", "The poster says there is no admission fee.")
+      ]
+    }),
+    reading({
+      id: "a1-luzern-postcard", level: "A1", mode: "guided", title: "Grüße aus Luzern", genre: "Postcard", domain: "Travel and personal life", region: "Switzerland", intro: "Read Leni's postcard. Follow the route, the weather, and her plans for the next day.",
+      glossary: [["die Altstadt", "old town"], ["die Brücke", "bridge"], ["der See", "lake"], ["bewölkt", "cloudy"], ["die Aussicht", "view"], ["hinauffahren", "travel up"], ["zurückkommen", "return"]],
+      sections: [
+        "Liebe Nora,",
+        "viele Grüße aus Luzern! Ich bin seit Freitag hier und wohne in einer kleinen Pension nahe der Altstadt. Gestern bin ich über die alte Kapellbrücke gegangen. Danach habe ich am See Kaffee getrunken. Es war kühl und bewölkt, aber die Aussicht war wunderschön.",
+        "Heute besuche ich das Verkehrshaus. Morgen möchte ich mit der Bahn auf einen Berg fahren. Hoffentlich scheint dann die Sonne. Am Dienstag komme ich zurück. Ich zeige dir später meine Fotos.",
+        "Liebe Grüße, Leni"
+      ],
+      culture: "The Kapellbrücke is a covered wooden bridge in Lucerne. The city sits beside Lake Lucerne and is surrounded by mountains.",
+      questions: [
+        choice("sequence", "What did Leni do after crossing the bridge?", ["She drank coffee by the lake", "She returned home", "She visited the transport museum"], "She drank coffee by the lake", "Danach habe ich am See Kaffee getrunken.", "Danach marks the next event."),
+        choice("detail", "What is Leni doing today?", ["Visiting the transport museum", "Going up a mountain", "Looking at photos with Nora"], "Visiting the transport museum", "Heute besuche ich das Verkehrshaus.", "Her visit to the museum is today's plan."),
+        choice("inference", "What weather does Leni hope for tomorrow?", ["Sunshine", "Snow", "Heavy rain"], "Sunshine", "Hoffentlich scheint dann die Sonne.", "She hopes that the sun will shine."),
+        text("scanning", "On which day does Leni return? Answer in German.", ["am Dienstag", "Dienstag"], [["dienstag"]], "Am Dienstag komme ich zurück.", "The postcard gives the return day directly.")
+      ]
+    }),
+    reading({
+      id: "a1-neighbor-key", level: "A1", mode: "extensive", title: "Der Schlüssel im Blumentopf", genre: "Short story", domain: "Neighbors and daily life", region: "Germany", intro: "A simple favor leads to a small surprise in the apartment building.",
+      glossary: [["gießen", "water"], ["der Blumentopf", "flowerpot"], ["der Wohnungsschlüssel", "apartment key"], ["die Fensterbank", "windowsill"], ["trocken", "dry"], ["die Nachricht", "message"], ["zurücklegen", "put back"]],
+      sections: [
+        "Frau Weber fährt für drei Tage zu ihrer Tochter. Vor der Reise klingelt sie bei ihrem Nachbarn Sami. 'Kannst du bitte meine Pflanzen gießen?', fragt sie. Sami sagt gern ja. Frau Weber erklärt: 'Der Wohnungsschlüssel liegt im großen Blumentopf vor meiner Tür.'",
+        "Am nächsten Abend nimmt Sami den Schlüssel und geht in die Wohnung. Auf der Fensterbank stehen viele Pflanzen. Fast alle sind trocken. Sami gießt sie vorsichtig. Dann hört er ein leises Geräusch aus der Küche.",
+        "Unter dem Tisch sitzt eine graue Katze. Neben ihr stehen Wasser und Futter. Auf dem Kühlschrank findet Sami eine Nachricht: 'Das ist Minka. Mein Bruder holt sie heute Abend ab.' Kurz danach klingelt Frau Webers Bruder. Er bedankt sich und nimmt Minka mit.",
+        "Sami kontrolliert noch einmal die Pflanzen, schließt die Tür und legt den Schlüssel zurück in den Blumentopf."
+      ],
+      culture: "Neighbors sometimes exchange keys for plant care, parcels, or emergencies. A direct agreement is safer than leaving a key in a predictable place.",
+      questions: [
+        choice("purpose", "Why does Frau Weber give Sami access to her apartment?", ["He will water her plants", "He will repair her kitchen", "He will feed his own cat"], "He will water her plants", "Kannst du bitte meine Pflanzen gießen?", "Plant care is the favor she requests."),
+        choice("location", "Where does Sami find Minka?", ["Under the kitchen table", "On the windowsill", "Inside the flowerpot"], "Under the kitchen table", "Unter dem Tisch sitzt eine graue Katze.", "The cat is beneath the table in the kitchen."),
+        choice("reference", "Who comes to collect the cat?", ["Frau Weber's brother", "Frau Weber's daughter", "Sami's neighbor"], "Frau Weber's brother", "Kurz danach klingelt Frau Webers Bruder.", "The note and the arrival identify the same person."),
+        text("sequence", "What does Sami do with the key at the end? Answer in German.", ["Er legt ihn in den Blumentopf zurück.", "Er legt den Schlüssel zurück in den Blumentopf.", "in den Blumentopf zurücklegen"], [["blumentopf"], ["zurück", "zurueck"]], "legt den Schlüssel zurück in den Blumentopf", "He returns the key to its original place.")
+      ]
+    }),
+    reading({
+      id: "a1-museum-sunday", level: "A1", mode: "transfer", title: "Ein Sonntag im Stadtmuseum", genre: "Event program and plan", domain: "Culture and leisure", region: "Germany", intro: "Choose activities for a family visit. Pay attention to times, ages, prices, and registration.",
+      glossary: [["die Führung", "guided tour"], ["die Werkstatt", "workshop"], ["die Stadtgeschichte", "local history"], ["geeignet", "suitable"], ["die Anmeldung", "registration"], ["begrenzte Plätze", "limited places"], ["der Eintritt", "admission"]],
+      sections: [
+        "SONNTAG IM STADTMUSEUM",
+        "10:30 Uhr: Führung 'Unsere Stadt vor 100 Jahren', 60 Minuten, für Erwachsene und Jugendliche ab 14 Jahren.",
+        "12:00 Uhr: Familienführung, 40 Minuten, empfohlen für Kinder von 6 bis 12 Jahren.",
+        "14:00 Uhr: Druckwerkstatt. Gestaltet eine Postkarte mit alten Buchstaben. Ab 8 Jahren, Anmeldung erforderlich, 3 Euro Materialkosten.",
+        "15:30 Uhr: Kurzes Konzert im Innenhof. Eintritt mit Museumskarte frei. Bei Regen im Vortragssaal.",
+        "Familie Kaya: Die Eltern kommen mit Eda, 10, und Can, 5. Sie möchten am Nachmittag eine gemeinsame Aktivität ohne Anmeldung besuchen. Um 17 Uhr müssen sie zu Hause sein."
+      ],
+      culture: "Many museums offer public programs on Sundays. Family tours and workshops often specify an age range and whether advance registration is required.",
+      questions: [
+        choice("matching", "Which afternoon activity best fits the Kaya family's stated plan?", ["The concert at 15:30", "The workshop at 14:00", "The adult tour at 10:30"], "The concert at 15:30", "gemeinsame Aktivität ohne Anmeldung / 15:30 Uhr: Kurzes Konzert", "The concert is an afternoon activity without a registration requirement."),
+        choice("constraint", "Why is the family tour only a partial match?", ["Can is younger than the recommended age", "It costs 3 euros per person", "It starts after 17:00"], "Can is younger than the recommended age", "empfohlen für Kinder von 6 bis 12 Jahren / Can, 5", "Can is five, while the recommended range begins at six."),
+        choice("procedure", "What must visitors do before joining the print workshop?", ["Register", "Buy a museum card", "Bring old letters"], "Register", "Anmeldung erforderlich", "The workshop requires registration."),
+        text("condition", "Where is the concert if it rains? Answer in German.", ["im Vortragssaal", "Vortragssaal", "Es ist im Vortragssaal."], [["vortragssaal"]], "Bei Regen im Vortragssaal.", "The program gives an indoor rain location.")
+      ]
+    }),
+    reading({
+      id: "a2-forgotten-scarf", level: "A2", mode: "extensive", title: "Der vergessene Schal", genre: "Literary short narrative", domain: "Memory and everyday encounters", region: "Germany", intro: "Lies die Geschichte und achte darauf, wie ein verlorener Gegenstand zwei Erinnerungen miteinander verbindet.",
+      glossary: [["liegen bleiben", "be left behind"], ["die Fundstelle", "place where something was found"], ["auffällig", "striking"], ["gestrickt", "knitted"], ["die Erinnerung", "memory"], ["wiedererkennen", "recognize again"]],
+      sections: [
+        "Als Mara am Montagmorgen in die Straßenbahn steigt, liegt auf dem Sitz gegenüber ein roter Schal. Er ist lang, weich und an einem Ende mit einem kleinen gelben Stern bestickt. Mara schaut sich um. Niemand scheint den Schal zu suchen. An der nächsten Haltestelle nimmt sie ihn mit und gibt ihn beim Fahrer ab.",
+        "Am Nachmittag erzählt Mara ihrer Kollegin Ines von dem Schal. Ines wird plötzlich still. Ihre Großmutter hat ihr vor vielen Jahren einen ähnlichen Schal gestrickt. Auch er hatte einen gelben Stern. Nach einem Umzug konnte Ines ihn nicht mehr finden. Sie glaubt jedoch kaum, dass der Schal aus der Straßenbahn ihrer sein kann.",
+        "Gemeinsam rufen sie beim Fundbüro der Verkehrsbetriebe an. Die Mitarbeiterin fragt nach Farbe, Material, Fundstelle und einem besonderen Merkmal. Ines beschreibt alles genau. Dann erinnert sie sich an eine Reparatur: Auf der Innenseite müsste ein Stück grüner Faden zu sehen sein.",
+        "Am nächsten Tag darf Ines den Schal im Fundbüro ansehen. Der grüne Faden ist tatsächlich da. Ines nimmt den Schal in die Hände und lächelt. Später stellt sich heraus, dass ihr Bruder ihn am Wochenende in einer alten Umzugskiste gefunden und getragen hatte. In der Straßenbahn war er ihm unbemerkt aus der Tasche gerutscht."
+      ],
+      culture: "Lost-property offices, called Fundbüros, collect found items. Transport operators, stations, municipalities, and police offices can have separate procedures.",
+      questions: [
+        choice("handlung", "Was macht Mara mit dem Schal?", ["Sie gibt ihn beim Fahrer ab.", "Sie nimmt ihn mit nach Hause.", "Sie legt ihn unter den Sitz."], "Sie gibt ihn beim Fahrer ab.", "gibt ihn beim Fahrer ab", "Mara übergibt den Fund direkt dem Fahrer."),
+        choice("erinnerung", "Warum denkt Ines an ihren eigenen Schal?", ["Ihre Großmutter strickte einen ähnlichen Schal.", "Sie sah den Schal am Wochenende im Laden.", "Mara hatte ihr den Schal geschenkt."], "Ihre Großmutter strickte einen ähnlichen Schal.", "Ihre Großmutter hat ihr ... einen ähnlichen Schal gestrickt.", "Farbe, Stern und Herkunft wecken ihre Erinnerung."),
+        choice("beweis", "Welches Detail bestätigt im Fundbüro, dass der Schal Ines gehört?", ["Ein grüner Faden auf der Innenseite", "Ein Preiszettel am Ende", "Ihr Name auf einem Schild"], "Ein grüner Faden auf der Innenseite", "Der grüne Faden ist tatsächlich da.", "Dieses Reparaturmerkmal kannte Ines schon vor der Besichtigung."),
+        choice("ursache", "Wie kam der Schal in die Straßenbahn?", ["Ines' Bruder verlor ihn unbemerkt.", "Mara ließ ihn dort liegen.", "Die Großmutter schickte ihn mit der Post."], "Ines' Bruder verlor ihn unbemerkt.", "war er ihm unbemerkt aus der Tasche gerutscht", "Der Bruder hatte den Schal gefunden, getragen und später verloren."),
+        text("ablauf", "Wo hatte der Bruder den Schal vorher gefunden? Antworte kurz auf Deutsch.", ["in einer alten Umzugskiste", "in der Umzugskiste", "einer alten Umzugskiste"], [["umzugskiste"]], "in einer alten Umzugskiste gefunden", "Die letzte Passage erklärt, wo der lange vermisste Schal lag.")
+      ]
+    }),
+    reading({
+      id: "a2-museum-night", level: "A2", mode: "transfer", title: "Eine Nacht, vier Museen", genre: "Cultural program and route plan", domain: "Arts and public transport", region: "Austria", intro: "Prüfe das Programm und stelle für Tarek und Jo einen passenden Abend zusammen.",
+      glossary: [["die Eintrittskarte", "admission ticket"], ["gültig", "valid"], ["die Abfahrt", "departure"], ["die Vorführung", "demonstration"], ["ausgebucht", "fully booked"], ["barrierefrei", "accessible without steps"], ["die Taschenlampe", "flashlight"]],
+      sections: [
+        "LANGE NACHT DER MUSEEN, SALZBURG, SAMSTAG 18:00 BIS 01:00 UHR",
+        "Die Eintrittskarte kostet 17 Euro und gilt in allen teilnehmenden Häusern sowie in den Sonderbussen. Buslinie M fährt alle 20 Minuten vom Hauptplatz ab.",
+        "HAUS DER NATUR: 18:30 und 20:30 Uhr, Vorführung im Physiklabor, jeweils 35 Minuten. Für die Vorstellung um 18:30 Uhr sind keine Plätze mehr frei. Das Gebäude ist barrierefrei.",
+        "SPIELZEUG MUSEUM: 19:00 bis 22:00 Uhr, offene Werkstatt für alle ab 8 Jahren. Letzter Einlass um 21:30 Uhr. Das Obergeschoss ist nur über eine Treppe erreichbar.",
+        "FESTUNGSMUSEUM: 21:00 und 23:00 Uhr, Taschenlampenführung durch die alten Räume. Eigene Taschenlampe mitbringen. Dauer 50 Minuten. Der Weg enthält viele Stufen.",
+        "MUSEUM DER MODERNE: 18:00 bis 00:30 Uhr, Ausstellung 'Stadt in Bewegung'. Um 22:15 Uhr spricht eine Fotografin zwanzig Minuten über ihre Arbeit. Alle Bereiche sind barrierefrei.",
+        "Tarek und Jo starten um 20 Uhr am Hauptplatz. Jo kann wegen einer Knieverletzung kaum Treppen steigen. Beide interessieren sich für Experimente und Fotografie. Spätestens um Mitternacht möchten sie wieder am Hauptplatz sein."
+      ],
+      culture: "Austria's Lange Nacht der Museen connects cultural venues with a shared ticket and special transport. Programs vary by city and year.",
+      questions: [
+        choice("auswahl", "Welche zwei Häuser passen am besten zu ihren Interessen und Jos Bedarf?", ["Haus der Natur und Museum der Moderne", "Spielzeug Museum und Festungsmuseum", "Festungsmuseum und Haus der Natur"], "Haus der Natur und Museum der Moderne", "Experimente und Fotografie / beide Gebäude barrierefrei", "Diese Kombination deckt beide Interessen ab und vermeidet Treppen."),
+        choice("einschränkung", "Welche Physikvorführung können sie noch besuchen?", ["Die um 20:30 Uhr", "Keine der beiden", "Die um 18:30 Uhr"], "Die um 20:30 Uhr", "starten um 20 Uhr / Vorstellung um 20:30 Uhr", "Die frühe Vorführung ist vorbei. Für die spätere nennt das Programm freie Plätze."),
+        choice("zugang", "Warum ist die Taschenlampenführung ungeeignet?", ["Der Weg hat viele Stufen.", "Sie beginnt erst nach Mitternacht.", "Fotografieren ist dort verboten."], "Der Weg hat viele Stufen.", "Der Weg enthält viele Stufen.", "Jos Knieverletzung macht diesen Weg unpassend."),
+        choice("leistung", "Was ist im Preis der Eintrittskarte enthalten?", ["Die Museen und die Sonderbusse", "Eine eigene Taschenlampe", "Essen in allen Museen"], "Die Museen und die Sonderbusse", "gilt in allen teilnehmenden Häusern sowie in den Sonderbussen", "Eine Karte deckt Eintritt und Sonderverkehr ab."),
+        text("detail", "Wann beginnt das Gespräch der Fotografin?", ["um 22:15 Uhr", "22:15", "22.15 Uhr"], [["22"], ["15"]], "Um 22:15 Uhr spricht eine Fotografin", "Das Gespräch passt zu ihrem Interesse an Fotografie.")
+      ]
+    }),
+    reading({
+      id: "a2-two-languages-home", level: "A2", mode: "guided", title: "Zwei Sprachen am Küchentisch", genre: "Personal interview", domain: "Family, identity, and learning", region: "Switzerland", intro: "Lies das Interview und unterscheide zwischen den Sprachen, die Amir versteht, spricht und schreibt.",
+      glossary: [["aufwachsen", "grow up"], ["sich unterhalten", "have a conversation"], ["übersetzen", "translate"], ["die Kindheit", "childhood"], ["fließend", "fluently"], ["die Verwandten", "relatives"], ["sich schämen", "feel ashamed"]],
+      sections: [
+        "INTERVIEWERIN: Amir, welche Sprachen sprichst du zu Hause?",
+        "AMIR: Mit meinen Eltern spreche ich meistens Bosnisch. Mit meiner jüngeren Schwester spreche ich oft Schweizerdeutsch. Beim Abendessen wechseln wir manchmal mitten im Satz. Das fällt uns gar nicht auf.",
+        "INTERVIEWERIN: Kannst du beide Sprachen gleich gut lesen und schreiben?",
+        "AMIR: Nein. Schweizer Hochdeutsch habe ich in der Schule gelernt. Darin schreibe ich längere Texte. Bosnisch verstehe und spreche ich fließend, aber beim Schreiben bin ich langsam. Deshalb besuche ich seit einem Jahr samstags einen Kurs.",
+        "INTERVIEWERIN: Warum ist dir der Kurs wichtig?",
+        "AMIR: Meine Großeltern schicken mir oft Nachrichten. Früher habe ich nur kurz geantwortet oder meine Mutter um Hilfe gebeten. Jetzt kann ich selbst ausführlicher schreiben. Außerdem lese ich mit meinem Vater Geschichten aus seiner Kindheit. Manche Wörter muss er erklären, doch genau diese Wörter finde ich interessant.",
+        "INTERVIEWERIN: War es früher schwierig, mehrere Sprachen zu sprechen?",
+        "AMIR: Als Kind wollte ich im Bus nicht Bosnisch sprechen, weil andere Leute zuhörten. Heute sehe ich meine Sprachen als Stärke. Wenn neue Schülerinnen an unsere Schule kommen, kann ich manchmal etwas erklären oder zwischen zwei Personen übersetzen."
+      ],
+      culture: "Switzerland has four national languages and many multilingual families. Swiss German is widely spoken, while Standard German is common in formal writing and education.",
+      questions: [
+        choice("sprachgebrauch", "Welche Sprache spricht Amir oft mit seiner Schwester?", ["Schweizerdeutsch", "Französisch", "Nur Bosnisch"], "Schweizerdeutsch", "Mit meiner jüngeren Schwester spreche ich oft Schweizerdeutsch.", "Amir nennt für Eltern und Schwester unterschiedliche Gewohnheiten."),
+        choice("kompetenz", "Worin möchte Amir sicherer werden?", ["Im Schreiben auf Bosnisch", "Im Verstehen von Schweizerdeutsch", "Im Lesen auf Französisch"], "Im Schreiben auf Bosnisch", "beim Schreiben bin ich langsam. Deshalb besuche ich ... einen Kurs", "Der Samstagskurs trainiert seine schriftliche Familiensprache."),
+        choice("veränderung", "Was kann Amir heute bei Nachrichten seiner Großeltern selbst tun?", ["Ausführlicher antworten", "Alle Wörter sofort erklären", "Die Nachrichten in der Schule veröffentlichen"], "Ausführlicher antworten", "Jetzt kann ich selbst ausführlicher schreiben.", "Sein Schreiben ermöglicht längere persönliche Antworten."),
+        choice("haltung", "Wie hat sich Amirs Haltung zu seinen Sprachen verändert?", ["Er betrachtet sie heute als Stärke.", "Er möchte nur noch eine Sprache verwenden.", "Er findet Übersetzen heute peinlich."], "Er betrachtet sie heute als Stärke.", "Heute sehe ich meine Sprachen als Stärke.", "Seine frühere Unsicherheit ist einer positiven Haltung gewichen."),
+        text("transfer", "Wie hilft Amir neuen Schülerinnen? Antworte kurz auf Deutsch.", ["Er erklärt etwas oder übersetzt.", "Er kann etwas erklären und übersetzen.", "durch Erklären und Übersetzen"], [["erklär", "erklaer"], ["übersetz", "uebersetz"]], "kann ich manchmal etwas erklären oder zwischen zwei Personen übersetzen", "Amir nutzt seine Mehrsprachigkeit praktisch in der Schule.")
+      ]
+    }),
+    reading({
+      id: "b1-garden-seven", level: "B1", mode: "extensive", title: "Der Garten hinter Gleis sieben", genre: "Contemporary short story", domain: "Community and belonging", region: "Germany", intro: "Lies die Erzählung und beobachte, wie sich Minas Blick auf einen unscheinbaren Ort verändert.",
+      glossary: [["das Brachland", "unused land"], ["verwildert", "overgrown"], ["der Setzling", "seedling"], ["die Genehmigung", "permit"], ["provisorisch", "temporary"], ["sich beteiligen", "participate"], ["vertraut", "familiar"]],
+      sections: [
+        "Jeden Morgen wartete Mina auf Gleis sieben auf ihren Regionalzug. Hinter dem Zaun lag ein schmales Stück Brachland. Zwischen alten Pflastersteinen wuchsen Gras und Brennnesseln. Im März standen dort plötzlich drei Holzkisten. Eine Woche später waren es zwölf. Jemand hatte sie mit Erde gefüllt und kleine Schilder hineingesteckt: Mangold, Bohnen, Ringelblumen.",
+        "Mina nahm an, dass die Kisten bald wieder verschwinden würden. Auf Bahngelände durfte man schließlich kaum einfach Gemüse anbauen. Eines Donnerstags verpasste sie ihren Zug. Während sie auf den nächsten wartete, sah sie eine ältere Frau am Zaun. Die Frau goss Setzlinge mit Wasser aus mehreren Flaschen.",
+        "'Ist das Ihr Garten?', fragte Mina. Die Frau lachte. 'Unser Garten. Die Bahn vermietet die Fläche für drei Jahre an den Nachbarschaftsverein.' Sie hieß Renate und erklärte, dass zwanzig Menschen Beete betreuten. Einige wohnten seit Jahrzehnten im Viertel, andere waren erst vor Kurzem angekommen. Werkzeug und Ernte wurden geteilt. Wer Zeit hatte, half.",
+        "Mina dachte an den Balkon ihrer Wohnung. Dort stand seit Monaten ein leerer Topf. Als Kind hatte sie ihrer Großmutter oft im Garten geholfen, doch in der Stadt fehlte ihr dafür der Platz. Renate drückte ihr eine kleine Tomatenpflanze in die Hand. 'Die ist übrig. Bring sie vorbei, wenn du möchtest.'",
+        "Am Samstag kam Mina zurück. Sie brachte die Pflanze und erwartete ein kurzes Gespräch. Stattdessen blieb sie drei Stunden. Ein Junge zeigte ihr, wie Regenwasser gesammelt wurde. Zwei Frauen diskutierten darüber, welche Kräuter in einem schattigen Beet wachsen könnten. Später aßen alle zusammen Brot und einen Salat aus den ersten Blättern.",
+        "Von da an sah Mina die Fläche morgens anders. Sie erkannte, welche Bohne schneller wuchs und wann jemand neue Erde gebracht hatte. Nach einigen Wochen grüßten Menschen vom Garten herüber, deren Namen sie inzwischen kannte. Der Regionalzug war noch immer oft verspätet. Das Warten fühlte sich jedoch weniger leer an."
+      ],
+      culture: "Temporary community gardens can turn unused urban land into shared space. Their future often depends on leases, volunteer work, and local planning decisions.",
+      questions: [
+        choice("entwicklung", "Wie verändert sich Minas Einschätzung der Holzkisten?", ["Aus einem vermutlich kurzen Projekt wird für sie ein vertrauter Gemeinschaftsort.", "Aus einem geduldeten Gemüsebeet wird für sie ein störender Teil des Bahnhofsgeländes.", "Aus einem städtischen Modellprojekt wird für sie eine gewöhnliche Fläche ohne Bedeutung."], "Aus einem vermutlich kurzen Projekt wird für sie ein vertrauter Gemeinschaftsort.", "bald wieder verschwinden / Namen sie inzwischen kannte", "Ihre Erwartung der Vergänglichkeit wird durch eigene Beteiligung ersetzt."),
+        choice("anlass", "Warum spricht Mina erstmals mit Renate?", ["Sie will Renate vor dem Abbau der Kisten warnen.", "Sie bringt eine Tomatenpflanze zum Garten zurück.", "Sie hat ihren Zug verpasst und muss warten."], "Sie hat ihren Zug verpasst und muss warten.", "Eines Donnerstags verpasste sie ihren Zug.", "Die ungeplante Wartezeit ermöglicht die Begegnung."),
+        choice("motiv", "Welche frühere Erfahrung verbindet Mina mit dem Gärtnern?", ["Sie half ihrer Großmutter im Garten.", "Sie pflegte ein eigenes Beet auf dem Balkon.", "Sie arbeitete früher in einer Gärtnerei."], "Sie half ihrer Großmutter im Garten.", "Als Kind hatte sie ihrer Großmutter oft im Garten geholfen", "Die Tomatenpflanze erinnert an eine Tätigkeit aus ihrer Kindheit."),
+        choice("symbolik", "Wofür steht der zuvor leere Topf in Minas Wohnung am ehesten?", ["Für ihren Plan, auf dem Balkon Gemüse anzubauen", "Für einen ungenutzten Wunsch nach Natur und Tätigkeit", "Für die Pflanze, die Renate ihr später schenkt"], "Für einen ungenutzten Wunsch nach Natur und Tätigkeit", "Dort stand seit Monaten ein leerer Topf ... fehlte ihr dafür der Platz.", "Der leere Topf verweist auf etwas, das in ihrem Stadtleben bisher fehlte."),
+        text("schluss", "Warum fühlt sich das Warten auf den Zug am Ende weniger leer an? Nenne zwei Gründe auf Deutsch.", ["Sie beobachtet den Garten und kennt dort Menschen.", "Sie sieht das Wachstum und kennt die Leute.", "Der Garten verändert sich und sie hat neue Kontakte."], [["garten", "wachs", "pflanz"], ["menschen", "leute", "namen", "kontakt"]], "Sie erkannte ... Menschen ... deren Namen sie inzwischen kannte.", "Der Ort bietet ihr sichtbare Entwicklung und soziale Verbindung.")
+      ]
+    }),
+    reading({
+      id: "b1-two-performances", level: "B1", mode: "transfer", title: "Ein Stück, zwei Kritiken", genre: "Paired cultural reviews", domain: "Theater and opinion", region: "Austria", intro: "Vergleiche zwei Besprechungen derselben Aufführung. Trenne Beobachtung, Bewertung und persönliche Erwartung.",
+      glossary: [["die Inszenierung", "stage production"], ["die Kulisse", "stage set"], ["zurückhaltend", "restrained"], ["überzeugen", "convince"], ["die Erwartung", "expectation"], ["der Schlussapplaus", "final applause"], ["überladen", "overloaded"]],
+      sections: [
+        "AUFFÜHRUNG: 'DER BESUCH', THEATER AM FLUSS, FREITAG, 19:30 UHR. Regie: Clara Moser. Dauer: 95 Minuten ohne Pause. Die Handlung spielt in einem kleinen Ort, in den eine früher vertriebene Bewohnerin zurückkehrt. Die Bühne besteht aus sechs beweglichen Türen. Drei Musikerinnen erzeugen Geräusche und kurze Melodien live.",
+        "KRITIK VON MARKUS LEITNER: Clara Moser erzählt die Geschichte mit wenigen Mitteln und großer Genauigkeit. Besonders die Türen funktionieren als Häuser, Grenzen und Erinnerungen. Wenn die Schauspieler sie verschieben, verändert sich der ganze Ort. Die Musik bleibt meist leise und gibt den Dialogen Raum. Nur in der letzten Szene erklärt ein langer Monolog zu viel. Das Ensemble spielt konzentriert, vor allem Aylin Demir als Besucherin. Der Schlussapplaus dauerte mehrere Minuten. Eine klare, ruhige Inszenierung, die noch lange beschäftigt.",
+        "KRITIK VON EVA KERN: Die Idee mit den Türen ist anfangs überraschend, wirkt nach einer Stunde jedoch erschöpft. Jede Szene wird auf ähnliche Weise umgebaut. Gleichzeitig verlangt der Text viel Aufmerksamkeit, weil wichtige Ereignisse nur erwähnt und kaum gezeigt werden. Die Live-Musik hätte stärker eingesetzt werden können. Aylin Demir überzeugt auch mich, besonders in den stillen Momenten. Insgesamt fehlt der Aufführung Bewegung. Wer ein schnelles Drama erwartet, dürfte enttäuscht sein. Für Zuschauerinnen, die reduzierte Formen mögen, bietet der Abend dennoch interessante Bilder.",
+        "LESERKOMMENTAR VON NIK: Ich kenne die ursprüngliche Erzählung und war neugierig auf die Veränderungen. Die langsame Form passte für mich zum Thema Erinnerung. Meine Begleiterin kannte den Text nicht und hatte Mühe, einige Beziehungen zu verstehen. Nach der Vorstellung haben wir lange darüber gesprochen. Vielleicht war genau das die Stärke des Abends."
+      ],
+      culture: "German-language theaters often publish program notes, while newspapers, blogs, and audience platforms offer very different forms of criticism.",
+      questions: [
+        choice("übereinstimmung", "In welchem Punkt stimmen beide Kritiken überein?", ["Aylin Demirs Darstellung ist überzeugend.", "Beide loben den langen Monolog am Schluss.", "Beide loben den Einsatz der Live-Musik."], "Aylin Demirs Darstellung ist überzeugend.", "vor allem Aylin Demir / Aylin Demir überzeugt auch mich", "Beide heben dieselbe Schauspielerin positiv hervor."),
+        choice("bewertung", "Wie beurteilt Markus Leitner die beweglichen Türen?", ["Als genaue und realistische Nachbildung des kleinen Ortes", "Als vielseitiges und bedeutungsvolles Bühnenelement", "Als anfangs starke, im Verlauf jedoch ermüdende Idee"], "Als vielseitiges und bedeutungsvolles Bühnenelement", "funktionieren als Häuser, Grenzen und Erinnerungen", "Er beschreibt mehrere Funktionen und verbindet sie mit dem Thema."),
+        choice("kritikpunkt", "Was stört Eva Kern an der Gestaltung?", ["Die Türen werden später kaum noch verwendet.", "Die Musik überdeckt die wichtigen Dialoge.", "Das Grundprinzip wiederholt sich zu oft."], "Das Grundprinzip wiederholt sich zu oft.", "Jede Szene wird auf ähnliche Weise umgebaut.", "Für sie verliert die anfangs überraschende Idee ihre Wirkung."),
+        choice("perspektive", "Welche Erfahrung erklärt den Unterschied zwischen Nik und seiner Begleiterin?", ["Beide kennen die Vorlage, bewerten sie aber anders.", "Nik kennt nur die Kritiken, seine Begleiterin die Vorlage.", "Nik kennt die Vorlage, seine Begleiterin kennt sie nicht."], "Nik kennt die Vorlage, seine Begleiterin kennt sie nicht.", "Ich kenne die ursprüngliche Erzählung / kannte den Text nicht", "Vorwissen hilft Nik, Beziehungen und Veränderungen einzuordnen."),
+        text("synthese", "Für welches Publikum eignet sich die Aufführung laut den Texten besonders? Antworte auf Deutsch.", ["Für Menschen, die ruhige und reduzierte Theaterformen mögen.", "für ein Publikum, das reduzierte Formen und langsame Stücke mag", "für Zuschauerinnen, die ruhige Inszenierungen mögen"], [["ruhig", "langsam", "reduziert"], ["theater", "inszenierung", "form", "stück", "stueck"]], "Für Zuschauerinnen, die reduzierte Formen mögen", "Die Kritiken betonen Ruhe, Aufmerksamkeit und eine reduzierte Bühnensprache.")
+      ]
+    }),
+    reading({
+      id: "b1-first-school-day", level: "B1", mode: "informational", title: "Drei erste Schultage", genre: "Oral-history feature", domain: "Education and generations", region: "Germany", intro: "Drei Personen erinnern sich an ihren ersten Schultag. Achte auf Gemeinsamkeiten, Unterschiede und die Grenzen persönlicher Erinnerung.",
+      glossary: [["die Schultüte", "cone filled with small gifts for a child's first school day"], ["die Einschulung", "first-day school ceremony"], ["sich einprägen", "remain vivid in memory"], ["die Aufnahme", "recording"], ["nachträglich", "afterward"], ["verlässlich", "reliable"]],
+      sections: [
+        "Für ein Stadtarchiv haben Jugendliche ältere und jüngere Bewohnerinnen nach ihrem ersten Schultag gefragt. Das Projekt sammelt persönliche Erinnerungen. Die Redaktion weist darauf hin, dass Erinnerungen sich im Laufe der Zeit verändern können. Fotos und Erzählungen der Familie beeinflussen manchmal, was Menschen für eine eigene Erinnerung halten.",
+        "HELGA, EINGESCHULT 1962: 'Wir gingen zu Fuß zur kleinen Dorfschule. Meine Schultüte war aus braunem Papier, meine Mutter hatte sie selbst gemacht. Ich erinnere mich vor allem an den Geruch der neuen Hefte. Auf einem Foto sehe ich, dass es geregnet hat. Daran hatte ich keine eigene Erinnerung. Im Klassenraum saßen Kinder aus vier Jahrgängen zusammen.'",
+        "MEHMET, EINGESCHULT 1988: 'Meine Eltern sprachen damals wenig Deutsch. Vor der Feier waren sie nervöser als ich. Eine Nachbarin übersetzte den Brief der Schule und kam mit. Ich trug einen roten Pullover, den ich sehr mochte. Jahrzehnte später fand ich eine Tonaufnahme. Darauf erzähle ich, dass ich Angst vor dem großen Schulhof hatte. Heute erinnere ich mich eher an meine neugierige Stimmung.'",
+        "LINA, EINGESCHULT 2015: 'Bei uns begann der Tag mit einem Theaterstück in der Aula. Danach zeigte uns die Klassenlehrerin das digitale Whiteboard. Mein Vater machte viele Fotos, obwohl ich das peinlich fand. Meine beste Erinnerung ist ein Namensspiel. Nach zehn Minuten kannte ich schon drei Kinder. Mit einem von ihnen bin ich heute noch befreundet.'",
+        "Die Jugendlichen stellten fest, dass Gegenstände in allen Gesprächen eine Rolle spielten: Schultüten, Kleidung, Hefte oder Fotos. Die Bedingungen der Schule hatten sich deutlich verändert. Das Gefühl, in eine unbekannte Gemeinschaft zu kommen, beschrieben jedoch fast alle Befragten ähnlich."
+      ],
+      culture: "A Schultüte filled with small gifts is a well-known first-school-day tradition in Germany and parts of Austria and Switzerland.",
+      questions: [
+        choice("quellenkritik", "Warum erwähnt die Redaktion Fotos und Familienerzählungen?", ["Sie können persönliche Erinnerungen beeinflussen.", "Fotos gelten als verlässlicher als die Interviews.", "Alle Befragten erlebten denselben ersten Schultag."], "Sie können persönliche Erinnerungen beeinflussen.", "Fotos und Erzählungen der Familie beeinflussen manchmal", "Der Hinweis macht die Grenzen von Erinnerung als Quelle sichtbar."),
+        choice("vergleich", "Welche Quelle verändert Mehmets heutiges Bild von seinem damaligen Gefühl?", ["Ein übersetzter Schulbrief", "Eine alte Tonaufnahme", "Ein altes Klassenfoto"], "Eine alte Tonaufnahme", "Darauf erzähle ich, dass ich Angst ... hatte.", "Die Aufnahme zeigt einen Unterschied zwischen damaliger Aussage und heutiger Erinnerung."),
+        choice("kontinuität", "Welche Erfahrung verbindet die verschiedenen Generationen?", ["Unterricht in einer jahrgangsgemischten Klasse", "Der Eintritt in eine unbekannte Gemeinschaft", "Begleitung durch Eltern oder andere Erwachsene"], "Der Eintritt in eine unbekannte Gemeinschaft", "Das Gefühl, in eine unbekannte Gemeinschaft zu kommen", "Technik und Schulorganisation ändern sich, dieses Gefühl bleibt ähnlich."),
+        choice("detail", "Woran erinnert sich Helga ohne Hilfe eines Fotos?", ["An den Regen vor der Schule", "An die Farbe des Klassenraums", "An den Geruch neuer Hefte"], "An den Geruch neuer Hefte", "Ich erinnere mich vor allem an den Geruch der neuen Hefte.", "Den Regen kennt sie dagegen aus einem Foto."),
+        text("synthese", "Nenne zwei verschiedene Gegenstände, die in den Erinnerungen wichtig sind. Antworte auf Deutsch.", ["Schultüten und Kleidung", "Schultüten und Pullover", "Schultüten und Hefte", "Schultüten und Fotos", "Kleidung und Schultüten", "Kleidung und Hefte", "Kleidung und Fotos", "Pullover und Schultüten", "Pullover und Hefte", "Pullover und Fotos", "Hefte und Schultüten", "Hefte und Kleidung", "Hefte und Pullover", "Hefte und Fotos", "Fotos und Schultüten", "Fotos und Kleidung", "Fotos und Pullover", "Fotos und Hefte"], [["schultüt", "schultuet", "heft"], ["kleidung", "pullover", "foto"]], "Schultüten, Kleidung, Hefte oder Fotos", "Der Schluss nennt mehrere Gegenstände. Zwei verschiedene Beispiele erfüllen die Aufgabe.")
+      ]
+    }),
+    reading({
+      id: "b2-between-languages", level: "B2", mode: "extensive", title: "Die Lücke zwischen zwei Wörtern", genre: "Personal essay", domain: "Language, memory, and identity", region: "Germany and Turkey", intro: "Lies den Essay als persönliche Reflexion. Untersuche, wie konkrete Sprachsituationen die Haltung der Erzählerin verändern.",
+      glossary: [["die Familiensprache", "heritage or family language"], ["verkümmern", "wither or weaken"], ["die Sprachlosigkeit", "inability to express oneself"], ["die Nuance", "nuance"], ["sich aneignen", "make something one's own"], ["verlegen", "embarrassed or awkward"], ["der Umweg", "detour"]],
+      sections: [
+        "Als Kind hielt ich Sprachen für Räume mit festen Türen. Hinter der einen Tür lag Deutsch: Schule, Bücher, die Stimmen meiner Freundinnen. Hinter der anderen lag Türkisch: die Küche meiner Eltern, Telefongespräche mit Verwandten und die Sommer bei meiner Großmutter. Ich wechselte schnell zwischen beiden Räumen und glaubte lange, darin besonders geschickt zu sein.",
+        "Erst als meine Großmutter krank wurde, bemerkte ich die Lücken. Am Telefon wollte ich sie nach ihren Schmerzen fragen. Mir fehlten Wörter für dumpf, stechend und geschwollen. Ich umschrieb alles mit einfachen Sätzen, während sie geduldig wartete. Später suchte ich die Begriffe im Wörterbuch. Dort standen korrekte Übersetzungen, doch ich wusste noch immer nicht, welche Form eine Ärztin verwenden würde und welche meine Großmutter als vertraut empfand.",
+        "Diese Sprachlosigkeit überraschte mich. Im Deutschen konnte ich komplizierte Aufsätze schreiben. Im Türkischen konnte ich Witze verstehen, Familiengeschichten erzählen und mich beim Kochen mit meiner Familie verständigen. Trotzdem reichte meine Familiensprache in diesem Moment nicht für das Gespräch, das ich führen wollte. Ich schämte mich zunächst, als hätte ich etwas Wertvolles aus Nachlässigkeit verloren.",
+        "Meine Mutter widersprach dieser Deutung. Sie erinnerte mich daran, dass auch sie im Deutschen manchmal nach einem passenden Wort sucht. Eine Sprache sei kein Besitz, sagte sie, den man vollständig habe oder verliere. Sie bestehe aus Beziehungen, Gewohnheiten und Situationen. Manche Bereiche würden täglich benutzt, andere müssten neu erschlossen werden.",
+        "Ich begann, Gespräche meiner Großmutter mit ihrer Ärztin mitzuhören, sofern beide einverstanden waren. Ich schrieb Ausdrücke auf und fragte nach Unterschieden. Manche Wörter klangen in der Praxis sachlich, zu Hause jedoch kalt. Meine Großmutter bevorzugte Vergleiche: Der Schmerz ziehe wie ein enger Faden durch das Bein. Solche Bilder standen in keinem meiner Wörterbücher, waren aber präzise genug, damit die Ärztin nachfragen konnte.",
+        "Mit der Zeit veränderte sich mein Ziel. Früher wollte ich in beiden Sprachen fehlerfrei wirken. Heute möchte ich handlungsfähig bleiben. Dazu gehört, eine Lücke offen zu benennen, um Erklärung zu bitten und einen Gedanken über einen Umweg auszudrücken. Meine beiden Sprachen sind weiterhin unterschiedliche Räume. Zwischen ihnen befindet sich inzwischen kein Flur, den ich möglichst schnell überquere. Dort steht ein Arbeitstisch."
+      ],
+      culture: "Heritage-language speakers can have different strengths across family, school, work, and health contexts. Skill in one area does not automatically predict skill in another.",
+      questions: [
+        choice("auslöser", "Welche Erfahrung macht der Erzählerin ihre sprachlichen Lücken erstmals deutlich?", ["Ein Gespräch über die Schmerzen ihrer Großmutter", "Die Wortsuche ihrer Mutter im Deutschen", "Die Suche nach medizinischen Wörtern im Wörterbuch"], "Ein Gespräch über die Schmerzen ihrer Großmutter", "wollte ich sie nach ihren Schmerzen fragen. Mir fehlten Wörter", "Die konkrete gesundheitliche Situation verlangt einen bisher wenig genutzten Wortschatz."),
+        choice("position", "Welcher Vorstellung widerspricht die Mutter?", ["Eine Familiensprache müsse vor allem im Unterricht systematisch gelernt werden.", "Eine Sprache sei ein vollständiger Besitz, den man haben oder verlieren könne.", "Zwischen zwei Sprachen müsse man sich langfristig für eine einzige entscheiden."], "Eine Sprache sei ein vollständiger Besitz, den man haben oder verlieren könne.", "kein Besitz ... den man vollständig habe oder verliere", "Die Mutter beschreibt Sprachfähigkeit als situationsabhängig und veränderlich."),
+        choice("beispiel", "Was lernt die Erzählerin aus den bildhaften Beschreibungen ihrer Großmutter?", ["Medizinische Präzision brauche vor allem korrekte Fachbegriffe.", "Vertraute Vergleiche seien außerhalb der Familie unverständlich.", "Präzision kann auch durch vertraute Vergleiche entstehen."], "Präzision kann auch durch vertraute Vergleiche entstehen.", "Solche Bilder ... waren aber präzise genug", "Das Beispiel erweitert ihre Vorstellung von sprachlicher Genauigkeit."),
+        choice("entwicklung", "Wie verändert sich das Ziel der Erzählerin?", ["Sie strebt Handlungsfähigkeit statt eines fehlerfreien Eindrucks an.", "Sie überlässt medizinische Gespräche künftig vollständig ihrer Mutter.", "Sie will künftig in beiden Sprachen vollkommen fehlerfrei wirken."], "Sie strebt Handlungsfähigkeit statt eines fehlerfreien Eindrucks an.", "Früher wollte ich ... fehlerfrei wirken. Heute möchte ich handlungsfähig bleiben.", "Der letzte Absatz formuliert den Wandel ausdrücklich."),
+        choice("metapher", "Was bedeutet der Arbeitstisch zwischen den Räumen am ehesten?", ["Der Übergang zwischen Sprachen bleibt für sie ein möglichst kurzer Weg.", "Die beiden Sprachen verschmelzen für sie zu einem einzigen gemeinsamen Raum.", "Der Übergang zwischen Sprachen ist ein Ort bewusster Arbeit geworden."], "Der Übergang zwischen Sprachen ist ein Ort bewusster Arbeit geworden.", "Dort steht ein Arbeitstisch.", "Die Schlussmetapher steht für aktives Lernen, Vergleichen und Vermitteln."),
+        text("synthese", "Nenne zwei Strategien, mit denen die Erzählerin heute eine sprachliche Lücke bewältigt.", ["Sie benennt die Lücke und bittet um Erklärung.", "Sie benennt die Lücke und umschreibt den Gedanken.", "Sie bittet um Erklärung und umschreibt den Gedanken.", "Lücken offen benennen und um Erklärung bitten", "Lücken offen benennen und Gedanken umschreiben", "um Erklärung bitten und Gedanken umschreiben"], [["lücke", "luecke", "benenn", "erklär", "erklaer", "umschreib", "umweg"], ["lücke", "luecke", "benenn", "erklär", "erklaer", "umschreib", "umweg"]], "eine Lücke offen zu benennen, um Erklärung zu bitten und einen Gedanken über einen Umweg auszudrücken", "Der Schluss nennt mehrere Strategien für aktive Verständigung.")
+      ]
+    }),
+    reading({
+      id: "b2-last-train-north", level: "B2", mode: "checkpoint", title: "Der letzte Zug nach Norden", genre: "Literary fiction", domain: "Choice, uncertainty, and family", region: "Germany", intro: "Lies den Ausschnitt genau. Erschließe Motive und Beziehungen aus Handlungen, Gegenständen und unausgesprochenen Entscheidungen.",
+      glossary: [["die Anzeigetafel", "departure board"], ["der Bahnsteig", "platform"], ["zerknittert", "creased"], ["zögern", "hesitate"], ["die Abfahrt", "departure"], ["unausgesprochen", "unspoken"], ["aufbewahren", "keep or preserve"]],
+      sections: [
+        "Auf der Anzeigetafel stand hinter dem Zug nach Kiel eine Verspätung von zwölf Minuten. Nora war dankbar dafür. Zwölf Minuten waren lang genug, um noch zu gehen, und kurz genug, um keine neue Entscheidung treffen zu müssen. Sie stellte den Koffer zwischen ihre Füße und zog den Reißverschluss der Jacke höher.",
+        "In ihrer Tasche lag der Brief ihres Vaters, viermal gefaltet. Er hatte nur drei Sätze geschrieben: Die Werkstatt werde Ende des Monats geschlossen. Er könne die Maschinen allein nicht verkaufen. Falls Nora ohnehin einmal nach Norden komme, solle sie vorher anrufen. Der Ton war so sachlich, dass jede Bitte darin umso deutlicher wurde.",
+        "Seit fünf Jahren hatte Nora behauptet, die Entfernung zwischen Freiburg und der Küste sei das eigentliche Problem. Zuerst gab es Prüfungen, später befristete Stellen und dann die Arbeit im Architekturbüro. Für Weihnachten fand sie günstige Flüge in andere Länder, für Kiel jedoch selten eine passende Verbindung. Ihr Bruder Jan hatte aufgehört, diese Logik zu kommentieren.",
+        "Nun hatte das Büro ihr eine feste Stelle angeboten. Am Montag sollte sie unterschreiben. Die neue Aufgabe war anspruchsvoll, das Gehalt gut. Gleichzeitig hatte sie in den vergangenen Wochen immer wieder den Geruch von Holzstaub in Erinnerung gehabt, der früher in der Kleidung ihres Vaters hing. Als Kind durfte sie Schrauben sortieren und mit einem stumpfen Bleistift Maße auf Bretter schreiben.",
+        "Das Telefon vibrierte. Jan: 'Wenn du wirklich kommst, holt Papa dich bestimmt ab. Er fragt seit einer Stunde, ob der Zug pünktlich ist. Ich habe nichts verraten.' Nora tippte: 'Ich bin noch nicht eingestiegen.' Sie löschte den Satz. Dann schickte sie: 'Ankunft 23:48.'",
+        "Eine Durchsage kündigte den Zug an. Menschen hoben Taschen und Becher auf. Nora blieb einen Moment sitzen. Auf der gegenüberliegenden Seite des Bahnsteigs fuhr eine Straßenbahn Richtung Innenstadt ein. Ihre Türen öffneten sich gleichzeitig mit denen des Zuges.",
+        "Nora nahm den Koffer. Beim Aufstehen glitt der Brief unbemerkt aus ihrer Jackentasche auf die Bank. Sie ging bis zur gelben Linie, während der Zug langsamer wurde. Erst als die anderen Reisenden bereits einstiegen, griff sie in die Tasche, drehte sich um und lief drei Schritte zur Bank zurück. Dort lag der zerknitterte Brief. Sie strich ihn glatt, steckte ihn sorgfältig zwischen die Seiten ihres Notizbuchs und stieg ein."
+      ],
+      culture: "This fictional text uses rail travel and an inherited craft business to explore family obligation and professional independence.",
+      questions: [
+        choice("erzähltechnik", "Warum empfindet Nora die Verspätung als hilfreich?", ["Sie verschiebt den Moment einer schwierigen Entscheidung.", "Sie kann die Werkstatt dadurch noch vor Monatsende erreichen.", "Sie muss vor der Abfahrt nicht mehr mit Jan über den Vater sprechen."], "Sie verschiebt den Moment einer schwierigen Entscheidung.", "lang genug, um noch zu gehen, und kurz genug, um keine neue Entscheidung treffen zu müssen", "Die Verzögerung gibt ihr Zeit, ohne die innere Frage zu lösen."),
+        choice("subtext", "Welche Bitte liest Nora zwischen den sachlichen Sätzen ihres Vaters?", ["Sie soll die Werkstatt später selbst übernehmen und weiterführen.", "Sie soll Jan beim späteren Verkauf der Maschinen entlasten.", "Sie soll kommen und bei der Auflösung der Werkstatt helfen."], "Sie soll kommen und bei der Auflösung der Werkstatt helfen.", "Er könne die Maschinen allein nicht verkaufen.", "Der Vater formuliert indirekt, doch sein Bedarf ist erkennbar."),
+        choice("selbsttäuschung", "Was zeigt der Vergleich mit ihren Weihnachtsreisen?", ["Ihre Auslandsreisen waren beruflich nötig, die Kieler Fahrten nicht.", "Die Entfernung war nur ein Teil ihrer Gründe, Kiel zu meiden.", "Kiel lag weiter entfernt als ihre früheren Ziele im Ausland."], "Die Entfernung war nur ein Teil ihrer Gründe, Kiel zu meiden.", "Für Weihnachten fand sie günstige Flüge ... für Kiel jedoch selten", "Ihre Reiseentscheidungen widersprechen der lange wiederholten Erklärung."),
+        choice("entscheidung", "Woran erkennt man vor der Abfahrt, dass Nora sich für die Reise entscheidet?", ["Sie sagt die Unterschrift im Büro am Montag ab.", "Sie bittet ihren Vater um eine Abholung in Kiel.", "Sie schickt Jan die konkrete Ankunftszeit des Zuges."], "Sie schickt Jan die konkrete Ankunftszeit des Zuges.", "Dann schickte sie: 'Ankunft 23:48.'", "Die Nachricht macht aus der Möglichkeit einen konkreten Reiseplan."),
+        choice("symbolik", "Welche Bedeutung hat es, dass Nora den Brief glattstreicht und im Notizbuch aufbewahrt?", ["Sie behandelt die Verbindung zur Familie nun bewusst und sorgfältig.", "Sie trennt die Werkstatt bewusst von ihrer beruflichen Zukunft.", "Sie bewahrt den Brief nur wegen der später benötigten Verkaufsdaten auf."], "Sie behandelt die Verbindung zur Familie nun bewusst und sorgfältig.", "strich ihn glatt, steckte ihn sorgfältig zwischen die Seiten", "Die sorgfältige Handlung steht im Gegensatz zum zuvor zerknitterten Zustand."),
+        text("deutung", "Welche zwei Lebensbereiche stehen für Nora in Spannung? Antworte auf Deutsch.", ["Beruf und Familie", "ihre berufliche Zukunft und die Verantwortung für ihre Familie", "Karriere und familiäre Verpflichtung"], [["beruf", "arbeit", "karriere", "stelle"], ["famil", "vater", "werkstatt"]], "feste Stelle / Brief ihres Vaters / Werkstatt", "Die Reiseentscheidung verbindet ihr berufliches Angebot mit der Bitte ihres Vaters.")
+      ]
+    }),
+    reading({
+      id: "b2-returning-objects", level: "B2", mode: "capstone", title: "Wem gehört die Erinnerung?", genre: "Museum debate dossier", domain: "Culture, history, and ethics", region: "Germany and Namibia", intro: "Vergleiche Herkunft, Rechtslage, institutionelle Verantwortung und unterschiedliche Vorstellungen von Zugang zu einem historischen Objekt.",
+      glossary: [["die Provenienz", "documented history and origin of an object"], ["die Rückgabe", "return"], ["die Erwerbsumstände", "circumstances of acquisition"], ["die Leihgabe", "loan"], ["die Nachfahren", "descendants"], ["die Deutungshoheit", "authority to interpret"], ["digitalisieren", "digitize"]],
+      sections: [
+        "AUSGANGSPUNKT",
+        "Das Stadtmuseum Linden besitzt seit 1908 eine geschnitzte Holztafel aus dem Norden des heutigen Namibia. Im Eingangsbuch steht lediglich: 'Geschenk des Kaufmanns Wilhelm Ahrens, erworben auf einer Reise.' Ein Kaufvertrag oder eine genauere Ortsangabe fehlt. Auf der Rückseite der Tafel befindet sich ein Zeichen, das Forschende vorläufig einer bestimmten Gemeinschaft zuordnen. Diese Zuordnung ist noch nicht abschließend bestätigt.",
+        "STELLUNGNAHME DER MUSEUMSDIREKTORIN",
+        "Direktorin Eva Holm erklärt, das Museum habe die Tafel jahrzehntelang als Beispiel handwerklicher Technik gezeigt. Die frühere Beschriftung nannte weder die koloniale Situation noch die ungeklärten Erwerbsumstände. Diese Darstellung sei unzureichend gewesen. Das Museum finanziere nun Provenienzforschung und habe Kontakt zu Fachleuten und Kulturinstitutionen in Namibia aufgenommen. Eine Rückgabe dürfe weder verzögert noch ohne Gespräch mit den betroffenen Gemeinschaften als symbolische Geste inszeniert werden.",
+        "STIMME AUS DER HERKUNFTSREGION",
+        "Die Historikerin Selma Nandjato arbeitet mit mündlichen Überlieferungen und lokalen Archiven. Fotos der Tafel erinnerten mehrere Älteste an Objekte, die bei Übergangsritualen verwendet wurden. Für eine sichere Zuordnung brauche man jedoch Untersuchungen des Holzes, bessere Aufnahmen und Gespräche in verschiedenen Orten. Nandjato kritisiert, dass europäische Institutionen häufig zuerst über Eigentum diskutierten. Ebenso wichtig sei die Frage, wer das Objekt sehen, berühren, erklären oder in Zeremonien verwenden dürfe.",
+        "POSITION EINES FÖRDERVEREINS",
+        "Der Förderverein des Museums warnt vor einer vorschnellen Entscheidung. Die Tafel sei seit mehr als einem Jahrhundert Teil der lokalen Sammlungsgeschichte. Eine dauerhafte Ausstellung könne zeigen, wie koloniale Netzwerke auch eine kleine deutsche Stadt geprägt hätten. Der Verein schlägt eine langfristige Leihgabe nach Namibia und eine spätere gemeinsame Ausstellung vor. Kritiker wenden ein, eine Leihgabe setze voraus, dass das deutsche Museum sich weiterhin als Eigentümer betrachte.",
+        "RECHERCHEERGEBNISSE",
+        "Inzwischen wurde ein Brief von Ahrens aus dem Jahr 1907 gefunden. Darin schreibt er, ein Kolonialbeamter habe ihm 'mehrere Stücke aus einem verlassenen Gehöft überlassen'. Der Ort wird mit einem damaligen deutschen Namen bezeichnet, der heute mehrere mögliche Siedlungen meinen kann. Der Brief beweist keinen gewaltsamen Entzug. Er widerspricht jedoch der alten Museumslegende, Ahrens habe die Tafel direkt von einem Schnitzer gekauft.",
+        "VORSCHLAG FÜR DAS WEITERE VERFAHREN",
+        "Eine gemeinsame Arbeitsgruppe empfiehlt, zunächst alle Dokumente und hochauflösenden Aufnahmen in einem zweisprachigen Online-Archiv zu veröffentlichen. Vertreterinnen möglicher Herkunftsgemeinschaften sollen die Tafel in Linden untersuchen können. Reisekosten und Übersetzung trägt das Museum. Innerhalb eines Jahres soll die Arbeitsgruppe Optionen vorlegen: Rückgabe, gemeinsames Eigentum, eine zeitlich begrenzte Ausstellung in Linden oder eine andere Vereinbarung. Bis dahin bleibt die Tafel im Depot. Eine neue Präsentation darf erst entstehen, wenn Herkunft und Perspektiven der beteiligten Gemeinschaften sichtbar gemacht werden."
+      ],
+      culture: "Provenance research examines how museum objects changed hands. Return processes can involve legal ownership, historical injustice, cultural authority, conservation, and access.",
+      questions: [
+        choice("quellenlage", "Welche zentrale Information fehlt im ursprünglichen Eingangsbuch?", ["Der Zeitpunkt der ersten öffentlichen Präsentation", "Die genauen Erwerbsumstände und der Herkunftsort", "Die Bedeutung des Zeichens auf der Rückseite"], "Die genauen Erwerbsumstände und der Herkunftsort", "Ein Kaufvertrag oder eine genauere Ortsangabe fehlt.", "Der knappe Eintrag dokumentiert weder den Vorgang noch den präzisen Ort."),
+        choice("priorität", "Welche zusätzliche Frage stellt Selma Nandjato neben der Eigentumsfrage?", ["Wer Zugang hat und das Objekt deuten oder verwenden darf", "Wer die Untersuchung des Holzes finanzieren und leiten soll", "Wer nach einer Rückgabe die digitalen Kopien verwalten soll"], "Wer Zugang hat und das Objekt deuten oder verwenden darf", "wer das Objekt sehen, berühren, erklären oder in Zeremonien verwenden dürfe", "Sie erweitert die Debatte um kulturelle Praxis und Deutungshoheit."),
+        choice("einwand", "Warum wird der Vorschlag einer Leihgabe kritisiert?", ["Die gemeinsame Ausstellung könnte sich dadurch lange verzögern.", "Der Zugang könnte dadurch auf kurze Besuche beschränkt bleiben.", "Er kann den Eigentumsanspruch des deutschen Museums fortschreiben."], "Er kann den Eigentumsanspruch des deutschen Museums fortschreiben.", "eine Leihgabe setze voraus, dass das deutsche Museum sich weiterhin als Eigentümer betrachte", "Der Begriff Leihgabe enthält bereits eine Annahme über Eigentum."),
+        choice("beweiswert", "Was verändert der gefundene Brief?", ["Er beweist eindeutig einen gewaltsamen Entzug der Tafel.", "Er widerlegt die Geschichte vom direkten Kauf beim Schnitzer.", "Er bestätigt die Herkunft aus einer bestimmten Gemeinschaft."], "Er widerlegt die Geschichte vom direkten Kauf beim Schnitzer.", "widerspricht ... der alten Museumslegende", "Der Brief korrigiert eine frühere Darstellung, lässt andere Fragen jedoch offen."),
+        choice("verfahren", "Warum soll die Tafel während der Untersuchung im Depot bleiben?", ["Das Museum will zuerst die konservatorische Sicherheit einer Präsentation bestätigen.", "Die neue Deutung soll Forschung und Perspektiven der Herkunftsgemeinschaften einbeziehen.", "Die Arbeitsgruppe wartet auf die endgültige Entscheidung des Fördervereins zum Leihvertrag."], "Die neue Deutung soll Forschung und Perspektiven der Herkunftsgemeinschaften einbeziehen.", "Eine neue Präsentation darf erst entstehen, wenn Herkunft und Perspektiven ... sichtbar gemacht werden.", "Die Pause verhindert, dass eine weitere unvollständige Erzählung präsentiert wird."),
+        text("synthese", "Nenne drei konkrete Schutzmaßnahmen des vorgeschlagenen Verfahrens. Antworte auf Deutsch.", ["zweisprachiges Archiv, Untersuchung durch Herkunftsgemeinschaften und bezahlte Übersetzung", "zweisprachiges Archiv, Untersuchung durch Herkunftsgemeinschaften und gemeinsame Arbeitsgruppe", "Dokumente veröffentlichen, Reisekosten übernehmen und mehrere Optionen prüfen", "Untersuchung durch Herkunftsgemeinschaften, bezahlte Übersetzung und gemeinsame Arbeitsgruppe", "Online-Archiv, Zugang zur Tafel und gemeinsame Arbeitsgruppe"], [["archiv", "dokument", "aufnahme", "untersuch", "zugang", "gemeinschaft", "reise", "übersetz", "uebersetz", "arbeitsgruppe", "option"], ["archiv", "dokument", "aufnahme", "untersuch", "zugang", "gemeinschaft", "reise", "übersetz", "uebersetz", "arbeitsgruppe", "option"], ["archiv", "dokument", "aufnahme", "untersuch", "zugang", "gemeinschaft", "reise", "übersetz", "uebersetz", "arbeitsgruppe", "option"]], "zweisprachigen Online-Archiv / untersuchen können / Reisekosten und Übersetzung trägt das Museum / Arbeitsgruppe", "Der Vorschlag verbindet Transparenz, Zugang, finanzielle Unterstützung und gemeinsame Entscheidung.")
+      ]
+    }),
   ];
 
   window.SATZWERK_READINGS.forEach((item, index) => {

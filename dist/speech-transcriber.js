@@ -1,8 +1,10 @@
 (function () {
   "use strict";
 
-  const WORKER_VERSION = "speech-1";
+  const WORKER_VERSION = "speech-2";
   const TARGET_SAMPLE_RATE = 16000;
+  const DEFAULT_MAX_DURATION_MS = 60000;
+  const MAX_RECORDING_DURATION_MS = 90000;
   const MIME_TYPES = [
     "audio/webm;codecs=opus",
     "audio/webm",
@@ -80,6 +82,9 @@
       this.stream = null;
       this.chunks = [];
       this.stopTimer = 0;
+      this.tickTimer = 0;
+      this.recordingStartedAt = 0;
+      this.recordingDurationMs = 0;
       this.recordingToken = 0;
       this.playbackUrl = "";
       this.transcribing = false;
@@ -100,15 +105,20 @@
     ensureWorker() {
       if (this.worker) return this.worker;
       const workerUrl = new URL(`./speech-transcriber-worker.js?v=${WORKER_VERSION}`, document.baseURI);
-      this.worker = new Worker(workerUrl, { type: "module", name: "satzwerk-german-transcriber" });
-      this.worker.addEventListener("message", event => this.handleWorkerMessage(event.data || {}));
-      this.worker.addEventListener("error", event => {
+      const worker = new Worker(workerUrl, { type: "module", name: "satzwerk-german-transcriber" });
+      this.worker = worker;
+      worker.addEventListener("message", event => this.handleWorkerMessage(event.data || {}));
+      worker.addEventListener("error", event => {
         const message = event.message || "Local transcription could not start.";
+        try { worker.terminate(); } catch {}
+        if (this.worker === worker) this.worker = null;
+        this.ready = false;
+        this.activeRequestId = 0;
         this.rejectPreparation(new Error(message));
         this.transcribing = false;
         this.emit("onError", message);
       });
-      return this.worker;
+      return worker;
     }
 
     handleWorkerMessage(message) {
@@ -165,9 +175,10 @@
       return this.preparePromise;
     }
 
-    async start(maxDurationMs = 15000) {
+    async start(maxDurationMs = DEFAULT_MAX_DURATION_MS) {
       if (!this.ready) throw new Error("Finish the local transcription setup before recording.");
       if (this.recorder || this.transcribing || this.opening) return false;
+      const durationMs = Math.max(1000, Math.min(Number(maxDurationMs) || DEFAULT_MAX_DURATION_MS, MAX_RECORDING_DURATION_MS));
       this.opening = true;
       const token = ++this.recordingToken;
       let stream;
@@ -212,8 +223,17 @@
         this.chunks = [];
         throw error;
       }
-      this.stopTimer = window.setTimeout(() => this.stop(), maxDurationMs);
-      this.emit("onRecording", maxDurationMs);
+      this.recordingStartedAt = Date.now();
+      this.recordingDurationMs = durationMs;
+      this.stopTimer = window.setTimeout(() => this.stop(), durationMs);
+      this.tickTimer = window.setInterval(() => {
+        const elapsedMs = Date.now() - this.recordingStartedAt;
+        const remainingMs = Math.max(0, durationMs - elapsedMs);
+        this.emit("onRecordingTick", remainingMs, elapsedMs, durationMs);
+        if (!remainingMs) window.clearInterval(this.tickTimer);
+      }, 1000);
+      this.emit("onRecording", durationMs);
+      this.emit("onRecordingTick", durationMs, 0, durationMs);
       return true;
     }
 
@@ -221,6 +241,8 @@
       if (!this.recorder || this.recorder.state === "inactive") return false;
       window.clearTimeout(this.stopTimer);
       this.stopTimer = 0;
+      window.clearInterval(this.tickTimer);
+      this.tickTimer = 0;
       try { this.recorder.stop(); } catch {
         this.cleanupRecorder();
         this.emit("onError", "The recording could not be finalized. Record again or type your transcript.");
@@ -232,6 +254,10 @@
     cleanupRecorder() {
       window.clearTimeout(this.stopTimer);
       this.stopTimer = 0;
+      window.clearInterval(this.tickTimer);
+      this.tickTimer = 0;
+      this.recordingStartedAt = 0;
+      this.recordingDurationMs = 0;
       stopTracks(this.stream);
       this.stream = null;
       this.recorder = null;
@@ -294,7 +320,9 @@
         loading: this.loading,
         opening: this.opening,
         recording: Boolean(this.recorder && this.recorder.state !== "inactive"),
-        transcribing: this.transcribing
+        transcribing: this.transcribing,
+        maxDurationMs: this.recordingDurationMs,
+        elapsedMs: this.recordingStartedAt ? Date.now() - this.recordingStartedAt : 0
       };
     }
   }
@@ -302,6 +330,7 @@
   window.SatzwerkLocalSpeech = Object.freeze({
     LocalGermanTranscriber,
     supported,
-    targetSampleRate: TARGET_SAMPLE_RATE
+    targetSampleRate: TARGET_SAMPLE_RATE,
+    maxRecordingDurationMs: MAX_RECORDING_DURATION_MS
   });
 })();
